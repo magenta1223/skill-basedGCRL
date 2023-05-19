@@ -1,0 +1,26 @@
+save_path : "./weights"
+log_path : "./log.txt"
+save_ckpt : 20
+early_stop_rounds : 100
+# mode
+n_rollout_steps : 10
+workers : 14
+# data
+dataset_size : -1
+val_data_size : 5000
+batch_size : 1024
+lr : 1e-3
+init_grad_clip : 5.0
+init_grad_clip_step : 0
+schedulerClass : LVD.utils.Scheduler_Helper
+scheduler_params : 
+  mode: 'min'        
+  factor: 0.2
+  patience: 6
+  verbose: True
+  threshold: 1e-5
+  threshold_mode: 'abs'
+  # cooldown=6, 
+  min_lr: 1e-12
+
+

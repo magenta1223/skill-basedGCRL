@@ -1,0 +1,23 @@
+defaults:
+  - common
+  - model: spirl
+  - env : kitchen
+
+# 'a' 값을 오버라이드
+dataset_cls : "LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset"
+structure : sc
+
+# override
+model:
+  prior:
+    in_feature : 30 # env.state_dim
+
+  skill_encoder:
+    in_feature : 39 #${env.state_dim + env.action_dim} 
+
+  skill_decoder:
+    in_feature : 40 
+    out_dim : 9
+
+  high_policy:
+    in_feature : 60

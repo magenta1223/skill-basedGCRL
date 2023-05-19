@@ -1,0 +1,18 @@
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at ./weights: Error loading './weights': invalid dotstring.
+Relative imports are not supported.
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at ./log.txt: Error loading './log.txt': invalid dotstring.
+Relative imports are not supported.
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 20: 'int' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 100: 'int' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 10: 'int' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 5000: 'int' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 1024: 'int' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 0.001: 'float' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 5.0: 'float' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at 0: 'int' object has no attribute 'split'
+[2023-05-19 17:05:26,856][hydra.utils][ERROR] - Error getting class at {'mode': 'min', 'factor': 0.2, 'patience': 6, 'verbose': True, 'threshold': 1e-05, 'threshold_mode': 'abs', 'min_lr': 1e-12}: Key 'split' is not in struct
+    full_key: scheduler_params.split
+    object_type=dict
+[2023-05-19 17:05:26,857][hydra.utils][ERROR] - Error getting class at {'prior': {'in_feature': 30}, 'skill_encoder': {'in_feature': 39}, 'skill_decoder': {'in_feature': 40, 'out_dim': 9}, 'high_policy': {'in_feature': 60}}: Key 'split' is not in struct
+    full_key: model.split
+    object_type=dict
