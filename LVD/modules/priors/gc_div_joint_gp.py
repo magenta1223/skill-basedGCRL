@@ -4,7 +4,7 @@ import copy
 import math
 
 from ...modules.base import BaseModule
-from ...utils.utils import *
+from ...utils import *
 from ...contrib.momentum_encode import update_moving_average
 
 class GoalConditioned_GoalPrompt_Prior(BaseModule):

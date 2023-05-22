@@ -70,14 +70,11 @@ class StateConditioned_Model(BaseModel):
         self.loss_dict['metric'] = self.loss_dict['Prior_S']
         
 
-    def forward(self, states, actions, G):
-        inputs = dict(
-            states = states,
-            G = G
-        )
+    def forward(self, batch):
+        states, actions, G = batch.states, batch.actions, batch.G
 
         # skill prior
-        self.outputs =  self.prior_policy(inputs)
+        self.outputs =  self.prior_policy(batch)
 
         # skill Encoder 
         enc_inputs = torch.cat( (actions, states.clone()[:,:-1]), dim = -1)
@@ -111,10 +108,10 @@ class StateConditioned_Model(BaseModel):
         self.outputs['skill'] = actions
 
 
-    def compute_loss(self, skill):
+    def compute_loss(self, batch):
         # ----------- SPiRL -------------- # 
 
-        recon = self.loss_fn('recon')(self.outputs['skill_hat'], skill)
+        recon = self.loss_fn('recon')(self.outputs['skill_hat'], batch.actions)
         reg = self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']).mean()
         
         if self.tanh:
@@ -160,9 +157,9 @@ class StateConditioned_Model(BaseModel):
 
         return loss
     
-    def __main_network__(self, states, actions, G, validate = False):
-        self(states, actions, G)
-        loss = self.compute_loss(actions)
+    def __main_network__(self, batch, validate = False):
+        self(batch)
+        loss = self.compute_loss(batch)
 
         if not validate:
             for _, optimizer in self.optimizers.items():
@@ -176,21 +173,21 @@ class StateConditioned_Model(BaseModel):
     def optimize(self, batch, e):
         # inputs & targets       
 
-        states, actions, G = batch.values()
-        states, actions, G = states.float().cuda(), actions.cuda(), G.cuda()
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(states, actions, G)
+        self.__main_network__(batch)
         self.get_metrics()
 
         return self.loss_dict
     
+
+    @torch.no_grad()
     def validate(self, batch, e):
         # inputs & targets       
 
-        states, actions, G = batch.values()
-        states, actions, G = states.float().cuda(), actions.cuda(), G.cuda()
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(states, actions, G, validate= True)
+        self.__main_network__(batch, validate= True)
         self.get_metrics()
 
         return self.loss_dict

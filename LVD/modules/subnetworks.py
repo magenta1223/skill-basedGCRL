@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from ..modules.base import SequentialBuilder, ContextPolicyMixin
-from ..utils.utils import *
+from ..utils import *
 import math
 from copy import deepcopy
 

@@ -58,14 +58,11 @@ class StateConditioned_Diversity_Model(BaseModel):
 
         # Losses
 
-    def forward(self, states, actions):
+    def forward(self, batch):
 
-        inputs = dict(
-            states = states,
-        )
-
+        states, actions = batch.states, batch.actions
         # skill prior
-        self.outputs =  self.skill_prior(inputs)
+        self.outputs =  self.skill_prior(batch)
 
         # skill Encoder 
         enc_inputs = torch.cat( (actions, states.clone()[:,:-1]), dim = -1)
@@ -133,9 +130,9 @@ class StateConditioned_Diversity_Model(BaseModel):
 
         return loss
     
-    def __main_network__(self, states, actions, validate = False):
-        self(states, actions)
-        loss = self.compute_loss(actions)
+    def __main_network__(self, batch, validate = False):
+        self(batch)
+        loss = self.compute_loss(batch)
 
         if not validate:
             for module_name, optimizer in self.optimizers.items():
@@ -150,22 +147,21 @@ class StateConditioned_Diversity_Model(BaseModel):
 
     def optimize(self, batch, e):
         # inputs & targets       
-        states, actions = batch.values()
-        states, actions = states.cuda(), actions.cuda()
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(states, actions)
+
+        self.__main_network__(batch)
 
         # with torch.no_grad():
         #     self.get_metrics()
 
         return self.loss_dict
     
+    @torch.no_grad()
     def validate(self, batch, e):
         # inputs & targets       
-        states, actions = batch.values()
-        states, actions = states.cuda(), actions.cuda()
-
-        self.__main_network__(states, actions, validate= True)
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
+        self.__main_network__(batch, validate= True)
 
         # with torch.no_grad():
         #     self.get_metrics()

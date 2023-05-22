@@ -8,7 +8,7 @@ from copy import deepcopy
 
 
 # from proposed.utils import get_dist
-from ..utils.utils import get_dist
+from ..utils import get_dist
 from typing import Dict
 
 

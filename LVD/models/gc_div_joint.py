@@ -112,56 +112,38 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
         self.c = 0
 
+    @torch.no_grad()
     def get_metrics(self):
         """
         Metrics
         """
         # ----------- Metrics ----------- #
-        with torch.no_grad():
-            # KL (post || invD by subgoal from f)
-            self.loss_dict['F_skill_GT'] = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean().item()
+        # KL (post || invD by subgoal from f)
+        self.loss_dict['F_skill_GT'] = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean().item()
+    
+        # KL (post || state-conditioned prior)
+        self.loss_dict['Prior_S']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior']).mean().item()
         
-            # KL (post || state-conditioned prior)
-            self.loss_dict['Prior_S']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior']).mean().item()
-            
-            # KL (post || goal-conditioned policy)
-            self.loss_dict['Prior_GC']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']).mean().item()
-            
-            # KL (invD || prior)
-            self.loss_dict['Prior_GC_S']  = self.loss_fn('reg')(self.outputs['invD'], self.outputs['prior']).mean().item()
-            
-            # dummy metric 
-            self.loss_dict['metric'] = self.loss_dict['Prior_GC']
-            
-            # subgoal by flat dynamics rollout
-            reconstructed_subgoal = self.inverse_dynamics_policy.state_decoder(self.outputs['subgoal_rollout'])
-            self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :]).item()
-            self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D']).item()
+        # KL (post || goal-conditioned policy)
+        self.loss_dict['Prior_GC']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']).mean().item()
+        
+        # KL (invD || prior)
+        self.loss_dict['Prior_GC_S']  = self.loss_fn('reg')(self.outputs['invD'], self.outputs['prior']).mean().item()
+        
+        # dummy metric 
+        self.loss_dict['metric'] = self.loss_dict['Prior_GC']
+        
+        # subgoal by flat dynamics rollout
+        reconstructed_subgoal = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
+        self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :]).item()
+        self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D']).item()
 
-            # state reconstruction 
-            self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
+        # state reconstruction 
+        self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
 
+    def forward(self, batch):
 
-            # if (self.step + 1) % self.render_period == 0 and not self.training:
-            #     num = (self.step + 1) // self.render_period
-            #     i = 0 
-
-            #     mp4_path = f"./imgs/{self.env_name}/video/video_{num}.mp4"
-            #     self.render_funcs['imaginary_trajectory'](self.env, self.loss_dict['states_novel'][0], self.loss_dict['actions_novel'][0], self.c, mp4_path)
-
-            
-            #     subgoal_GT = self.render_funcs['scene']( self.env, self.outputs['states'][i, -1])
-            #     subgoal_D = self.render_funcs['scene']( self.env,self.outputs['subgoal_recon_D'][i,])
-            #     subgoal_F =self.render_funcs['scene'](self.env,self.outputs['subgoal_recon_f'][i])
-            #     subgoal_F_skill = self.render_funcs['scene'](self.env,self.outputs['subgoal_recon_D_f'][i])
-
-
-            #     img = np.concatenate((subgoal_GT, subgoal_D, subgoal_F, subgoal_F_skill), axis= 1)
-            #     cv2.imwrite(f"./imgs/{self.env_name}/img/img_{num}.png", img)
-            #     print(mp4_path)
-
-
-    def forward(self, states, actions, G):
+        states, actions = batch.states, batch.actions
         
         N, T, _ = states.shape
         skill_states = states.clone()
@@ -196,14 +178,14 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
         
 
-        inputs = dict(
-            states = states,
-            G = G,
-            skill = z
-        )
+        # prior_policy_batch = edict(
+        #     states = states,
+        #     G = G,
+        #     skill = z
+        # )
 
         # skill prior
-        self.outputs =  self.prior_policy(inputs)
+        self.outputs =  self.prior_policy(batch)
         
         # skill prior & inverse dynamics's target
         self.outputs['z'] = z
@@ -215,10 +197,10 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.outputs['actions_hat'] = skill_hat
         self.outputs['actions'] = actions
 
-    def compute_loss(self, actions):
+    def compute_loss(self, batch):
 
         # ----------- Skill Recon & Regularization -------------- # 
-        recon = self.loss_fn('recon')(self.outputs['actions_hat'], actions)
+        recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions)
         reg = self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']).mean()
         
 
@@ -314,58 +296,33 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         return loss
     
     @torch.no_grad()
-    def rollout(self, inputs):
-        result = self.inverse_dynamics_policy(inputs, self.rollout_method)
+    def rollout(self, batch):
+        result = self.prior_policy.rollout(batch)
 
-        if self.rollout_method == "rollout":
-            # indexing outlier 
-            c = result['c']
-            states_rollout = result['states_rollout']
-            skill_sampled = result['skill_sampled']      
+        # indexing outlier 
+        c = result['c']
+        states_rollout = result['states_rollout']
+        skill_sampled = result['skill_sampled']      
 
+        N, T = states_rollout.shape[:2]
+        dec_inputs = self.dec_input(states_rollout, skill_sampled, states_rollout.shape[1])
 
-
-            N, T = states_rollout.shape[:2]
-            # if self.env_name == "maze":
-            #     visual_states = self.visual_encoder(states_rollout[:,:,4:].view(N * T, 1, 32, 32)).view(N, T, -1)
-            #     dec_inputs = self.dec_input(visual_states, skill_sampled, states_rollout.shape[1])
-            # else:
-            #     dec_inputs = self.dec_input(states_rollout, skill_sampled, states_rollout.shape[1])
-
-            dec_inputs = self.dec_input(states_rollout, skill_sampled, states_rollout.shape[1])
-
-
-            # dec_inputs = self.dec_input(states_rollout, skill_sampled, states_rollout.shape[1])
-
-            N, T, _ = dec_inputs.shape
-            actions_rollout = self.skill_decoder(dec_inputs.view(N * T, -1)).view(N, T, -1)
-            
-
-            states_novel = torch.cat((inputs['states'][:, :c+1], states_rollout), dim = 1)
-            actions_novel = torch.cat((inputs['actions'][:, :c], actions_rollout), dim = 1)
-            
-            self.loss_dict['states_novel'] = states_novel[inputs['rollout']].detach().cpu()
-            self.loss_dict['actions_novel'] = actions_novel[inputs['rollout']].detach().cpu()
-            self.c = c
-
-        else: # rollout2
-            states_rollout = result['states_rollout']
-            skills = result['skills']         
-            dec_inputs = torch.cat((states_rollout[:, :-1], skills), dim = -1)
-            N, T, _ = dec_inputs.shape
-            actions_rollout = self.skill_decoder(dec_inputs.view(N * T, -1)).view(N, T, -1)
-
-            states_novel = states_rollout
-            actions_novel = actions_rollout
-            self.loss_dict['states_novel'] = states_novel[inputs['rollout']].detach().cpu()
-            self.loss_dict['actions_novel'] = actions_novel[inputs['rollout']].detach().cpu()
+        N, T, _ = dec_inputs.shape
+        actions_rollout = self.skill_decoder(dec_inputs.view(N * T, -1)).view(N, T, -1)
         
 
+        states_novel = torch.cat((batch.states[:, :c+1], states_rollout), dim = 1)
+        actions_novel = torch.cat((batch.actions[:, :c], actions_rollout), dim = 1)
+        
+        self.loss_dict['states_novel'] = states_novel[batch.rollout].detach().cpu()
+        self.loss_dict['actions_novel'] = actions_novel[batch.rollout].detach().cpu()
+        self.c = c
 
-    def __main_network__(self, states, actions, G, rollout, validate = False):
+    
+    def __main_network__(self, batch, validate = False):
 
-        self(states, actions, G)
-        loss = self.compute_loss(actions)
+        self(batch)
+        loss = self.compute_loss(batch)
 
         if not validate:
             for module_name, optimizer in self.optimizers.items():
@@ -378,37 +335,24 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                 optimizer['optimizer'].step()
 
         # ------------------ Rollout  ------------------ #
-        rollout_inputs = dict(
-            states = states,
-            actions = actions,
-            rollout = rollout, 
-        )
-
-        with torch.no_grad():
-            self.eval()
-            self.rollout(rollout_inputs)
-        
+        self.eval()
+        self.rollout(batch)
+    
         if self.training:
             self.train()
 
     def optimize(self, batch, e):
-        # inputs & targets       
-        # self.step += 1
-        # print(self.step * 64)
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        states, actions, G, rollout = batch.values()
-        states, actions, G, rollout = states.float().cuda(), actions.cuda(), G.cuda(), rollout.cuda()
-        self.__main_network__(states, actions, G, rollout)
-        with torch.no_grad():
-            self.get_metrics()
-            self.inverse_dynamics_policy.soft_update()
+        self.__main_network__(batch)
+        self.get_metrics()
+        self.prior_policy.soft_update()
         return self.loss_dict
     
-
+    @torch.no_grad()
     def validate(self, batch, e):
-        states, actions, G, rollout = batch.values()
-        states, actions, G, rollout = states.float().cuda(), actions.cuda(), G.cuda(), rollout.cuda()
-        self.__main_network__(states, actions, G, rollout, validate= True)
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
+        self.__main_network__(batch, validate= True)
         self.get_metrics()
         self.step += 1
 

@@ -82,7 +82,8 @@ class Skimo_Model(BaseModel):
             }
         }
 
-        # Losses
+    
+    @torch.no_grad()
     def get_metrics(self):
         """
         Metrics
@@ -101,7 +102,9 @@ class Skimo_Model(BaseModel):
             self.loss_dict['metric'] = self.loss_dict['Prior_S']
             
 
-    def forward(self, states, actions, G):
+    def forward(self, batch):
+
+        states, actions = batch.states, batch.actions
 
         # skill Encoder 
         enc_inputs = torch.cat( (actions, states.clone()[:,:-1]), dim = -1)
@@ -129,14 +132,9 @@ class Skimo_Model(BaseModel):
         skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
         
 
-        inputs = dict(
-            states = states,
-            G = G,
-            skill = z
-        )
 
         # skill prior
-        self.outputs =  self.prior_policy(inputs)
+        self.outputs =  self.prior_policy(batch)
 
 
         # Outputs
@@ -153,10 +151,10 @@ class Skimo_Model(BaseModel):
         self.outputs['skill'] = actions
 
 
-    def compute_loss(self, skill):
+    def compute_loss(self, batch):
         # ----------- SPiRL -------------- # 
 
-        recon = self.loss_fn('recon')(self.outputs['skill_hat'], skill)
+        recon = self.loss_fn('recon')(self.outputs['skill_hat'], batch.actions)
         reg = self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']).mean()
         
         if self.tanh:
@@ -215,9 +213,9 @@ class Skimo_Model(BaseModel):
 
         return loss
     
-    def __main_network__(self, states, actions, G, validate = False):
-        self(states, actions, G)
-        loss = self.compute_loss(actions)
+    def __main_network__(self, batch, validate = False):
+        self(batch)
+        loss = self.compute_loss(batch)
 
         if not validate:
             for module_name, optimizer in self.optimizers.items():
@@ -232,25 +230,23 @@ class Skimo_Model(BaseModel):
 
     def optimize(self, batch, e):
         # inputs & targets       
-        states, actions, G = batch.values()
-        states, actions, G = states.cuda(), actions.cuda(), G.cuda()
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(states, actions, G)
 
-        with torch.no_grad():
-            self.get_metrics()
-            self.prior_policy.soft_update()
+        self.__main_network__(batch)
+
+        self.get_metrics()
+        self.prior_policy.soft_update()
 
         return self.loss_dict
     
+    @torch.no_grad()
     def validate(self, batch, e):
         # inputs & targets       
-        states, actions, G = batch.values()
-        states, actions, G = states.cuda(), actions.cuda(), G.cuda()
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(states, actions, G, validate= True)
 
-        with torch.no_grad():
-            self.get_metrics()
+        self.__main_network__(batch, validate= True)
+        self.get_metrics()
 
         return self.loss_dict
