@@ -7,8 +7,7 @@ from LVD.modules.base import *
 from LVD.models import *
 from LVD.runner import *
 from omegaconf import OmegaConf, open_dict
-import torch
-from LVD.rl.spirl import RL_Trainer
+from LVD.rl.rl_trainer import RL_Trainer
 
 DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 

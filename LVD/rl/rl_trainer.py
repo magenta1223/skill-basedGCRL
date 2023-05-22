@@ -17,7 +17,7 @@ from torch.nn import functional as F
 from simpl_reproduce.maze.maze_vis import draw_maze
 
 from LVD.modules import *
-from LVD.rl.sac_gc_naive import SAC
+from LVD.rl.sac import SAC
 from LVD.contrib.simpl.torch_utils import itemize
 from LVD.utils import *
 
