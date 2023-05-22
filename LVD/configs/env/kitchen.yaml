@@ -43,7 +43,7 @@ time_limit : 280
 target_kl_start : 50
 target_kl_end : 15
 init_alpha : 0.0005
-only_increase : true
+increasing_alpha : true
 auto_alpha : false
 reuse_rate : 512
 q_warmup : 5000
@@ -56,3 +56,4 @@ consistency_lr : 1e-8
 policy_lr : 3e-6
 buffer_size : 3000
 n_episode : 300
+kl_decay : 0.99

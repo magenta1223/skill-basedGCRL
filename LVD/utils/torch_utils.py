@@ -49,12 +49,7 @@ def get_fixed_dist(model_output,  tanh = False):
 def get_scales(dist):
     
     assert isinstance(dist, TanhNormal) or isinstance(dist, torch_dist.Independent), "Invalid type of distributions"
-        # if self.tanh:
-        #     results['mean_policy_scale'] = policy_skill_dist._normal.base_dist.scale.abs().mean().item() 
-        #     results['mean_prior_scale'] = prior_dists._normal.base_dist.scale.abs().mean().item()
-        # else:
-        #     results['mean_policy_scale'] = policy_skill_dist.base_dist.scale.abs().mean().item() 
-        #     results['mean_prior_scale'] = prior_dists.base_dist.scale.abs().mean().item()
+
     if isinstance(dist, TanhNormal):
         scale = dist._normal.base_dist.scale.abs().mean().item() 
     else:
@@ -95,3 +90,8 @@ def compute_mmd(x, y):
     xy_kernel = compute_kernel(x, y)
     mmd = x_kernel.mean() + y_kernel.mean() - 2*xy_kernel.mean()
     return mmd
+
+def to_skill_embedding(tensor):
+    """
+    """
+    return tensor.clone().detach().cpu().squeeze(0).numpy()

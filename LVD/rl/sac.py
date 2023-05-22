@@ -43,7 +43,7 @@ class SAC(BaseModel):
         if isinstance(self.init_alpha, float):
             self.init_alpha = torch.tensor(self.init_alpha)
 
-        pre_init_alpha = simpl.math.inverse_softplus(self.init_alpha)
+        pre_init_alpha = simpl_math.inverse_softplus(self.init_alpha)
 
         if self.auto_alpha:
             self.pre_alpha = torch.tensor(pre_init_alpha, dtype=torch.float32, requires_grad=True)
@@ -73,7 +73,7 @@ class SAC(BaseModel):
             prior_dists = self.skill_prior.dist(encoded_states)
 
         if kl_clip is not None:                
-            entropy = simpl.math.clipped_kl(policy_dists, prior_dists, clip = self.kl_clip)
+            entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = self.kl_clip)
         else:
             entropy = torch_dist.kl_divergence(policy_dists, prior_dists)
 
@@ -119,9 +119,9 @@ class SAC(BaseModel):
 
         entropy_term, prior_dists = self.entropy(  batch.states,  policy_skill_dist, kl_clip= None) # policy의 dist로는 gradient 전파함 .
         
-        encoded_states = self.policy.encode(batch.states)
-        min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
-
+        # encoded_states = self.policy.encode(batch.states)
+        # min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
+        min_qs = torch.min(*[qf( self.q_inputs(batch, policy_skill) ) for qf in self.qfs])
 
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
 
@@ -156,8 +156,7 @@ class SAC(BaseModel):
 
         # calculate entropy term
         entropy_term, prior_dists = self.entropy( batch_next_states.states, policy_skill_dist , kl_clip= 20) 
-        encoded_states = self.policy.encode(batch_next_states.states)
-        min_qs = torch.min(*[target_qf(encoded_states, policy_skill) for target_qf in self.target_qfs])
+        min_qs = torch.min(*[target_qf(  self.q_inputs(batch_next_states, policy_skill)  ) for target_qf in self.target_qfs])
 
         soft_qs = (- min_qs + self.alpha * entropy_term)
 
@@ -173,8 +172,7 @@ class SAC(BaseModel):
 
         qf_losses = []  
         for qf, qf_optim in zip(self.qfs, self.qf_optims):
-            encoded_states = self.policy.encode(batch.states)
-            qs = qf(encoded_states, batch.actions)
+            qs = qf(self.q_inputs(batch))
             qf_loss = (qs - target_qs).pow(2).mean()
             qf_optim.zero_grad()
             qf_loss.backward()
@@ -257,3 +255,10 @@ class SAC(BaseModel):
 
         self.stat.update(consistency_losses)
     
+
+    def q_inputs(self, batch, actions = None):
+        encoded_states = self.policy.encode(batch.states)
+        if actions is None:
+            return torch.cat((encoded_states, batch.G, batch.actions), dim = -1)
+        else:
+            return torch.cat((encoded_states, batch.G, actions), dim = -1)

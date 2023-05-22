@@ -93,7 +93,13 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
         dist = self.dist(dist_inputs)['policy_skill']
 
         # TODO explore 여부에 따라 mu or sample을 결정
-        return dist.sample()
+        
+        if isinstance(dist, TanhNormal):
+            z_normal, z = dist.sample_with_pre_tanh_value()
+            return to_skill_embedding(z_normal), to_skill_embedding(z)
+        else:
+            return None, to_skill_embedding(dist.sample())
+
     
         # if self.prior_policy.tanh:
         #     z_normal, z = dist.rsample_with_pre_tanh_value()

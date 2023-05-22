@@ -19,6 +19,7 @@ class KitchenEnv_GC(KitchenEnv):
     render_width = 400
     render_height = 400
     render_device = -1
+    name = "kitchen"
 
     def __init__(self, *args, **kwargs):
         self.TASK_ELEMENTS = ['top burner']  # for initialization
@@ -101,7 +102,7 @@ tasks = np.array([
 
 kitchen_subtasks = np.array(['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle'])
 
-kitchen_cfg = None
+kitchen_cfg = {}
 kitchen_tasks = kitchen_subtasks[tasks]
 kitchen_meta_tasks = kitchen_subtasks[meta_train_tasks]
 kitchen_ablation_tasks = kitchen_subtasks[tasks]

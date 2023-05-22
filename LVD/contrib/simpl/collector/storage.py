@@ -119,6 +119,9 @@ class Buffer:
         
         self.episodes = deque()
         self.episode_ptrs = deque()
+        
+        print(max_size, state_dim, action_dim)
+
         self.transitions = torch.empty(max_size, 2*state_dim + action_dim + 2)
         
         dims = OrderedDict([

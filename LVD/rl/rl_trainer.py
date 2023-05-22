@@ -88,7 +88,7 @@ class RL_Trainer:
         
         # build buffers and collector
 
-        buffer = Buffer_G(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.buffer_size, self.cfg.tanh)
+        buffer = Buffer_G(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.cfg.tanh)
         collector = LowFixedHierarchicalTimeLimitCollector(
             self.env,
             # env_name,

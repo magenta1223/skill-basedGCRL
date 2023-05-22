@@ -23,7 +23,7 @@ class StateConditioned_Model(BaseModel):
         self.prior_policy = PRIOR_WRAPPERS['sc'](
             skill_prior = prior,
             highlevel_policy = highlevel_policy,
-            tanh = self.tanh
+            tanh = self.tanh,
         )
 
         ## skill encoder

@@ -95,8 +95,9 @@ q_function :
   n_blocks : 5
   hidden_dim : 128
   out_dim : 1
+  module_type : linear
   linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : None
+  norm_cls : torch.nn.LayerNorm
   act_cls : torch.nn.Mish
   bias : true
   dropout : 0

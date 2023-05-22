@@ -106,20 +106,7 @@ class SequentialBuilder(BaseModule):
         else:
             return get_dist(result, tanh = self.tanh)
 
-    # from simpl
-    @contextmanager
-    def no_expl(self):
-        explore = self.explore
-        self.explore = False
-        yield
-        self.explore = explore
 
-    @contextmanager
-    def expl(self):
-        explore = self.explore
-        self.explore = True
-        yield
-        self.explore = explore
 
 class LinearBlock(nn.Module):
     def __init__(self, in_dim, out_dim, norm_cls = None, act_cls = None, bias = False, dropout = 0):
@@ -146,6 +133,7 @@ class LinearBlock(nn.Module):
 class ContextPolicyMixin:
     z_dim = NotImplemented
     z = None
+    explore = False
 
     @contextmanager
     def condition(self, z):
@@ -172,6 +160,21 @@ class ContextPolicyMixin:
     @staticmethod
     def transform_numpy(x):
         return x.detach().cpu().squeeze(0).numpy()
+
+    # from simpl
+    @contextmanager
+    def no_expl(self):
+        explore = self.explore
+        self.explore = False
+        yield
+        self.explore = explore
+
+    @contextmanager
+    def expl(self):
+        explore = self.explore
+        self.explore = True
+        yield
+        self.explore = explore
 
 
 

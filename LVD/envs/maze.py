@@ -39,6 +39,7 @@ class MazeTask_GC:
         return f'start:{self.init_loc} end:{self.goal_loc}'
 
 class Maze_GC(MazeEnv):
+    name = "maze"
 
     def __init__(self, size, seed, reward_type, done_on_completed, relative = False, visual_encoder = None):
         if reward_type not in self.reward_types:

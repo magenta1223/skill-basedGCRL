@@ -64,7 +64,7 @@ class HierarchicalEpisode_G(Episode_G):
 class HierarchicalTimeLimitCollector:
     def __init__(self, env, horizon, time_limit=None):
         self.env = env
-        self.env_name = self.env.env_name
+        self.env_name = self.env.name
         self.horizon = horizon
         self.time_limit = time_limit if time_limit is not None else np.inf
 
@@ -92,7 +92,7 @@ class HierarchicalTimeLimitCollector:
 
             # print(goal_checker(state[30:]))
             if t % self.horizon == 0:
-                high_action, high_action_normal = high_actor.act(state, G)
+                high_action_normal, high_action = high_actor.act(state, G)
                 data_high_action = high_action
             else:
                 data_high_action = None
@@ -112,7 +112,7 @@ class HierarchicalTimeLimitCollector:
             if 'TimeLimit.truncated' in info:
                 data_done = not info['TimeLimit.truncated']
 
-            if data_high_action is not None:
+            if data_high_action is not None and high_action_normal is not None:
                 data_high_action_w_normal = np.concatenate((data_high_action, high_action_normal), axis = -1)
             else:
                 data_high_action_w_normal = None
