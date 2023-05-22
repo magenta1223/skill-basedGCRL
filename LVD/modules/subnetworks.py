@@ -6,18 +6,6 @@ from ..utils import *
 import math
 from copy import deepcopy
 
-# 엄.. 뭐가 다른가요?
-# class MLPQF(SequentialBuilder):
-#     def __init__(self, config):
-#         super().__init__(config)
-
-#     def forward(self, batch_state, batch_action):
-#         batch_state = prep_state(batch_state, self.device)
-#         batch_action = prep_state(batch_action, self.device)
-#         concat = torch.cat([batch_state, batch_action], dim=-1)
-#         return super().forward(concat).squeeze(-1)
-
-
 class InverseDynamicsMLP(SequentialBuilder):
     def __init__(self, config):
         super().__init__(config)

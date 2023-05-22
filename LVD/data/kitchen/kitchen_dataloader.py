@@ -30,9 +30,6 @@ OBS_ELEMENT_GOALS = {
     }
 BONUS_THRESH = 0.3
 
-
-
-
 class Kitchen_Dataset(Base_Dataset):
     def __init__(self, cfg, phase):
         super().__init__(cfg, phase)
