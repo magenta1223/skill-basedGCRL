@@ -6,7 +6,7 @@ import numpy as np
 from ..contrib.simpl.torch_utils import itemize
 
 # models
-from ..utils import *
+from ..utils.utils import *
 
 seed_everything()
 

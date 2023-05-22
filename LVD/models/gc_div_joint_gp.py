@@ -4,7 +4,7 @@ from ..modules.subnetworks import *
 import torch
 import torch.nn as nn
 from torch.optim import *
-from LVD.utils import *
+from LVD.utils.utils import *
 
 from torch.cuda.amp import GradScaler
 

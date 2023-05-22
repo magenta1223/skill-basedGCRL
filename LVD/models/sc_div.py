@@ -1,18 +1,9 @@
 import torch
-import torch.nn as nn
 from torch.optim import *
-import cv2
-import gym
-import d4rl
-
-from ..modules.priors import *
-from ..modules.base import *
-from ..modules.subnetworks import *
+# from ..configs.build import *
+from ..modules import *
 from ..utils import *
-from ..envs.kitchen import KitchenEnv_GC
-from ..contrib.simpl.env.kitchen import KitchenTask
 from .base import BaseModel
-
 # 앞이 estimate = q_hat_dist
 # target은 q_dist에서 샘플링한 값. 
 
@@ -24,7 +15,7 @@ class StateConditioned_Diversity_Model(BaseModel):
 
         self.use_amp = True
         self.step = 0
-        self.Hsteps = 10
+        self.Hsteps = self.subseq_len -1
 
         self.joint_learn = True
 

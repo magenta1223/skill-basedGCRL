@@ -11,7 +11,7 @@ import numpy as np
 from easydict import EasyDict as edict
 from copy import deepcopy
 
-from ..utils import *
+from ..utils.utils import *
 # from ..configs.data.kitchen import KitchenEnvConfig
 
 from ..configs.env import *

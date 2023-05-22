@@ -1,2 +1,0 @@
-[2023-05-19 17:28:52,452][hydra.utils][ERROR] - Error getting class at ./weights: Error loading './weights': invalid dotstring.
-Relative imports are not supported.

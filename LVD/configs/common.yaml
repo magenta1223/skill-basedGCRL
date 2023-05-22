@@ -1,11 +1,11 @@
-save_path : "./weights"
-log_path : "./log.txt"
+hydra:
+  run:
+    dir: logs/${env.env_name}/${structure}/${config_path:${hydra.job.override_dirname}}
+
 save_ckpt : 20
 early_stop_rounds : 100
-# mode
 n_rollout_steps : 10
 workers : 14
-# data
 dataset_size : -1
 val_data_size : 5000
 batch_size : 1024
@@ -19,8 +19,24 @@ scheduler_params :
   patience: 6
   verbose: True
   threshold: 1e-5
-  threshold_mode: 'abs'
-  # cooldown=6, 
+  threshold_mode: abs
   min_lr: 1e-12
 
+rl :
+  render_period : 10
+  q_warmup : 5_000 
+  precollect : 20
+  norm : false
+  discount : 0.99
+  tau : 0.005
+  qf_lr : 3e-4
+  alpha_lr : 3e-4
+  rl_batchsize : 256
 
+rl_cfgs : [
+  rl_batchsize, # general
+  q_warmup, discount, tau, # qfs
+  policy_lr, consistency_lr, qf_lr, alpha_lr, # lrs
+  init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
+  tanh, # distribution   
+  ]

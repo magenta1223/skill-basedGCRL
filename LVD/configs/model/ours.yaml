@@ -1,69 +1,64 @@
 subseq_len : 11
 tanh : true
+skill_trainer : LVD.runner.Diversity_Trainer
+consistency_update : true
 
 state_encoder :
-    n_blocks : 5
-    # in_feature : self.state_dim, # state_dim + latent_dim 
-    hidden_dim : 128 
-    # hidden_dim = self.hidden_dim, 
-    # out_dim = self.latent_state_dim, # when variational inference
-    linear_cls : LVD.modules.base.LinearBlock
-    norm_cls : torch.nn.LayerNorm
-    act_cls : torch.nn.Mish
-    bias : true
-    dropout : 0
+  n_blocks : 5
+  hidden_dim : 128 
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  bias : true
+  dropout : 0
 
 state_decoder :
-    n_blocks : 5
-    # in_feature : self.state_dim, # state_dim + latent_dim 
-    hidden_dim : 128 
-    # hidden_dim = self.hidden_dim, 
-    # out_dim = self.latent_state_dim, # when variational inference
-    linear_cls : LVD.modules.base.LinearBlock
-    norm_cls : torch.nn.LayerNorm
-    act_cls : torch.nn.Mish
-    bias : true
-    dropout : 0
+  n_blocks : 5
+  hidden_dim : 128 
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  bias : true
+  dropout : 0
 
 dynamics :
-    n_blocks : 5
-    # in_feature : self.state_dim, # state_dim + latent_dim 
-    hidden_dim : 128 
-    # hidden_dim = self.hidden_dim, 
-    # out_dim = self.latent_state_dim, # when variational inference
-    linear_cls : LVD.modules.base.LinearBlock
-    norm_cls : torch.nn.LayerNorm
-    act_cls : torch.nn.Mish
-    bias : true
-    dropout : 0
+  n_blocks : 5
+  hidden_dim : 128 
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  bias : true
+  dropout : 0
 
 inverse_dynamics :
-    n_blocks : self.n_Layers
-    hidden_dim : 128
-    out_dim : 20
-    norm_cls : torch.nn.LayerNorm
-    act_cls : torch.nn.Mish
-    linear_cls : LVD.modules.base.LinearBlock
-    bias : true
-    dropout : 0
+  n_blocks : self.n_Layers
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  bias : true
+  dropout : 0
 
 subgoal_generator :
-    n_blocks  :  5
-    # in_feature = self.latent_state_dim + self.n_goal, # state_dim + latent_dim 
-    hidden_dim  : 128
-    # out_dim  : self.latent_state_dim
-    norm_cls  : torch.nn.LayerNorm
-    act_cls  : torch.nn.Mish
-    linear_cls  : LVD.modules.base.LinearBlock
-    tanh  : False
-    bias  : true
-    dropout : 0   
+  n_blocks  :  5
+  hidden_dim  : 128
+  module_type : linear
+  linear_cls  : LVD.modules.base.LinearBlock
+  norm_cls  : torch.nn.LayerNorm
+  act_cls  : torch.nn.Mish
+  tanh  : False
+  bias  : true
+  dropout : 0   
 
 prior : 
   n_blocks : 5
   hidden_dim : 128
   out_dim : 20
-  module_type : "linear"
+  module_type : linear
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.LayerNorm
   act_cls : torch.nn.Mish
@@ -75,7 +70,7 @@ skill_encoder :
   n_blocks : 1
   hidden_dim : 128
   out_dim : 20
-  module_type : "rnn"
+  module_type : rnn
   rnn_cls : torch.nn.LSTM
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.LayerNorm
@@ -88,7 +83,7 @@ skill_encoder :
 skill_decoder : 
   n_blocks : 5
   hidden_dim : 128
-  module_type : "linear"
+  module_type : linear
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.BatchNorm1d
   act_cls : torch.nn.Mish
@@ -96,14 +91,12 @@ skill_decoder :
   bias : true
   dropout : 0
 
-high_policy : 
+q_function : 
   n_blocks : 5
   hidden_dim : 128
-  out_dim : 20
-  module_type : "linear"
+  out_dim : 1
   linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : torch.nn.BatchNorm1d
+  norm_cls : None
   act_cls : torch.nn.Mish
-  tanh : true
   bias : true
   dropout : 0

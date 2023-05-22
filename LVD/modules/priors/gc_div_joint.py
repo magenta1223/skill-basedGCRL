@@ -4,16 +4,12 @@ import copy
 import math
 
 from ...modules.base import BaseModule
-from ...utils import *
+from ...utils.utils import *
 from ...contrib.momentum_encode import update_moving_average
 
 class GoalConditioned_Diversity_Joint_Prior(BaseModule):
     """
-    TODO 
-    1) 필요한 모듈이 마구마구 바뀌어도 그에 맞는 method 하나만 만들면
-    2) RL이나 prior trainin 에서는 동일한 method로 호출 가능하도록
     """
-
     def __init__(self, **submodules):
         self.ema_update = None
         super().__init__(submodules)
@@ -23,15 +19,6 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         self.target_inverse_dynamics = copy.deepcopy(self.inverse_dynamics)
         self.target_dynamics = copy.deepcopy(self.dynamics)
         self.target_flat_dynamics = copy.deepcopy(self.flat_dynamics)
-
-        self.methods = {
-            "train" : self.__train__,
-            "eval" : self.__eval__,
-            "rollout" : self.__rollout__,
-            "finetune" : self.__finetune__,
-            "prior" : self.__prior__,
-            "finetune_f" : self.__finetune_f__,
-        }
 
         self.n_soft_update = 1
         self.update_freq = 5
@@ -52,16 +39,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
         self.n_soft_update += 1
 
-    def forward(self, inputs, mode = "train", *args, **kwargs):
-        # print(self.methods.keys())
-        return self.methods[mode](inputs, *args, **kwargs)
-    
-    def add_noise(self, x):
-        return x + torch.randn_like(x) * self.scale 
-    
-    def __train__(self, inputs):
-        """
-        """
+    def forward(self, inputs, *args, **kwargs):
         states, G = inputs['states'], inputs['G']  
         N, T, _ = states.shape
         skill_length = T - 1 
@@ -145,15 +123,11 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
             "invD" : inverse_dynamics,
             "invD_detach" : inverse_dynamics_detach,
             # Ds
-
-
             "D" : D,
             "flat_D" : flat_D,
 
             "D_target" : subgoal_target, 
             "flat_D_target" : hts_target[:, 1:],
-
-
 
             # f
             # "subgoal_D" : subgoal_D.clone().detach(),
@@ -188,40 +162,9 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
 
         return result
     
-    def __eval__(self, inputs):
-        """
-        """
-        self.eval()
-        state, G = inputs['states'], inputs['G']       
 
-        with torch.no_grad():
-            # ht, G = self.state_encoder(state), self.state_encoder(G)
-            ht = self.state_encoder(state)
-
-        # subgoal 
-        sg_input = torch.cat((ht,  G), dim = -1)
-        subgoal_f = self.subgoal_generator(sg_input)
-
-        inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f + ht,  tanh = self.tanh)
-        # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-
-
-        skill = inverse_dynamics_hat.rsample() 
-        dynamics_input = torch.cat((ht,  skill), dim = -1)
-        # subgoal_D = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
-        diff = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
-
-
-        result = {
-            "inverse_D" : inverse_dynamics_hat,
-            "subgoal" : diff + ht,
-            "subgoal_target" : subgoal_f + ht,
-        }
-
-        return result
-    
     @torch.no_grad()
-    def __rollout__(self, inputs):
+    def rollout(self, inputs):
         self.state_encoder.eval()
         self.state_decoder.eval()
         self.prior_policy.eval()
@@ -232,20 +175,16 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         if self.prior_proprioceptive is not None:
             self.prior_proprioceptive.eval()
 
-
-
         states, skill = inputs['states'], inputs['actions']
         N, T, _ = states.shape
         skill_length = T - 1
 
-        hts = self.state_encoder(states.view(N * T, -1)).view(N, T, -1)            
-        hts_rollout = []
+        hts = self.state_encoder(states.view(N * T, -1)).view(N, T, -1)  
 
-        # start ! 
+        hts_rollout = []
         c = random.sample(range(1, skill_length - 1), 1)[0]
         _ht = hts[:, c].clone()
 
-        
         if self.prior_proprioceptive is not None:
             # env state agnostic
             skill_sampled_orig = self.prior_proprioceptive.dist(states[:, 0]).sample()
@@ -291,53 +230,23 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
 
 
 
-    def __finetune__(self, inputs):
+    def dist(self, inputs):
         """
-        Finetune inverse dynamics and dynamics with the data collected in online.
         """
-
-        states, G, next_states = inputs['states'], inputs['G'], inputs['next_states'] 
-
-        self.state_encoder.eval()
-
-        # with torch.no_grad():
-        #     ht = self.state_encoder(states)
-        #     htH = self.state_encoder(next_states)
-
-        ht = self.state_encoder(states)
-        htH = self.target_state_encoder(next_states)
-
-        # finetune invD, D 
-        invD, _ = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
-        z = invD.rsample()
-        
-        
-        result = {
-            "inverse_D" : invD,
-            "subgoal_target" : htH
-        }
-
-
-        if self.dynamics is not None:
-            dynamics_input = torch.cat((ht,  z), dim = -1)
-            diff = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
-            result['subgoal'] = ht + diff
-
-        return result
-    
-    def __finetune_f__(self, inputs):
         state, G = inputs['states'], inputs['G']       
 
-        # ht, G = self.state_encoder(state), self.state_encoder(G)
         with torch.no_grad():
+            # ht, G = self.state_encoder(state), self.state_encoder(G)
             ht = self.state_encoder(state)
 
         # subgoal 
         sg_input = torch.cat((ht,  G), dim = -1)
-        subgoal_f = self.subgoal_generator(sg_input)
+        diff_subgoal_f = self.subgoal_generator(sg_input)
+        subgoal_f = diff_subgoal_f + ht
 
-        inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f + ht,  tanh = self.tanh)
+        inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
         # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
+
 
         skill = inverse_dynamics_hat.rsample() 
         dynamics_input = torch.cat((ht,  skill), dim = -1)
@@ -348,11 +257,62 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         result = {
             "inverse_D" : inverse_dynamics_hat,
             "subgoal" : diff + ht,
-            "subgoal_target" : subgoal_f + ht,
+            "subgoal_target" : subgoal_f,
         }
 
+        return result
+    
+    def act(self, states, G):
+        # 환경별로 state를 처리하는 방법이 다름.
+        # 여기서 수행하지 말고, collector에서 전처리해서 넣자. 
+
+        dist_inputs = dict(
+            states = prep_state(states, self.device),
+            G = prep_state(G, self.device),
+        )
+
+        dist = self.dist(dist_inputs, "eval")['inverse_D']
+        return dist.sample().detach().cpu().squeeze(0).numpy()
+        # # TODO explore 여부에 따라 mu or sample을 결정
+        # if self.prior_policy.tanh:
+        #     z_normal, z = dist.rsample_with_pre_tanh_value()
+        #     # to calculate kld analytically 
+        #     loc, scale = dist._normal.base_dist.loc, dist._normal.base_dist.scale 
+
+        #     return z_normal.detach().cpu().squeeze(0).numpy(), z.detach().cpu().squeeze(0).numpy(), loc.detach().cpu().squeeze(0).numpy(), scale.detach().cpu().squeeze(0).numpy()
+        # else:
+        #     loc, scale = dist.base_dist.loc, dist.base_dist.scale
+        #     return dist.rsample().detach().cpu().squeeze(0).numpy(), loc.detach().cpu().squeeze(0).numpy(), scale.detach().cpu().squeeze(0).numpy()
+
+    def finetune(self, inputs):
+        """
+        Finetune inverse dynamics and dynamics with the data collected in online.
+        """
+
+        states, G, next_states = inputs['states'], inputs['G'], inputs['next_states'] 
+
+        with torch.no_grad():
+            ht = self.state_encoder(states)
+            htH = self.state_encoder(next_states)
+
+        # ht = self.state_encoder(states)
+        # htH = self.target_state_encoder(next_states)
+
+        # finetune invD, D 
+        invD, _ = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
+        z = invD.rsample()
+                
+        result = {
+            "inverse_D" : invD,
+            "subgoal_target" : htH
+        }
+
+        dynamics_input = torch.cat((ht,  z), dim = -1)
+        diff = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
+        result['subgoal'] = ht + diff
 
         return result
+
 
 
     def __prior__(self, inputs):

@@ -1,4 +1,4 @@
-from LVD.utils import seed_everything
+from GCPrior.LVD.utils.utils import seed_everything
 seed_everything(777)
 
 import argparse

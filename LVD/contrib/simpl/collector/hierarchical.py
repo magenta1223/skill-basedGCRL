@@ -1,5 +1,5 @@
 from .storage import Episode
-from ....utils import StateProcessor
+from ....utils.utils import StateProcessor
 import numpy as np
 
 class HierarchicalEpisode(Episode):
@@ -27,14 +27,20 @@ class HierarchicalEpisode(Episode):
                 # high-action은 H-step마다 값이 None이 아니다.
                 # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
                 high_episode.add_step(
-                    self.high_actions[prev_t], self.states[t],
-                    sum(self.rewards[prev_t:t]), self.dones[t], self.infos[t]
+                    self.high_actions[prev_t],
+                    self.states[t],
+                    sum(self.rewards[prev_t:t]),
+                    self.dones[t],
+                    self.infos[t]
                 )
                 prev_t = t
         
         high_episode.add_step(
-            self.high_actions[prev_t], self.states[-1],
-            sum(self.rewards[prev_t:]), self.dones[-1], self.infos[-1]
+            self.high_actions[prev_t],
+            self.states[-1],
+            sum(self.rewards[prev_t:]),
+            self.dones[-1],
+            self.infos[-1]
         )
         high_episode.raw_episode = self
         return high_episode

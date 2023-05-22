@@ -1,5 +1,5 @@
 from ..contrib.simpl.collector.hierarchical import HierarchicalEpisode 
-from ..utils import *
+from ..utils.utils import *
 
 # from ..contrib.simpl.collector.hierarchical import HierarchicalEpisode
 # from ..utils import GOAL_CHECKERS
@@ -7,7 +7,7 @@ from ..utils import *
 import numpy as np
 from copy import deepcopy
 import torch
-from ..utils import StateProcessor
+from ..utils.utils import StateProcessor
 
 
 class HierarchicalTimeLimitCollector:

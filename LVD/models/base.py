@@ -10,7 +10,7 @@ from ..modules.priors import *
 # from ..configs.build import *
 from ..modules.base import *
 from ..modules.subnetworks import *
-from ..utils import *
+from ..utils.utils import *
 from ..envs.kitchen import KitchenEnv_GC
 from ..contrib.simpl.env.kitchen import KitchenTask
 

@@ -100,5 +100,8 @@ tasks = np.array([
 
 
 kitchen_subtasks = np.array(['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle'])
-KITCHEN_TASKS = kitchen_subtasks[tasks]
-KITCHEN_META_TASKS = kitchen_subtasks[meta_train_tasks]
+
+kitchen_cfg = None
+kitchen_tasks = kitchen_subtasks[tasks]
+kitchen_meta_tasks = kitchen_subtasks[meta_train_tasks]
+kitchen_ablation_tasks = kitchen_subtasks[tasks]

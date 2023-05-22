@@ -65,7 +65,8 @@ class TanhNormal(torch.distributions.Distribution):
 
 
         return ret
-
+    
+    @torch.no_grad()
     def sample(self, sample_shape=torch.Size()):
         """Return a sample, sampled from this TanhNormal Distribution.
         Args:
@@ -75,9 +76,9 @@ class TanhNormal(torch.distributions.Distribution):
         Returns:
             torch.Tensor: Sample from this TanhNormal distribution.
         """
-        with torch.no_grad():
-            return self.rsample(sample_shape=sample_shape)
+        return self.rsample(sample_shape=sample_shape)
 
+    @torch.no_grad()
     def sample_with_pre_tanh_value(self, sample_shape=torch.Size()):
         """Return a sample, sampled from this TanhNormal Distribution.
         Args:
@@ -87,8 +88,7 @@ class TanhNormal(torch.distributions.Distribution):
         Returns:
             torch.Tensor: Sample from this TanhNormal distribution.
         """
-        with torch.no_grad():
-            return self.rsample_with_pre_tanh_value(sample_shape=sample_shape)
+        return self.rsample_with_pre_tanh_value(sample_shape=sample_shape)
 
 
     def rsample(self, sample_shape=torch.Size()):
@@ -100,8 +100,8 @@ class TanhNormal(torch.distributions.Distribution):
         Returns:
             torch.Tensor: Sample from this TanhNormal distribution.
         """
-        z = self._normal.rsample(sample_shape)
-        return torch.tanh(z) * self.factor
+        z_normal = self._normal.rsample(sample_shape)
+        return torch.tanh(z_normal) * self.factor
 
     def rsample_with_pre_tanh_value(self, sample_shape=torch.Size()):
         """Return a sample, sampled from this TanhNormal distribution.
@@ -117,8 +117,8 @@ class TanhNormal(torch.distributions.Distribution):
                 :obj:`torch.distributions.Normal` distribution, prior to being
                 transformed with `tanh`.
         """
-        z = self._normal.rsample(sample_shape)
-        return z, torch.tanh(z) * self.factor
+        z_normal = self._normal.rsample(sample_shape)
+        return z_normal, torch.tanh(z_normal) * self.factor
 
     def cdf(self, value):
         """Returns the CDF at the value.

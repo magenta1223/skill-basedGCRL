@@ -8,7 +8,7 @@ from ...nn import MLP
 from ...rl.policy import StochasticNNPolicy
 
 import sys
-from .....utils import get_dist
+from .....utils.utils import get_dist
 
 def inverse_softplus(x):
     return torch.log(torch.exp(x) - 1)

@@ -1,0 +1,27 @@
+defaults:
+  - common
+  - model: skimo
+  - env : maze
+
+dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
+structure : skimo
+
+model:
+  prior:
+    in_feature : ${env.state_dim}
+    out_dim : ${multiply:${env.skill_dim}, 2}
+
+  skill_encoder:
+    in_feature: ${add:${env.state_dim}, ${env.action_dim}}
+    out_dim : ${multiply:${env.skill_dim}, 2}
+
+  skill_decoder:
+    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
+    out_dim : ${env.action_dim} 
+
+  high_policy:
+    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
+    out_dim : ${multiply:${env.skill_dim}, 2}
+    
+  q_function:
+    in_feature: ${add:${env.state_dim}, ${env.n_goal}} 

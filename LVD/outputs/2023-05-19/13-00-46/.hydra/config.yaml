@@ -1,3 +1,0 @@
-prior:
-  n_blocks: 5
-  norm_cls: torch.nn.LayerNorm

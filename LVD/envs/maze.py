@@ -29,7 +29,7 @@ G1 = np.full((32, 32, 3), color_dict['ground_color1'])
 G2 = np.full((32, 32, 3), color_dict['ground_color2'])
 
 
-class MazeTask_Custom:
+class MazeTask_GC:
     def __init__(self, locs):
         init_loc, goal_loc = locs
         self.init_loc = np.array(init_loc, dtype=np.float32)
@@ -54,7 +54,7 @@ class Maze_GC(MazeEnv):
         # self.maze_spec = rand_layout(size=size, seed=seed)
         
         # for initialization
-        self.task = MazeTask_Custom([[0, 0], [0, 0]])
+        self.task = MazeTask_GC([[0, 0], [0, 0]])
         # self.done_on_completed = False
         # self.task = None
         # self.done_on_completed = done_on_completed
@@ -94,7 +94,7 @@ class Maze_GC(MazeEnv):
 
     @contextmanager
     def set_task(self, task):
-        if type(task) != MazeTask_Custom:
+        if type(task) != MazeTask_GC:
             raise TypeError(f'task should be MazeTask but {type(task)} is given')
 
         prev_task = self.task
@@ -213,7 +213,7 @@ class Maze_GC(MazeEnv):
 
 
     
-maze_config = {
+maze_cfg = {
     'size':40,
     'seed': 0,
     'reward_type':'sparse',
@@ -221,20 +221,9 @@ maze_config = {
     'visual_encoder' : None
 }
 
-# maze_config = {
-#     'size':40,
-#     'seed': 0,
-#     'reward_type':'sparse',
-#     'done_on_completed': True,
-#     'visual_encoder' : None
-# }
 
 
-
-
-
-
-MAZE_META_TASKS = np.array([
+maze_meta_tasks = np.array([
     [[10, 24], [16, 18]],
     [[10, 24], [ 6, 39]],
     [[10, 24], [ 4, 14]],
@@ -265,7 +254,7 @@ MAZE_META_TASKS = np.array([
 #     ])
 
 
-MAZE_TASKS = np.array([
+maze_tasks = np.array([
     [[10, 24], [24, 39]],
     [[10, 24], [24, 34]],
     [[10, 24], [15, 40]],
@@ -276,7 +265,7 @@ MAZE_TASKS = np.array([
 
 
 # -- HARD -- #
-MAZE_ABLATION_TASKS = np.array([
+maze_ablation_tasks = np.array([
     # [[10, 24], [24, 39]],
     # [[10, 24], [24, 11]],
     # [[10, 24], [23, 40]],

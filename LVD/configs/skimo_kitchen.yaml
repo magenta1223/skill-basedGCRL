@@ -1,0 +1,43 @@
+defaults:
+  - common
+  - model: skimo
+  - env : kitchen
+
+dataset_cls : LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset
+structure : skimo
+
+model:
+  state_encoder :
+    in_feature : ${env.state_dim}
+    out_dim : ${env.latent_state_dim}
+  
+  state_decoder :
+    in_feature : ${env.latent_state_dim}
+    out_dim : ${env.state_dim}
+
+  dynamics: 
+    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
+    out_dim : ${env.latent_state_dim}
+
+  reward_function:
+    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
+    out_dim : 1
+
+  prior:
+    in_feature : ${env.state_dim}
+    out_dim : ${multiply:${env.skill_dim}, 2}
+
+  skill_encoder:
+    in_feature: ${add:${env.state_dim}, ${env.action_dim}}
+    out_dim : ${multiply:${env.skill_dim}, 2}
+
+  skill_decoder:
+    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
+    out_dim : ${env.action_dim} 
+
+  high_policy:
+    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
+    out_dim : ${multiply:${env.skill_dim}, 2}
+
+  q_function:
+    in_feature: ${add:${env.state_dim}, ${env.n_goal}} 

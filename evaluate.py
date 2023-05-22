@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from LVD.utils import seed_everything
+from GCPrior.LVD.utils.utils import seed_everything
 from LVD.envs import ENV_TASK
 
 def formatter(performances):

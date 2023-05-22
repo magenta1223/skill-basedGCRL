@@ -1,12 +1,8 @@
 import torch
 from torch.optim import *
-from ..modules.priors import *
 # from ..configs.build import *
-from ..modules.base import *
-from ..modules.subnetworks import *
+from ..modules import *
 from ..utils import *
-from ..envs.kitchen import KitchenEnv_GC
-from ..contrib.simpl.env.kitchen import KitchenTask
 from .base import BaseModel
 
 class StateConditioned_Model(BaseModel):
@@ -24,8 +20,8 @@ class StateConditioned_Model(BaseModel):
         highlevel_policy = SequentialBuilder(cfg.high_policy)
         
         
-        self.skill_prior = PRIOR_WRAPPERS['sc'](
-            prior_policy = prior,
+        self.prior_policy = PRIOR_WRAPPERS['sc'](
+            skill_prior = prior,
             highlevel_policy = highlevel_policy,
             tanh = self.tanh
         )
@@ -41,7 +37,7 @@ class StateConditioned_Model(BaseModel):
 
         self.optimizers = {
             "skill_prior" : {
-                "optimizer" : RAdam( self.skill_prior.parameters(), lr = self.lr ),
+                "optimizer" : RAdam( self.prior_policy.parameters(), lr = self.lr ),
                 "metric" : "Prior_S"
             }, 
             "skill_enc_dec" : {
@@ -81,7 +77,7 @@ class StateConditioned_Model(BaseModel):
         )
 
         # skill prior
-        self.outputs =  self.skill_prior(inputs)
+        self.outputs =  self.prior_policy(inputs)
 
         # skill Encoder 
         enc_inputs = torch.cat( (actions, states.clone()[:,:-1]), dim = -1)
@@ -128,7 +124,7 @@ class StateConditioned_Model(BaseModel):
                 self.outputs['z_normal'],
                 tanh = self.tanh
             ).mean()
-
+            
             policy_loss = self.loss_fn('prior')(
                 self.outputs['z'],
                 self.outputs['policy_skill'], # distributions to optimize

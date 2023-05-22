@@ -135,7 +135,6 @@ class DiversityTrainer(BaseTrainer):
 
         self.meter_initialize()
 
-
         for i, batch in enumerate(loader):
             self.model.train()
             loss = self.model.optimize(batch, e)
@@ -145,94 +144,11 @@ class DiversityTrainer(BaseTrainer):
                 loader.enqueue(loss['states_novel'], loss['actions_novel'])
         
             if not len(self.meters):
-                # initialize key
                 for key in loss.keys():
-                    if key in ["rollout_KL", "rollout_KL_consistent", "KL_with_init", "rollout_r_int_consistent", "rollout_r_int",  "states_novel", "actions_novel"]:
-                        rollout_KL, rollout_KL_consistent, rollout_r_int_consistent, rollout_r_int = [], [], [], []
-                        KL_with_init = {}
-                        rollout_KL_prev = None
-                    else:
-                        self.meters[key] = AverageMeter()
+                    self.meters[key] = AverageMeter()
   
             for k, v in loss.items():
-                if k == "rollout_KL":
-                    # 이미지로 분포표 저장.
-                    v = v.detach().cpu().numpy().tolist()
-                    rollout_KL.extend(v)
-                elif k == "rollout_KL_consistent":
-                    # 이미지로 분포표 저장.
-                    v = v.detach().cpu().numpy().tolist()
-                    rollout_KL_consistent.extend(v)
-                elif k == "rollout_r_int_consistent":
-                    v = v.detach().cpu().numpy().tolist()
-                    rollout_r_int_consistent.extend(v)
-                elif k == "rollout_r_int":
-                    v = v.detach().cpu().numpy().tolist()
-                    rollout_r_int.extend(v)
-
-                elif k not in ['states_novel', 'actions_novel']:
-                    self.meters[k].update(v, batch['states'].shape[0])
-                else:
-                    pass
-
-                # if k not in ['states_recon', 'actions_recon']:
-                #     self.meters[k].update(v, batch['states'].shape[0])
-
-                # self.meters[k].update(v, batch['states'].shape[0])
-        
-        if "rollout_KL" in loss.keys():
-            plt.figure()
-            plt.xlim(right = 40)
-            rollout_KL = np.array(rollout_KL)
-            rollout_KL_consistent = np.array(rollout_KL_consistent)
-
-            sns.distplot(rollout_KL, color = "blue", bins=250)
-            sns.distplot(rollout_KL_consistent, color = "orange", bins=250)
-
-            q1 = np.quantile(rollout_KL, 0.25)
-            q2 = np.quantile(rollout_KL, 0.5)
-            q3 = np.quantile(rollout_KL, 0.75)
-            plt.vlines(np.array([q1, q2, q3]), 0, 0.1, color = 'red', )
-            
-            q1 = np.quantile(rollout_KL_consistent, 0.25)
-            q2 = np.quantile(rollout_KL_consistent, 0.5)
-            q3 = np.quantile(rollout_KL_consistent, 0.75)
-            plt.vlines(np.array([q1, q2, q3]), 0, 0.1, color = 'yellow', )
-
-            plt.title(f"Q1 {q1:.2f}, Q2 {q2:.2f}, Q3 {q3:.2f}")
-            plt.legend(["rollout", "consist", "rollout_Q", "consist_Q"])
-
-            plt.savefig(f'imgs/gcid_stitch/rollout_KL/{e}.png')
-            
-            plt.figure()
-            plt.xlim(right = 0.25)
-            rollout_r_int_consistent = np.array(rollout_r_int_consistent)
-            rollout_r_int = np.array(rollout_r_int)
-
-            sns.distplot(rollout_r_int, color = "blue", bins=250)
-            sns.distplot(rollout_r_int_consistent, color = "orange", bins=250)
-
-            q1 = np.quantile(rollout_r_int, 0.25)
-            q2 = np.quantile(rollout_r_int, 0.5)
-            q3 = np.quantile(rollout_r_int, 0.75)
-            plt.vlines(np.array([q1, q2, q3]), 0, 0.1, color = 'red', )
-
-            q1 = np.quantile(rollout_r_int_consistent, 0.25)
-            q2 = np.quantile(rollout_r_int_consistent, 0.5)
-            q3 = np.quantile(rollout_r_int_consistent, 0.75)
-            plt.vlines(np.array([q1, q2, q3]), 0, 0.1, color = 'yellow', )
-            
-            plt.title(f"Q1 {q1:.2f}, Q2 {q2:.2f}, Q3 {q3:.2f}")
-            plt.legend(["rollout", "consist", "rollout_Q", "consist_Q"])
-            
-            plt.savefig(f'imgs/gcid_stitch/r_int/{e}.png')
-
-
-        # set KL threshold for next epoch
-        # KL_threshold = torch.quantile(torch.tensor(rollout_KL_consistent), 0.995).item()
-        # KL_threshold = torch.max(torch.tensor(rollout_KL_single)).item()
-        KL_threshold = 0
-        self.model.KL_threshold = KL_threshold
+                self.meters[k].update(v, batch['states'].shape[0])
 
         return { k : v.avg for k, v in self.meters.items() }
 
@@ -256,31 +172,11 @@ class DiversityTrainer(BaseTrainer):
                         rollout_KL_prev = None
                     else:
                         self.meters[key] = AverageMeter()
-  
-            # for k, v in loss.items():
-            #     if k not in ["rollout_KL", "rollout_KL_main"]:
-            #         self.meters[k].update(v, batch['states'].shape[0])
+
 
             for k, v in loss.items():
-                # if k == "rollout_KL":
-                #     # 이미지로 분포표 저장.
-                #     v = v.detach().cpu().numpy().tolist()
-                #     rollout_KL.extend(v)
-                # elif k == "rollout_KL_consistent":
-                #     # 이미지로 분포표 저장.
-                #     v = v.detach().cpu().numpy().tolist()
-                #     rollout_KL_consistent.extend(v)
-                # elif k == "rollout_r_int_consistent":
-                #     v = v.detach().cpu().numpy().tolist()
-                #     rollout_r_int_consistent.extend(v)
-                # elif k == "rollout_r_int":
-                #     v = v.detach().cpu().numpy().tolist()
-                #     rollout_r_int.extend(v)
+                self.meters[k].update(v, batch['states'].shape[0])
 
-                if k not in ['states_novel', 'actions_novel']:
-                    self.meters[k].update(v, batch['states'].shape[0])
-                else:
-                    pass
 
 
             # if self.warmup_steps != 0:

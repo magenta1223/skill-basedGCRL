@@ -5,7 +5,7 @@ from ..contrib.simpl.collector.hierarchical import HierarchicalEpisode
 
 import numpy as np
 from copy import deepcopy
-from ..utils import StateProcessor
+from ..utils.utils import StateProcessor
 import torch
 
 class HierarchicalTimeLimitCollector:

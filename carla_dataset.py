@@ -3,7 +3,7 @@ from glob import glob
 import pickle
 import numpy as np
 from tqdm import tqdm
-from LVD.utils import state_process_carla
+from GCPrior.LVD.utils.utils import state_process_carla
 import argparse
 
 SENSOR_SCALE = {

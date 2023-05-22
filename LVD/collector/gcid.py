@@ -1,4 +1,4 @@
-from ..contrib.simpl.collector.hierarchical import HierarchicalEpisode 
+from ..contrib.simpl.collector.storage import Episode 
 from ..utils import StateProcessor
 
 # from ..contrib.simpl.collector.hierarchical import HierarchicalEpisode
@@ -8,18 +8,65 @@ import numpy as np
 from copy import deepcopy
 import torch
 
+from .storage import Episode_G
+
+class HierarchicalEpisode_G(Episode_G):
+    def __init__(self, init_state):
+        super().__init__(init_state)
+        self.low_actions = self.actions
+        self.__high_actions__ = []
 
 
+    def add_step(self, low_action, high_action, next_state, G, reward, done, info):
+        # MDP transitions
+        # def add_step(self, action, next_state, G, reward, done, info):
+        super().add_step(low_action, next_state, G, reward, done, info)
+        self.__high_actions__.append(high_action)
 
+    def as_high_episode(self):
+        """
+        high-action은 H-step마다 값이 None 이 아
+        """
+
+        high_episode = Episode(self.states[0])
+        prev_t = 0
+        for t in range(1, len(self)):
+            if self.high_actions[t] is not None:
+                # high-action은 H-step마다 값이 None이 아니다.
+                # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
+                # add_step(self, action, next_state, G, reward, done, info):
+                high_episode.add_step(
+                    self.high_actions[prev_t], # skill
+                    self.states[t], # next_state
+                    self.G[t], # G
+                    sum(self.rewards[prev_t:t]),
+                    self.dones[t],
+                    self.infos[t]
+                )
+                prev_t = t
+        
+        high_episode.add_step(
+            self.high_actions[prev_t],
+            self.states[-1],
+            self.G[-1], # G
+            sum(self.rewards[prev_t:]),
+            self.dones[-1],
+            self.infos[-1]
+        )
+        high_episode.raw_episode = self
+        return high_episode
+    
+    @property
+    def high_actions(self):
+        return np.array(self.__high_actions__)
 
 
 class HierarchicalTimeLimitCollector:
-    def __init__(self, env, env_name, horizon, time_limit=None, tanh = False):
+    def __init__(self, env, horizon, time_limit=None):
         self.env = env
-        self.env_name = env_name
+        self.env_name = self.env.env_name
         self.horizon = horizon
         self.time_limit = time_limit if time_limit is not None else np.inf
-        self.tanh = tanh
 
         self.state_processor = StateProcessor(env_name= self.env_name)
 
@@ -35,12 +82,9 @@ class HierarchicalTimeLimitCollector:
         G = self.state_processor.get_goals(state)
         state = self.state_processor.state_process(state)
 
-        # print(state.shape)
-
-
         print(f"G : {self.state_processor.goal_checker(G)}")
 
-        episode = HierarchicalEpisode(state)
+        episode = HierarchicalEpisode_G(state)
         low_actor.eval()
         high_actor.eval()
         
@@ -48,12 +92,8 @@ class HierarchicalTimeLimitCollector:
 
             # print(goal_checker(state[30:]))
             if t % self.horizon == 0:
-                if self.tanh:
-                    high_action_normal, high_action, loc, scale = high_actor.act(state, G)
-                    data_high_action_normal, data_high_action = high_action_normal, high_action
-                else:
-                    high_action, loc, scale = high_actor.act(state, G)
-                    data_high_action = high_action
+                high_action, high_action_normal = high_actor.act(state, G)
+                data_high_action = high_action
             else:
                 data_high_action = None
             
@@ -71,22 +111,13 @@ class HierarchicalTimeLimitCollector:
             data_done = done
             if 'TimeLimit.truncated' in info:
                 data_done = not info['TimeLimit.truncated']
-            
-            if self.tanh:
-                if data_high_action is not None:
-                    _data_high_action = np.concatenate((data_high_action_normal, data_high_action, loc, scale), axis = 0)
-                else:
-                    _data_high_action = None
-                
 
-                episode.add_step(low_action, _data_high_action, state, reward, data_done, info)
+            if data_high_action is not None:
+                data_high_action_w_normal = np.concatenate((data_high_action, high_action_normal), axis = -1)
             else:
-                if data_high_action is not None:
-                    data_high_action = np.concatenate((data_high_action, loc, scale), axis = 0)
-                else:
-                    data_high_action = None
-
-                episode.add_step(low_action, data_high_action, state, reward, data_done, info)
+                data_high_action_w_normal = None
+            
+            episode.add_step(low_action, data_high_action_w_normal, state, G, reward, data_done, info)
             t += 1
             
                 
@@ -106,8 +137,8 @@ class HierarchicalTimeLimitCollector:
 
     
 class LowFixedHierarchicalTimeLimitCollector(HierarchicalTimeLimitCollector):
-    def __init__(self, env, env_name, low_actor, horizon, time_limit=None, tanh = False):
-        super().__init__(env, env_name, horizon, time_limit, tanh)
+    def __init__(self, env, low_actor, horizon, time_limit=None):
+        super().__init__(env, horizon, time_limit)
         self.low_actor = low_actor
 
     def collect_episode(self, high_actor):

@@ -30,7 +30,7 @@ from LVD.modules.subnetworks import *
 from LVD.rl.sac_gc_naive import SAC
 from LVD.contrib.simpl.torch_utils import itemize
 from LVD.rl.vis import *
-from LVD.utils import *
+from GCPrior.LVD.utils.utils import *
 from LVD.collector.gcid import LowFixedHierarchicalTimeLimitCollector
 from LVD.collector.storage import Buffer_modified
 from LVD.rl.rl_utils import *
