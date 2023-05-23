@@ -4,8 +4,7 @@ from torch.optim import *
 from ..modules import *
 from ..utils import *
 from .base import BaseModel
-
-
+from easydict import EasyDict as edict
 
 # 앞이 estimate = q_hat_dist
 # target은 q_dist에서 샘플링한 값. 

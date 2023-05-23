@@ -1,11 +1,10 @@
 import torch
 import copy
-
-import math
-
-from ...modules.base import BaseModule
+import random
+from ...modules import BaseModule
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from ...contrib import update_moving_average
+from ...contrib import TanhNormal
 
 class GoalConditioned_GoalPrompt_Prior(BaseModule):
     """

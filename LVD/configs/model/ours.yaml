@@ -1,6 +1,7 @@
 subseq_len : 11
 tanh : true
 skill_trainer : LVD.runner.Diversity_Trainer
+rl_trainer : LVD.rl.rl_trainer.RL_Trainer
 consistency_update : true
 
 state_encoder :

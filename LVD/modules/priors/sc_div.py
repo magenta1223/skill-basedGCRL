@@ -1,10 +1,8 @@
 import torch
-import copy
-
-
-from ...modules.base import BaseModule
+from ...modules import BaseModule
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from easydict import EasyDict as edict
+from ...contrib import TanhNormal
 
 class StateConditioned_Diversity_Prior(BaseModule):
     """
@@ -13,16 +11,7 @@ class StateConditioned_Diversity_Prior(BaseModule):
     def __init__(self, **submodules):
         super().__init__(submodules)
 
-        self.methods = {
-            "train" : self.__train__,
-            "eval" : self.__eval__,
-            "rollout" : self.__rollout__
-        }
-
-    def forward(self, inputs, mode = "train", *args, **kwargs):
-        return self.methods[mode](inputs, *args, **kwargs)
-
-    def __train__(self, inputs):
+    def forward(self, inputs, *args, **kwargs):
         """
         State only Conditioned Prior
         inputs : dictionary
@@ -37,12 +26,12 @@ class StateConditioned_Diversity_Prior(BaseModule):
 
         prior, prior_detach = self.prior_policy.dist(states, detached = True)
 
-        return dict(
+        return edict(
             prior = prior,
             prior_detach = prior_detach
         )
 
-    def __eval__(self, inputs):
+    def dist(self, inputs):
         """
         inputs : dictionary
             -  states 
@@ -57,7 +46,7 @@ class StateConditioned_Diversity_Prior(BaseModule):
             
         prior, prior_detach = self.prior_policy.dist(states, detached = True)
 
-        return dict(
+        return edict(
             prior = prior,
             prior_detach = prior_detach
         )

@@ -2,28 +2,23 @@
 import gym
 import d4rl
 
+import os
 import numpy as np
 from easydict import EasyDict as edict
 import matplotlib.pyplot as plt
 import wandb
 import cv2
-# simpl contribs
-# from proposed.contrib.simpl.collector import Buffer
+import torch
 
+import wandb
 # models
-import torch.nn as nn
-from torch.nn import functional as F
-
 from simpl_reproduce.maze.maze_vis import draw_maze
-
-from LVD.modules import *
-from LVD.rl.sac import SAC
-from LVD.contrib.simpl.torch_utils import itemize
-from LVD.utils import *
-
-from LVD.collector.gcid import LowFixedHierarchicalTimeLimitCollector
-from LVD.collector.storage import Buffer_G
-
+from .sac import SAC
+from ..modules import *
+from ..contrib.simpl.torch_utils import itemize
+from ..utils import *
+from ..collector.gcid import LowFixedHierarchicalTimeLimitCollector
+from ..collector.storage import Buffer_G
 
 seed_everything()
 
@@ -88,7 +83,7 @@ class RL_Trainer:
         
         # build buffers and collector
 
-        buffer = Buffer_G(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.cfg.tanh)
+        buffer = Buffer_G(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.cfg.tanh).to(high_policy.device)
         collector = LowFixedHierarchicalTimeLimitCollector(
             self.env,
             # env_name,
@@ -142,14 +137,7 @@ class RL_Trainer:
                     if (n_ep + 1) % self.cfg.render_period == 0:
                         self.visualize(collector)
 
-                    log = {f"{task_name}/{k}": log[k] for k in log.keys()}
-                    wandb.log(log)
-
-                    # clear plot
-                    plt.cla()
-
-                    ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'tr_return']
-
+                    ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
                     if ewm_rwds > self.cfg.early_stop_threshold:
                         early_stop += 1
                     else:
@@ -158,6 +146,12 @@ class RL_Trainer:
                     if early_stop == 10:
                         print("Converged enough. Early Stop!")
                         break
+
+                    log = {f"{task_name}/{k}": log[k] for k in log.keys()}
+                    wandb.log(log)
+                    # clear plot
+                    plt.cla()
+
 
     def train_policy(self, collector, sac, n_ep):
 
@@ -179,7 +173,7 @@ class RL_Trainer:
         
         
         if n_ep == self.cfg.precollect:
-            step_inputs = dict(
+            step_inputs = edict(
                 G = G,
                 episode = n_ep,
             )
@@ -188,7 +182,7 @@ class RL_Trainer:
             sac.warmup_Q(step_inputs)
 
         for _ in range(max(self.n_step(episode), 1)):
-            step_inputs = dict(
+            step_inputs = edict(
                 G = G,
                 episode = n_ep,
             )

@@ -22,7 +22,7 @@ def parse_pkl(file_path):
         data = pickle.load(f)
     return data
 
-class CARLA_Dataset(Dataset):
+class Carla_Dataset(Dataset):
     SPLIT = edict(train=0.99, val=0.01, test=0.0)
     def __init__(self, data_dir, data_conf, phase, resolution=None, shuffle=True, dataset_size=-1, *args, **kwargs):
         
@@ -148,7 +148,7 @@ class CARLA_Dataset(Dataset):
             )        
         return dataloader
 
-class CARLA_Dataset_Diversity(CARLA_Dataset):
+class Carla_Dataset_Div(Carla_Dataset):
     def __init__(self, data_dir, data_conf, phase, resolution=None, shuffle=True, dataset_size=-1, *args, **kwargs):
         super().__init__(data_dir, data_conf, phase, resolution, shuffle, dataset_size, *args, **kwargs)
         self.__mode__ = "skill_learning"

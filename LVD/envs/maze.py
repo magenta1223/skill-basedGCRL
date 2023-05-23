@@ -1,17 +1,11 @@
 from contextlib import contextmanager
 
 # from d4rl.pointmaze import MazeEnv
-import gym
 import mujoco_py
 import numpy as np
 
-
-# from  .maze_layout import rand_layout
 from ..contrib.simpl.env.maze_layout import rand_layout
-from ..contrib.simpl.env.maze import MazeEnv, MazeTask, AgentCentricMazeEnv
-
-import torch
-import random
+from ..contrib.simpl.env.maze import MazeEnv
 from copy import deepcopy
 
 init_loc_noise = 0.1

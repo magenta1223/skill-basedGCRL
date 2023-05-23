@@ -1,6 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from ..contrib.spirl.pytorch_utils import RepeatedDataLoader
+from ..contrib import RepeatedDataLoader 
 from easydict import EasyDict as edict
 
 class Base_Dataset(Dataset):

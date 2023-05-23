@@ -4,12 +4,12 @@ from torch.optim import *
 from ..modules import *
 from ..utils import *
 from .base import BaseModel
-
+from easydict import EasyDict as edict
 
 # 앞이 estimate = q_hat_dist
 # target은 q_dist에서 샘플링한 값. 
 
-class SiMPL_Model(BaseModule):
+class SiMPL_Model(BaseModel):
     """
     """
     def __init__(self, cfg):
@@ -51,19 +51,7 @@ class SiMPL_Model(BaseModule):
         }
 
 
-        # Losses
-        self.loss_fns = {
-            'recon' : ['mse', nn.MSELoss()],
-            'reg' : ['kld', torch_dist.kl_divergence] ,
-            'prior' : ["nll", nll_dist] ,
-            'prior_metric' : ["kld", torch_dist.kl_divergence],
-        }
 
-
-        self.outputs = {}
-        self.loss_dict = {}
-
-        self.step = 0
 
     @torch.no_grad()
     def get_metrics(self):

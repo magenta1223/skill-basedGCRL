@@ -24,6 +24,7 @@ class Episode_G(Episode):
         super().add_step( action, next_state, reward, done, info)
         self.__G__.append(G)
 
+
     def __repr__(self):
         return f'Episode(cum_reward={sum(self.rewards)}, length={len(self)}, G = )'
     
@@ -33,14 +34,14 @@ class Episode_G(Episode):
             self.actions,
             self.next_states,
             self.G,
-            self.rewards,
-            self.dones,
+            self.rewards[:, None],
+            self.dones[:, None],
         ], axis=-1))
 
 
     @property
     def G(self):
-        return np.array(self.__G__[:-1])
+        return np.array(self.__G__)
 
 
 class Batch_G(Batch):
@@ -59,7 +60,6 @@ class Batch_G(Batch):
 
 
     def parse(self, tanh = False):
-
         batch_dict = edict()
 
         batch_dict['states'] = prep_state(self.states, self.device) #prep_state(batch.states, self.device)
@@ -132,7 +132,7 @@ class Buffer_G(Buffer):
     def sample(self, n):
         indices = torch.randint(self.size, size=[n], device=self.device)
         transitions = self.transitions[indices]
-        return Batch_G(*[transitions[:, i] for i in self.layout.values()], transitions).parse(self.tanh)
+        return Batch_G(*[transitions[:, i] for i in self.layout.values()], transitions).to(self.device).parse(self.tanh)
 
 
 class Buffer_TT(Buffer):

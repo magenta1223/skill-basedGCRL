@@ -1,13 +1,13 @@
+import numpy as np
 import torch
 import copy
-
-import math
-
-from ...modules.base import BaseModule
+from easydict import EasyDict as edict
+from ...modules import BaseModule, ContextPolicyMixin
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from ...contrib import update_moving_average
+from ...contrib import TanhNormal
 
-class Skimo_Prior(BaseModule):
+class Skimo_Prior(ContextPolicyMixin, BaseModule):
     """
     TODO 
     1) 필요한 모듈이 마구마구 바뀌어도 그에 맞는 method 하나만 만들면
@@ -75,7 +75,7 @@ class Skimo_Prior(BaseModule):
             subgoal_recon_D = self.state_decoder(D)
 
 
-        result = {
+        result = edict({
             # states
             "states" : states,
             "states_repr" : state_emb,
@@ -96,9 +96,7 @@ class Skimo_Prior(BaseModule):
             # for metric
             "z_invD" : skill,
             "subgoal_recon_D" : subgoal_recon_D,
-
-
-        }
+        })
 
 
         return result
@@ -117,7 +115,7 @@ class Skimo_Prior(BaseModule):
 
         policy_skill =  self.highlevel_policy.dist(torch.cat((ht, G), dim = -1))
 
-        return dict(
+        return edict(
             policy_skill = policy_skill
         )
     
@@ -134,12 +132,6 @@ class Skimo_Prior(BaseModule):
             value += discount * reward
             discount *= self.rl_discount
         
-        # policy_skill = self.prior_policy(policy_inputs, "eval")['policy_skill'].sample()
-        # if self.gc:
-        #     policy_skill =  self.highlevel_policy.dist(torch.cat((state, G), dim = -1)).sample()
-        # else:
-        #     policy_skill =  self.highlevel_policy.dist(state).sample()
-
         policy_skill =  self.highlevel_policy.dist(torch.cat((state, G), dim = -1)).sample()
         q_values = [  qf( state, policy_skill).unsqueeze(-1)   for qf in qfs]
         value += discount * torch.min(*q_values) # 마지막엔 Q에 넣어서 value를 구함. 
@@ -152,16 +144,12 @@ class Skimo_Prior(BaseModule):
 
         skills = []
         for i in range(planning_horizon):
-            # if self.gc:
-            #     policy_skill =  self.highlevel_policy.dist(torch.cat((ht, G), dim = -1)).sample()
-            # else:
-            #     policy_skill =  self.highlevel_policy.dist(ht).sample()
             policy_skill =  self.highlevel_policy.dist(torch.cat((ht, G), dim = -1)).sample()
             dynamics_input = torch.cat((ht, policy_skill), dim = -1)
             ht = self.dynamics(dynamics_input)
             skills.append(policy_skill)
         
-        return dict(
+        return edict(
             policy_skills = torch.stack(skills, dim=1)
         )
     
@@ -247,7 +235,7 @@ class Skimo_Prior(BaseModule):
         next_states = self.dynamics(dynamics_input)
         rewards_pred = self.reward_function(dynamics_input) 
 
-        return dict(
+        return edict(
             next_states = next_states,
             rewards_pred = rewards_pred
         )

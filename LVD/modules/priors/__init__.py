@@ -17,3 +17,5 @@ PRIOR_WRAPPERS = {
     "skimo" : Skimo_Prior,
     "simpl" : SiMPL_Prior
 }
+
+__all__ = ["PRIOR_WRAPPERS"]

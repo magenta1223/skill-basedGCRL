@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.distributions as torch_dist
 from ..modules import *
 from ..utils import *
-
 # 앞이 estimate = q_hat_dist
 # target은 q_dist에서 샘플링한 값. 
+
 
 class BaseModel(BaseModule):
     """

@@ -1,6 +1,15 @@
 hydra:
   run:
     dir: logs/${env.env_name}/${structure}/${config_path:${hydra.job.override_dirname}}
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - phase
+
+
+phase : skill
+trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 
 save_ckpt : 20
 early_stop_rounds : 100
@@ -31,10 +40,10 @@ rl :
   tau : 0.005
   qf_lr : 3e-4
   alpha_lr : 3e-4
-  rl_batchsize : 256
+  rl_batch_size : 256
 
 rl_cfgs : [
-  rl_batchsize, # general
+  rl_batch_size, # general
   q_warmup, discount, tau, # qfs
   policy_lr, consistency_lr, qf_lr, alpha_lr, # lrs
   init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params

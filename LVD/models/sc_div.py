@@ -6,6 +6,8 @@ from ..utils import *
 from .base import BaseModel
 # 앞이 estimate = q_hat_dist
 # target은 q_dist에서 샘플링한 값. 
+from easydict import EasyDict as edict
+
 
 class StateConditioned_Diversity_Model(BaseModel):
     """

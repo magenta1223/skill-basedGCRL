@@ -48,10 +48,10 @@ class Episode:
 
     @property
     def rewards(self):
-        return np.array(self.__rewards__)[:, None]
+        return np.array(self.__rewards__)
     @property
     def dones(self):
-        return np.array(self.__dones__)[:, None]
+        return np.array(self.__dones__)
 
     @property
     def infos(self):

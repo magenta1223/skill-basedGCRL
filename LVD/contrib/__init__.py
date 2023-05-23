@@ -8,4 +8,14 @@ from .torch_truncnorm import *
 
 from . import simpl
 from .simpl import math as simpl_math
-from .spirl import pytorch_utils
+from .spirl.pytorch_utils import RepeatedDataLoader
+
+
+__all__ = [
+    'TanhNormal',
+    'TruncatedStandardNormal',
+    'update_moving_average',
+    'simpl',
+    'simpl_math',
+    'RepeatedDataLoader'
+]

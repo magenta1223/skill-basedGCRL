@@ -1,9 +1,9 @@
-# from proposed.modules.base import BaseModule
-# from proposed.utils import *
-# from proposed.contrib.momentum_encode import update_moving_average
+import torch
+from torch.nn import functional as F
+from easydict import EasyDict as edict
 from ...modules import BaseModule, ContextPolicyMixin
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from ...contrib import TanhNormal
 
 
 class SiMPL_Prior(ContextPolicyMixin, BaseModule):
@@ -42,7 +42,7 @@ class SiMPL_Prior(ContextPolicyMixin, BaseModule):
         scales = F.softplus(res_pre_scales + prior_pre_scales)
         policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
 
-        return dict(
+        return edict(
             prior = prior,
             states = states,
             policy_skill = policy_skill,
@@ -71,7 +71,7 @@ class SiMPL_Prior(ContextPolicyMixin, BaseModule):
         scales = F.softplus(res_pre_scales + prior_pre_scales)
         policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
 
-        return dict(
+        return edict(
             prior = prior,
             policy_skill = policy_skill,
         )
@@ -102,7 +102,7 @@ class SiMPL_Prior(ContextPolicyMixin, BaseModule):
 
     def get_finetune_params(self):
         
-        return dict(
+        return edict(
             policy_loss = self.highlevel_policy.parameters(),
             consistency = self.highlevel_policy.parameters()
         )

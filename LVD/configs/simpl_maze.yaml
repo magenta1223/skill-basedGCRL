@@ -19,6 +19,7 @@ model:
   skill_decoder:
     in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
     out_dim : ${env.action_dim} 
+    state_dim : ${env.state_dim}
     z_dim  : ${env.skill_dim}
 
   high_policy:

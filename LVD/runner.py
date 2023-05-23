@@ -2,11 +2,7 @@ import os
 import time
 from glob import glob
 import torch
-from easydict import EasyDict as edict
 from LVD.utils import *
-from LVD.configs.env import *
-# from LVD.configs.model import *
-import hydra
 from LVD.models import *
 import warnings
 
@@ -74,7 +70,7 @@ class BaseTrainer:
         log_path = f"logs/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}/{self.cfg.job_name}.log"
         self.logger = Logger(log_path, verbose= False)
 
-        self.model_id = f"weights/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}"
+        self.model_id = f"weights/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}/skill"
         os.makedirs(self.model_id, exist_ok = True)
 
     def meter_initialize(self):

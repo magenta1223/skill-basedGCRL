@@ -1,10 +1,10 @@
+import math
 import numpy as np
 import torch
 import torch.nn as nn
-from ..modules.base import SequentialBuilder, ContextPolicyMixin
+from .base import SequentialBuilder, ContextPolicyMixin
 from ..utils import *
-import math
-from copy import deepcopy
+
 
 class InverseDynamicsMLP(SequentialBuilder):
     def __init__(self, config):
@@ -30,15 +30,15 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
         super().__init__(config)
         self.z = None
         self.log_sigma = nn.Parameter(-50*torch.ones(self.out_dim)) # for stochastic sampling
-        self.visual_encoder = None
+    #     self.visual_encoder = None
 
-    def set_visual_encoder(self, visual_encoder):
-        if visual_encoder is not None:
-            visual_encoder = deepcopy(visual_encoder)
-            visual_encoder.eval()
-            visual_encoder.requires_grad_(False)
+    # def set_visual_encoder(self, visual_encoder):
+    #     if visual_encoder is not None:
+    #         visual_encoder = deepcopy(visual_encoder)
+    #         visual_encoder.eval()
+    #         visual_encoder.requires_grad_(False)
 
-        self.visual_encoder = visual_encoder 
+    #     self.visual_encoder = visual_encoder 
 
     # from simpl. for compatibility with simpl
     def dist(self, batch_state_z):

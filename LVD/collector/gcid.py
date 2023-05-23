@@ -14,51 +14,55 @@ class HierarchicalEpisode_G(Episode_G):
     def __init__(self, init_state):
         super().__init__(init_state)
         self.low_actions = self.actions
-        self.__high_actions__ = []
+        self.high_actions = []
 
 
     def add_step(self, low_action, high_action, next_state, G, reward, done, info):
         # MDP transitions
         # def add_step(self, action, next_state, G, reward, done, info):
         super().add_step(low_action, next_state, G, reward, done, info)
-        self.__high_actions__.append(high_action)
+        # self.__high_actions__.append(high_action)
+        self.high_actions.append(high_action)
 
     def as_high_episode(self):
         """
         high-action은 H-step마다 값이 None 이 아
         """
-
-        high_episode = Episode(self.states[0])
+        high_episode = Episode_G(self.states[0])
         prev_t = 0
         for t in range(1, len(self)):
             if self.high_actions[t] is not None:
                 # high-action은 H-step마다 값이 None이 아니다.
                 # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
                 # add_step(self, action, next_state, G, reward, done, info):
+                cum_rwd = sum(self.rewards[prev_t:t])
                 high_episode.add_step(
                     self.high_actions[prev_t], # skill
                     self.states[t], # next_state
                     self.G[t], # G
-                    sum(self.rewards[prev_t:t]),
+                    cum_rwd,
                     self.dones[t],
                     self.infos[t]
                 )
+
                 prev_t = t
         
+        cum_rwd = sum(self.rewards[prev_t:t])
         high_episode.add_step(
             self.high_actions[prev_t],
             self.states[-1],
             self.G[-1], # G
-            sum(self.rewards[prev_t:]),
+            cum_rwd,
             self.dones[-1],
             self.infos[-1]
         )
         high_episode.raw_episode = self
         return high_episode
     
-    @property
-    def high_actions(self):
-        return np.array(self.__high_actions__)
+    # @property
+    # def high_actions(self):
+    #     print(self.__high_actions__[0].shape)
+    #     return np.array(self.__high_actions__)
 
 
 class HierarchicalTimeLimitCollector:
@@ -96,9 +100,7 @@ class HierarchicalTimeLimitCollector:
                 data_high_action = high_action
             else:
                 data_high_action = None
-            
-            # print(high_action.shape)
-            
+                        
             with low_actor.condition(high_action):
                 low_action = low_actor.act(state)
 

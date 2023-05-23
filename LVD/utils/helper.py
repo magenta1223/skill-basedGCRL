@@ -1,45 +1,4 @@
-import os
-import random
-import time
-from datetime import datetime
-
 import torch
-from torch.nn import functional as F
-import torch.distributions as torch_dist
-from torch.distributions.kl import register_kl
-
-import numpy as np
-from d4rl.kitchen.kitchen_envs import OBS_ELEMENT_GOALS, OBS_ELEMENT_INDICES, BONUS_THRESH
-
-
-
-from ..contrib.dists import TanhNormal
-
-# --------------------------- Seed --------------------------- #
-
-def seed_everything(seed: int = 42):
-    random.seed(seed)
-    np.random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)  # type: ignore
-    torch.backends.cudnn.deterministic = True  # type: ignore
-    torch.backends.cudnn.benchmark = True  # type: ignore
-    # torch.use_deterministic_algorithms(True)
-
-
-# --------------------------- Env, Model Utils --------------------------- #
-
-def prep_state(states, device):
-    if isinstance(states, np.ndarray):
-        states = torch.tensor(states, dtype = torch.float32)
-
-    if len(states.shape) < 2:
-        states = states.unsqueeze(0)
-
-    states = states.to(device)
-    return states
-
 
 # --------------------- Helper Class --------------------- # 
 

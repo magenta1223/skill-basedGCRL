@@ -1,9 +1,9 @@
-# from proposed.modules.base import BaseModule
-# from proposed.utils import *
-# from proposed.contrib.momentum_encode import update_moving_average
+import torch
+from torch.nn import functional as F
 from ...modules import BaseModule, ContextPolicyMixin
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from ...contrib import TanhNormal
+from easydict import EasyDict as edict
 
 class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
     """

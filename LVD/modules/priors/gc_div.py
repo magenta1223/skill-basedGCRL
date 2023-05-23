@@ -2,10 +2,12 @@ import torch
 import copy
 
 import math
+import random
 
-from ...modules.base import BaseModule
+from ...modules import BaseModule
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from ...contrib import update_moving_average
+from ...contrib import TanhNormal
 
 class GoalConditioned_Diversity_Prior(BaseModule):
     """

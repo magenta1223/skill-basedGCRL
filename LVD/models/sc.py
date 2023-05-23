@@ -4,6 +4,7 @@ from torch.optim import *
 from ..modules import *
 from ..utils import *
 from .base import BaseModel
+from easydict import EasyDict as edict
 
 class StateConditioned_Model(BaseModel):
     """

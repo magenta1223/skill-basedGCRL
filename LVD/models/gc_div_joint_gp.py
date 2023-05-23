@@ -4,7 +4,8 @@ from torch.optim import *
 from ..modules import *
 from ..utils import *
 from .base import BaseModel
-
+import torch.distributions as torch_dist
+from easydict import EasyDict as edict
 
 class GoalConditioned_GoalPrompt_Model(BaseModel):
     """

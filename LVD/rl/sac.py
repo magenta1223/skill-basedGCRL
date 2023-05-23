@@ -5,14 +5,9 @@ import torch
 import torch.distributions as torch_dist
 import torch.nn as nn
 import torch.nn.functional as F
-
+from easydict import EasyDict as edict
 from ..utils import *
-
 from ..models import BaseModel
-# from ..contrib.simpl.math import clipped_kl, inverse_softplus
-# from ..contrib.momentum_encode import update_moving_average
-# from ..contrib.dists import *
-
 from ..contrib import *
 
 
@@ -82,7 +77,7 @@ class SAC(BaseModel):
     def step(self, step_inputs):
         self.train()
 
-        batch = self.buffer.sample(self.rl_batchsize).to(self.device)
+        batch = self.buffer.sample(self.rl_batch_size).to(self.device)
         self.episode = step_inputs['episode']
 
         self.n_step += 1
@@ -215,7 +210,7 @@ class SAC(BaseModel):
     def warmup_Q(self, step_inputs):
         # self.train()
 
-        batch = self.buffer.sample(self.rl_batchsize).to(self.device)
+        batch = self.buffer.sample(self.rl_batch_size).to(self.device)
         self.episode = step_inputs['episode']
 
         stat = {}

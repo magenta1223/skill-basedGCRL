@@ -1,12 +1,12 @@
 import torch
 import copy
-
-
-from ...modules.base import BaseModule
+from ...modules import BaseModule, ContextPolicyMixin
 from ...utils import *
-from ...contrib.momentum_encode import update_moving_average
+from ...contrib import update_moving_average
+from easydict import EasyDict as edict
+from ...contrib import TanhNormal
 
-class GoalConditioned_Prior(BaseModule):
+class GoalConditioned_Prior(ContextPolicyMixin, BaseModule):
     """
     """
 
@@ -17,12 +17,6 @@ class GoalConditioned_Prior(BaseModule):
         self.target_inverse_dynamics = copy.deepcopy(self.inverse_dynamics)
         self.target_dynamics = copy.deepcopy(self.dynamics)
 
-        self.methods = {
-            "train" : self.__train__,
-            "eval" : self.__eval__,
-            "finetune" : self.__finetune__,
-        }
-
     def soft_update(self):
         """
         Exponentially moving averaging the parameters of state encoder 
@@ -31,10 +25,7 @@ class GoalConditioned_Prior(BaseModule):
         update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
         update_moving_average(self.target_dynamics, self.dynamics, 1)
 
-    def forward(self, inputs, mode = "train", *args, **kwargs):
-        return self.methods[mode](inputs, *args, **kwargs)
-    
-    def __train__(self, inputs):
+    def forward(self, inputs, *args, **kwargs):
         """
         Jointly Optimize 
         - State Encoder / Decoder
@@ -94,7 +85,7 @@ class GoalConditioned_Prior(BaseModule):
         subgoal_D = self.target_dynamics(dynamics_input)
 
 
-        result = {
+        result = edict({
             # states
             "states" : states,
             "states_repr" : states_repr,
@@ -115,7 +106,7 @@ class GoalConditioned_Prior(BaseModule):
             "invD_sub" : invD_sub,
             # for metric
             "z_invD" : skill,
-        }
+        })
 
 
         return result

@@ -2,3 +2,12 @@
 from .maze.maze_dataloader import *
 from .carla.carla_dataloader import *
 from .kitchen.kitchen_dataloader import *
+
+__all__ = [
+    'Kitchen_Dataset',
+    'Kitchen_Dataset_Div',
+    'Maze_Dataset',
+    'Maze_Dataset_Div',
+    'Carla_Dataset',
+    'Carla_Dataset_Div',
+]

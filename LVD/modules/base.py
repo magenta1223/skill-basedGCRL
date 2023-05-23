@@ -1,18 +1,12 @@
-import torch
-import torch.nn as nn
-from torch.nn import functional as F
-
 from contextlib import contextmanager
-import numpy as np
 from copy import deepcopy
-
-
-# from proposed.utils import get_dist
-from ..utils import get_dist
 from typing import Dict
 
+import numpy as np
+import torch
+import torch.nn as nn
+from ..utils import get_dist
 
-import math
 
 class BaseModule(nn.Module):
     """
