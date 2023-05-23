@@ -37,8 +37,8 @@ reuse_rate : 512
 q_warmup : 5000
 q_weight : 1
 precollect : 20
-early_stop_threshold : 0.8
-max_reward : 4
+early_stop_threshold : ${multiply:100, 0.8}
+max_reward : 100
 use_hidden : true
 consistency_lr : 1e-8
 policy_lr : 3e-6

@@ -6,6 +6,7 @@ defaults:
 structure : sc
 dataset_cls : LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset
 
+
 model:
   prior:
     in_feature : ${env.state_dim}
@@ -27,5 +28,5 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   q_function:
-    in_feature: ${add:${env.state_dim}, ${env.n_goal}} 
+    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 
     

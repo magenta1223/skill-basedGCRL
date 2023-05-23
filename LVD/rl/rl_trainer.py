@@ -96,7 +96,7 @@ class RL_Trainer:
         sac_config = { attr_nm : getattr(self.cfg, attr_nm) for attr_nm in self.cfg.rl_cfgs}
         sac_modules = {
             'policy' : high_policy,
-            'prior_policy' : skill_prior, 
+            'skill_prior' : skill_prior, 
             'buffer' : buffer, 
             'qfs' : qfs,            
         }        

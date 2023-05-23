@@ -130,7 +130,7 @@ class Buffer_G(Buffer):
         return self.transitions[:, self.layout['G']]
 
     def sample(self, n):
-        indices = torch.randint(self.size, size=[n], device=self.device)
+        indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
         return Batch_G(*[transitions[:, i] for i in self.layout.values()], transitions).to(self.device).parse(self.tanh)
 

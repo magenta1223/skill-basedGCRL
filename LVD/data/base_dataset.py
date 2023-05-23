@@ -1,7 +1,8 @@
 import numpy as np
 from torch.utils.data import Dataset
-from ..contrib import RepeatedDataLoader 
+from ..contrib.spirl.pytorch_utils import RepeatedDataLoader 
 from easydict import EasyDict as edict
+import random
 
 class Base_Dataset(Dataset):
     SPLIT = edict(train=0.99, val=0.01, test=0.0)
@@ -12,6 +13,9 @@ class Base_Dataset(Dataset):
             setattr(self, k , v)
 
         self.phase = phase
+        self.seqs = []
+        self.start = 0
+        self.end = -1
 
 
     def _sample_seq(self, index = False):
@@ -20,7 +24,10 @@ class Base_Dataset(Dataset):
                 print(f"index {index}")
                 return self.seqs[index]
             else:
-                return np.random.choice(self.seqs[self.start:self.end])
+                # return np.random.choice(self.seqs[self.start:self.end])
+                random_index = random.randint(self.start, self.end - 1)
+                return self.seqs[random_index]
+
         except:
             return self.seqs[-1]
 
@@ -43,8 +50,9 @@ class Base_Dataset(Dataset):
     def __len__(self):
         return NotImplementedError
 
-    def get_data_loader(self, batch_size, num_workers = 8):
+    def get_data_loader(self, batch_size, num_workers):
         print('len {} dataset {}'.format(self.phase, len(self)))
+        
 
         return RepeatedDataLoader(
             self,

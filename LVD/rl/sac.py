@@ -68,7 +68,7 @@ class SAC(BaseModel):
             prior_dists = self.skill_prior.dist(encoded_states)
 
         if kl_clip is not None:                
-            entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = self.kl_clip)
+            entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = kl_clip)
         else:
             entropy = torch_dist.kl_divergence(policy_dists, prior_dists)
 
@@ -210,12 +210,12 @@ class SAC(BaseModel):
     def warmup_Q(self, step_inputs):
         # self.train()
 
-        batch = self.buffer.sample(self.rl_batch_size).to(self.device)
+        batch = self.buffer.sample(self.rl_batch_size)
         self.episode = step_inputs['episode']
 
         stat = {}
 
-        for _ in range(self.q_warmup_steps):
+        for _ in range(self.q_warmup):
             q_results = self.update_qs(batch)
                         
 

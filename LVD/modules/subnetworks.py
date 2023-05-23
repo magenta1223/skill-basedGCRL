@@ -44,21 +44,10 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
     def dist(self, batch_state_z):
         if self.state_dim is not None:
             # self.state_dim = 30
-            if self.visual_encoder is not None:
-                N = batch_state_z.shape
-                visual_feature = self.visual_encoder(batch_state_z[:, 4:1028].view(N, 1, 32, 32))
-
-                batch_state_z = torch.cat([
-                    # batch_state_z[..., :self.state_dim],
-                    visual_feature,
-                    batch_state_z[..., -self.z_dim:]
-                ], dim=-1)
-
-            else:
-                batch_state_z = torch.cat([
-                    batch_state_z[..., :self.state_dim],
-                    batch_state_z[..., -self.z_dim:]
-                ], dim=-1)                
+            batch_state_z = torch.cat([
+                batch_state_z[..., :self.state_dim],
+                batch_state_z[..., -self.z_dim:]
+            ], dim=-1)                
 
         loc = self(batch_state_z)
         log_scale = self.log_sigma[None, :].expand(len(loc), -1)

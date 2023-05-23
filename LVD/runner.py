@@ -10,8 +10,6 @@ warnings.filterwarnings("ignore")
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
-
-
 class Logger:
     def __init__(self, log_path, verbose = True):
         self.log_path =log_path
@@ -156,11 +154,13 @@ class BaseTrainer:
 
         self.meter_initialize()
 
+        start = time.time()
 
         for i, batch in enumerate(loader):
             self.model.train()
+
+            optim_start = time.time()
             loss = self.model.optimize(batch, e)
-        
 
             if not len(self.meters):
                 # initialize key
@@ -252,6 +252,7 @@ class BaseTrainer:
     def get_loader(self):
         train_dataset = self.cfg.dataset_cls(self.cfg, "train")
         val_dataset = self.cfg.dataset_cls(self.cfg, "val")
+        
         self.train_loader = train_dataset.get_data_loader(self.cfg.batch_size, num_workers = self.cfg.workers)
         self.val_loader = val_dataset.get_data_loader(self.cfg.batch_size, num_workers = self.cfg.workers)
         self.test_loader = None
