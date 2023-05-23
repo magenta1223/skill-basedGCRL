@@ -24,7 +24,7 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   subgoal_generator :
-    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
+    in_feature : ${add:${env.latent_state_dim}, ${env.n_goal}} 
     out_dim : ${env.latent_state_dim}
 
   prior:

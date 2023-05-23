@@ -64,7 +64,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
             subgoal_target = hts_target[:, -1]
 
         # -------------- State-Conditioned Prior -------------- #
-        prior, prior_detach = self.prior_policy.dist(start, detached = True)
+        prior, prior_detach = self.skill_prior.dist(start, detached = True)
 
         # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
@@ -158,8 +158,8 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
             # "flat_D_target" : hts[:, 1:],
         }
 
-        if self.prior_proprioceptive is not None:
-            result['prior_ppc'] = self.prior_proprioceptive.dist(states[:, 0])
+        if self.skill_prior_ppc is not None:
+            result['prior_ppc'] = self.skill_prior_ppc.dist(states[:, 0])
 
         return result
     
@@ -168,13 +168,13 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
     def rollout(self, inputs):
         self.state_encoder.eval()
         self.state_decoder.eval()
-        self.prior_policy.eval()
+        self.skill_prior.eval()
         self.inverse_dynamics.eval()
         self.flat_dynamics.eval()
         self.dynamics.eval()
         
-        if self.prior_proprioceptive is not None:
-            self.prior_proprioceptive.eval()
+        if self.skill_prior_ppc is not None:
+            self.skill_prior_ppc.eval()
 
         states, skill = inputs['states'], inputs['actions']
         N, T, _ = states.shape
@@ -186,11 +186,11 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         c = random.sample(range(1, skill_length - 1), 1)[0]
         _ht = hts[:, c].clone()
 
-        if self.prior_proprioceptive is not None:
+        if self.skill_prior_ppc is not None:
             # env state agnostic
-            skill_sampled_orig = self.prior_proprioceptive.dist(states[:, 0]).sample()
+            skill_sampled_orig = self.skill_prior_ppc.dist(states[:, 0]).sample()
         else:
-            skill_sampled_orig = self.prior_policy.dist(_ht).sample()
+            skill_sampled_orig = self.skill_prior.dist(_ht).sample()
     
 
         skill_sampled = skill_sampled_orig.clone()
@@ -208,7 +208,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
 
         # for f learning, execute 4 skill more
         for _ in range(9):
-            skill = self.prior_policy.dist(_ht).sample()
+            skill = self.skill_prior.dist(_ht).sample()
             dynamics_input = torch.cat((_ht, skill), dim=-1)
             diff = self.dynamics(dynamics_input) 
             _ht = _ht + diff
@@ -275,7 +275,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         dist = self.dist(dist_inputs, "eval")['inverse_D']
         return dist.sample().detach().cpu().squeeze(0).numpy()
         # # TODO explore 여부에 따라 mu or sample을 결정
-        # if self.prior_policy.tanh:
+        # if self.skill_prior.tanh:
         #     z_normal, z = dist.rsample_with_pre_tanh_value()
         #     # to calculate kld analytically 
         #     loc, scale = dist._normal.base_dist.loc, dist._normal.base_dist.scale 
@@ -329,7 +329,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
             #     prior = self.prior_policy.dist(ht[:, :32])
 
             # else:
-            prior = self.prior_policy.dist(ht)
+            prior = self.skill_prior.dist(ht)
 
         return {
             "prior" : prior

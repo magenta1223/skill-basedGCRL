@@ -20,10 +20,10 @@ class Maze_EnvTaskConfig:
     ablation_tasks = maze_ablation_tasks
 
 
-# __all__ = [
-#     'Kitchen_EnvTaskConfig',
-#     'Maze_EnvTaskConfig'
-# ]
+__all__ = [
+    'Kitchen_EnvTaskConfig',
+    'Maze_EnvTaskConfig'
+]
 
 # class Carla_EnvTaskConfig:
 #     env_cls = KitchenEnv_GC

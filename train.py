@@ -11,7 +11,7 @@ from omegaconf import OmegaConf, open_dict
 DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 
 
-@hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="spirl_kitchen", version_base= "1.2")
+@hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
     
     hydra_config = HydraConfig.get()

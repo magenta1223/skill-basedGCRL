@@ -186,13 +186,8 @@ class BaseTrainer:
                     self.meters[key] = AverageMeter()
             for k, v in loss.items():
                 self.meters[k].update(v, batch['states'].shape[0])
-
-
-    
         return { k : v.avg for k, v in self.meters.items()}
 
-
-    
     def save_dict(self):
         return {
             'model': self.model.state_dict(),
@@ -210,20 +205,12 @@ class BaseTrainer:
         torch.save(save_dict, path)
 
 
-    # def load(self, checkpoint):
-    #     # checkpoint = torch.load(path)
-    #     # cfg = checkpoint['configuration']
-    #     # self.__init__(cfg)
-    
-    #     self.model.load_state_dict(checkpoint['model'])
-    #     [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
-    #     [ scheduler.load_state_dict(checkpoint['schedulers'][module_name] )  for module_name, scheduler in self.schedulers.items()]
-    #     self.best_summary_loss = checkpoint['best_summary_loss']
-    #     self.model.eval()
-
-    def load(path):
+    def load(path, cfg = None):
         checkpoint = torch.load(path)
-        self = BaseTrainer(checkpoint['configuration'])
+        if cfg is not None:
+            self = BaseTrainer(cfg)
+        else:
+            self = BaseTrainer(checkpoint['configuration'])
     
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
@@ -233,8 +220,6 @@ class BaseTrainer:
 
         return self
 
- 
- 
  
     def set_lr(self, optimizer, lr = False, ratio = False):
         if ratio and not lr:
@@ -248,24 +233,19 @@ class BaseTrainer:
 
         print(f"{optimizer}'s lr : {self.lr}")
 
-    
     def get_loader(self):
         train_dataset = self.cfg.dataset_cls(self.cfg, "train")
         val_dataset = self.cfg.dataset_cls(self.cfg, "val")
-        
         self.train_loader = train_dataset.get_data_loader(self.cfg.batch_size, num_workers = self.cfg.workers)
         self.val_loader = val_dataset.get_data_loader(self.cfg.batch_size, num_workers = self.cfg.workers)
         self.test_loader = None
-
-
-
 
 class Diversity_Trainer(BaseTrainer):
     def fit(self):
         print("optimizing")
         print(f"weights save path : {self.model_id}")
 
-        for e in range(self.epochs):
+        for e in range(self.cfg.epochs):
             start = time.time()
 
             train_loss_dict  = self.train_one_epoch(self.train_loader, e)
@@ -295,7 +275,7 @@ class Diversity_Trainer(BaseTrainer):
                 state_scheduler = self.schedulers['state']
                 state_scheduler.step(valid_loss_dict[self.schedulers_metric['state']])
 
-            if e >= self.warmup_steps:
+            if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers.items():
                     target_metric = self.schedulers_metric[module_name]
                     if module_name not in  ["skill_enc_dec", "state"] and target_metric is not None:
@@ -305,12 +285,12 @@ class Diversity_Trainer(BaseTrainer):
                     print("early stop", 'loss',  valid_loss_dict['metric'])
                     break
 
-            if e > self.save_ckpt:
+            if e > self.cfg.save_ckpt:
                 self.save(f'{self.model_id}/{e}.bin')
 
             # if e == self.warmup_steps + 10:
             # if e == 1:
-            if e == self.mixin_start:
+            if e == self.cfg.mixin_start:
                 self.train_loader.set_mode("with_buffer")
 
             self.train_loader.update_buffer()
@@ -325,10 +305,20 @@ class Diversity_Trainer(BaseTrainer):
     def train_one_epoch(self, loader, e):
         # print(loader.dataset.mode)
         self.meter_initialize()
+        # start = time.time()
         for i, batch in enumerate(loader):
+            # if i == 0:
+            #     print("Loading : ", f"{time.time()-start:.5f}")
+
+            # optim_start = time.time()
             self.model.train()
             loss = self.model.optimize(batch, e)
+
+            # if i == 0:
+            #     print("Optimize : ", f"{time.time()-optim_start:.5f}")
+
             loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"))
+
 
             if not len(self.meters):
                 for key in loss.keys():
@@ -348,16 +338,16 @@ class Diversity_Trainer(BaseTrainer):
         for i, batch in enumerate(loader):
             self.model.eval() # ?
             loss = self.model.validate(batch, e)
+            loss.pop("states_novel")
+            loss.pop("actions_novel")
 
             if not len(self.meters):
                 for key in loss.keys():
                     self.meters[key] = AverageMeter()
 
-
             for k, v in loss.items():
                 self.meters[k].update(v, batch['states'].shape[0])
 
-    
         return { k : v.avg for k, v in self.meters.items()}
     
     def save(self, path):

@@ -4,7 +4,7 @@ defaults:
   - env : kitchen
 
 structure : sc
-dataset_cls : LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset
+dataset_cls : LVD.data.Kitchen_Dataset
 
 
 model:

@@ -74,10 +74,10 @@ class SAC(BaseModel):
 
         return entropy, prior_dists 
     
-    def step(self, step_inputs):
+    def update(self, step_inputs):
         self.train()
 
-        batch = self.buffer.sample(self.rl_batch_size).to(self.device)
+        batch = self.buffer.sample(self.rl_batch_size)
         self.episode = step_inputs['episode']
 
         self.n_step += 1
@@ -120,7 +120,8 @@ class SAC(BaseModel):
 
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
 
-        policy_loss += torch.sum(dist_out.additional_losses.values())
+        # policy_loss += torch.sum(dist_out.additional_losses.values())
+        policy_loss += torch.sum(torch.tensor(list(dist_out.additional_losses.values())))
 
 
         self.policy_optim.zero_grad()
@@ -190,7 +191,7 @@ class SAC(BaseModel):
         self.stat['target_kl'] = self.target_kl
 
         results = {}
-        if self.auto_alpha is True:
+        if self.auto_alpha:
             # dual gradient decent 
             alpha_loss = (self.alpha * (self.target_kl - self.stat.kl)).mean()
 
@@ -209,18 +210,18 @@ class SAC(BaseModel):
 
     def warmup_Q(self, step_inputs):
         # self.train()
-
+        self.stat = {}
         batch = self.buffer.sample(self.rl_batch_size)
         self.episode = step_inputs['episode']
 
-        stat = {}
+
 
         for _ in range(self.q_warmup):
-            q_results = self.update_qs(batch)
+            if self.consistency_update:
+                self.update_consistency(batch)
+            self.update_qs(batch)
                         
 
-
-        self.stat.update(q_results)
     
     def update_consistency(self, batch):
 

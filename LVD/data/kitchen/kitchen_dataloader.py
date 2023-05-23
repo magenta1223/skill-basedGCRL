@@ -1,12 +1,10 @@
 from copy import deepcopy
 import numpy as np
-# from ...collector.storage import Offline_Buffer
+from ...collector.storage import Offline_Buffer
 # from glob import glob
 import gym
 from easydict import EasyDict as edict
 from ..base_dataset import Base_Dataset
-import time
-from ...utils import AverageMeter
 
 class Kitchen_Dataset(Base_Dataset):
     def __init__(self, cfg, phase):
@@ -77,102 +75,99 @@ class Kitchen_Dataset(Base_Dataset):
         return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0] / self.subseq_len)
 
 
-# class Kitchen_Dataset_Div(Kitchen_Dataset):
-#     """
-#     """
+class Kitchen_Dataset_Div(Kitchen_Dataset):
+    """
+    """
 
-#     def __init__(self, cfg):
-#         super().__init__(cfg)
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
 
-#         self.__mode__ = "skill_learning"
+        self.__mode__ = "skill_learning"
 
-#         self.__getitem_methods__ = {
-#             "skill_learning" : self.__skill_learning__,
-#             "with_buffer" : self.__skill_learning_with_buffer__,
-#         }
+        self.__getitem_methods__ = {
+            "skill_learning" : self.__skill_learning__,
+            "with_buffer" : self.__skill_learning_with_buffer__,
+        }
     
-#         # print("STATE DIM", self.state_dim)
+        self.buffer_prev = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = 19, max_size= int(1e5))
         
-#         # 10 step 이후에 skill dynamics로 추론해 error 누적 최소화 
-#         self.buffer_prev = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = 19, max_size= int(1e5))
-        
-#         # rollout method
-#         skill_length = self.subseq_len - 1
-#         rollout_length = skill_length + ((self.plan_H - skill_length) // skill_length)
-#         self.buffer_now = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 1024)
+        # rollout method
+        skill_length = self.subseq_len - 1
+        rollout_length = skill_length + ((self.plan_H - skill_length) // skill_length)
+        self.buffer_now = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 1024)
 
 
-#     def set_mode(self, mode):
-#         assert mode in ['skill_learning', 'with_buffer']
-#         self.__mode__ = mode 
-#         print(f"MODE : {self.mode}")
+    def set_mode(self, mode):
+        assert mode in ['skill_learning', 'with_buffer']
+        self.__mode__ = mode 
+        print(f"MODE : {self.mode}")
     
-#     @property
-#     def mode(self):
-#         return self.__mode__
+    @property
+    def mode(self):
+        return self.__mode__
 
-#     def enqueue(self, states, actions):
-#         self.buffer_now.enqueue(states, actions)
+    def enqueue(self, states, actions):
+        self.buffer_now.enqueue(states, actions)
 
-#     def update_buffer(self):
-#         self.buffer_prev.copy_from(self.buffer_now)
-#         # self.buffer_now.reset()
+    def update_buffer(self):
+        self.buffer_prev.copy_from(self.buffer_now)
+        # self.buffer_now.reset()
 
-#     def __getitem__(self, index):
-#         # mode에 따라 다른 sampl 
-#         return self.__getitem_methods__[self.mode]()
+    def __getitem__(self, index):
+        # mode에 따라 다른 sampl 
+        return self.__getitem_methods__[self.mode]()
         
-#     def __skill_learning__(self):
+    def __skill_learning__(self):
         
-#         seq = deepcopy(self._sample_seq())
-#         start_idx, goal_idx = self.sample_indices(seq.states)
+        seq = deepcopy(self._sample_seq())
+        start_idx, goal_idx = self.sample_indices(seq.states)
 
-#         assert start_idx < goal_idx, "Invalid"
+        assert start_idx < goal_idx, "Invalid"
 
-#         # trajectory
-#         # states = seq_skill.states[start_idx : start_idx+self.subseq_len, :self.n_obj + self.n_env]
-#         states = seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim]
-#         actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
+        # trajectory
+        # states = seq_skill.states[start_idx : start_idx+self.subseq_len, :self.n_obj + self.n_env]
+        states = seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim]
+        actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
 
-#         # hindsight relabeling 
-#         G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
-#         G[ : self.n_obj] = 0 # only env state
+        # hindsight relabeling 
+        G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
+        G[ : self.n_obj] = 0 # only env state
 
-#         output = dict(
-#             states=states,
-#             actions=actions,
-#             G = G,
-#             rollout = True
-#             # rollout = True if start_idx < 280 - self.plan_H else False
-#         )
+        output = dict(
+            states=states,
+            actions=actions,
+            G = G,
+            rollout = True
+            # rollout = True if start_idx < 280 - self.plan_H else False
+        )
 
-#         return output
+        return output
 
-#     def __skill_learning_with_buffer__(self):
+    def __skill_learning_with_buffer__(self):
 
-#         if np.random.rand() < self.mixin_ratio:
-#             # T, state_dim + action_dim
-#             # states, actions = self.buffer_prev.sample()
-#             states, actions = self.buffer_now.sample()
+        if np.random.rand() < self.mixin_ratio:
+            # T, state_dim + action_dim
+            # states, actions = self.buffer_prev.sample()
+            states, actions = self.buffer_now.sample()
 
-#             if self.only_proprioceptive:
-#                 states = states[:, :self.n_obj]
+            if self.only_proprioceptive:
+                states = states[:, :self.n_obj]
 
-#             # hindsight relabeling 
-#             goal_idx = -1
-#             # G = deepcopy(states[goal_idx])[self.n_obj:self.n_obj + self.n_goal]
-#             G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
-#             G[ : self.n_obj] = 0 # only env state
+            # hindsight relabeling 
+            goal_idx = -1
+            # G = deepcopy(states[goal_idx])[self.n_obj:self.n_obj + self.n_goal]
+            G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
+            G[ : self.n_obj] = 0 # only env state
 
-#             # trajectory
-#             output = dict(
-#                 states=states[:self.subseq_len],
-#                 actions=actions[:self.subseq_len-1],
-#                 G=G,
-#                 rollout = False,
-#                 # start_idx = 999 #self.novel
-#             )
+            # trajectory
+            output = dict(
+                states=states[:self.subseq_len],
+                actions=actions[:self.subseq_len-1],
+                G=G,
+                rollout = False,
+                # start_idx = 999 #self.novel
+            )
 
-#             return output
-#         else:
-#             return self.__skill_learning__()
+            return output
+        else:
+            return self.__skill_learning__()

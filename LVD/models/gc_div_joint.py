@@ -6,6 +6,9 @@ from ..utils import *
 from .base import BaseModel
 from easydict import EasyDict as edict
 
+from torch.cuda.amp.grad_scaler import GradScaler
+from torch.cuda.amp.autocast_mode import autocast
+
 class GoalConditioned_Diversity_Joint_Model(BaseModel):
     """
     """
@@ -25,13 +28,13 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
         subgoal_generator = SequentialBuilder(cfg.subgoal_generator)
         prior = SequentialBuilder(cfg.prior)
-        flat_dynamics = SequentialBuilder(cfg.flat_dynamics)
+        flat_dynamics = SequentialBuilder(cfg.dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
         if self.robotics:
             # ppc_config = {**cfg.prior_config}
             # ppc_config['in_feature'] = self.state_dim
-            prior_proprioceptive = SequentialBuilder(cfg.ppc_config)
+            prior_proprioceptive = SequentialBuilder(cfg.ppc)
         else:
             prior_proprioceptive = None
         
@@ -109,7 +112,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                 ),
                 "metric" : None
             }
-
+        
+        self.grad_scaler = GradScaler()
         self.c = 0
 
     @torch.no_grad()
@@ -205,30 +209,19 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         
 
         # ----------- State/Goal Conditioned Prior -------------- # 
-        if self.subgoal_loss == "prior":
-            prior = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['prior'], # distributions to optimize
-                self.outputs['z_normal'],
-                tanh = self.tanh
-            ).mean()
+        prior = self.loss_fn('prior')(
+            self.outputs['z'],
+            self.outputs['prior'], # distributions to optimize
+            self.outputs['z_normal'],
+            tanh = self.tanh
+        ).mean()
 
-            invD_loss = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['invD'], 
-                self.outputs['z_normal'],
-                tanh = self.tanh
-            ).mean() 
-        else:
-            prior = self.loss_fn('reg')(
-                self.outputs['post_detach'],
-                self.outputs['prior'], # distributions to optimize
-            ).mean()
-
-            invD_loss = self.loss_fn('reg')(
-                self.outputs['post_detach'],
-                self.outputs['invD'], 
-            ).mean() 
+        invD_loss = self.loss_fn('prior')(
+            self.outputs['z'],
+            self.outputs['invD'], 
+            self.outputs['z_normal'],
+            tanh = self.tanh
+        ).mean() 
 
         # # ----------- Dynamics -------------- # 
         flat_D_loss = self.loss_fn('recon')(
@@ -318,8 +311,21 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.loss_dict['actions_novel'] = actions_novel[batch.rollout].detach().cpu()
         self.c = c
 
-    
+    @autocast()
     def __main_network__(self, batch, validate = False):
+
+        # self(batch)
+        # loss = self.compute_loss(batch)
+
+        # if not validate:
+        #     for module_name, optimizer in self.optimizers.items():
+        #         optimizer['optimizer'].zero_grad()
+                
+        #     loss.backward()
+
+        #     for module_name, optimizer in self.optimizers.items():
+        #         self.grad_clip(optimizer['optimizer'])
+        #         optimizer['optimizer'].step()
 
         self(batch)
         loss = self.compute_loss(batch)
@@ -328,11 +334,18 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             for module_name, optimizer in self.optimizers.items():
                 optimizer['optimizer'].zero_grad()
                 
-            loss.backward()
+
+            self.grad_scaler.scale(loss).backward()
 
             for module_name, optimizer in self.optimizers.items():
                 self.grad_clip(optimizer['optimizer'])
-                optimizer['optimizer'].step()
+                self.grad_scaler.unscale_(optimizer['optimizer'])
+                self.grad_scaler.step(optimizer['optimizer'])
+                self.grad_scaler.update()
+
+
+                # optimizer['optimizer'].step()
+
 
         # ------------------ Rollout  ------------------ #
         self.eval()
@@ -343,7 +356,6 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
     def optimize(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-
         self.__main_network__(batch)
         self.get_metrics()
         self.prior_policy.soft_update()

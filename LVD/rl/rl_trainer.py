@@ -19,6 +19,7 @@ from ..contrib.simpl.torch_utils import itemize
 from ..utils import *
 from ..collector.gcid import LowFixedHierarchicalTimeLimitCollector
 from ..collector.storage import Buffer_G
+from copy import deepcopy
 
 seed_everything()
 
@@ -67,7 +68,7 @@ class RL_Trainer:
     # fitting 할 때 마다 호출 
     def prep(self):
         # load skill learners and prior policy
-        model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path).model
+        model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
     
         # learnable
         high_policy = model.prior_policy
@@ -94,6 +95,10 @@ class RL_Trainer:
         
         # See rl_cfgs in LVD/configs/common.yaml 
         sac_config = { attr_nm : getattr(self.cfg, attr_nm) for attr_nm in self.cfg.rl_cfgs}
+
+        # assert 1==0, sac_config
+
+
         sac_modules = {
             'policy' : high_policy,
             'skill_prior' : skill_prior, 
@@ -186,7 +191,7 @@ class RL_Trainer:
                 G = G,
                 episode = n_ep,
             )
-            stat = sac.step(step_inputs)
+            stat = sac.update(step_inputs)
 
         log.update(itemize(stat))
 

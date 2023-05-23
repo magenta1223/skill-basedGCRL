@@ -12,20 +12,16 @@ class BaseModule(nn.Module):
     """
     Module class equipped with common methods for logging & distributions 
     """
-    def __init__(self, config):
+    def __init__(self, cfg):
         super(BaseModule, self).__init__()
-        self.set_attrs(config)
+        self.set_attrs(cfg)
         self._device = nn.Parameter(torch.zeros(1))
 
     # set configs
-    def set_attrs(self, config = None):
-        if config is not None:
-            try:
-                for k, v in config.attrs.items():
-                    setattr(self, k, deepcopy(v))
-            except:
-                for k, v in config.items():
-                    setattr(self, k, deepcopy(v))           
+    def set_attrs(self, cfg = None):
+        if cfg is not None:
+            for k, v in cfg.items():
+                setattr(self, k, deepcopy(v))           
 
     def get(self, name):
         if not name : #name is None or not name:
