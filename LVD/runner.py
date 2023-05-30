@@ -31,17 +31,18 @@ class Logger:
 
 
 class BaseTrainer:
-
     def __init__(self, cfg):
         self.cfg = cfg
 
         self.get_loader()
         self.build()
         self.prep()
-
+    
     def build(self):
         self.model = MODELS[self.cfg.structure](self.cfg).cuda()
+        # self.model = torch.compile(model, mode = "max-autotune")
         
+            
     def prep(self):
         """
         Prepare for fitting

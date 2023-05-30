@@ -1,14 +1,18 @@
 import torch
+import torch.distributions as torch_dist
 import copy
-
+from torch.nn import functional as F
 import math
 import random
 from ...contrib import TanhNormal
-from ...modules import BaseModule
+from ...modules import BaseModule, ContextPolicyMixin
 from ...utils import *
 from ...contrib import update_moving_average
+from easydict import EasyDict as edict
 
-class GoalConditioned_Diversity_Joint_Prior(BaseModule):
+import d4rl
+
+class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
     """
     """
     def __init__(self, **submodules):
@@ -32,7 +36,6 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         if self.n_soft_update % self.update_freq == 0:
             update_moving_average(self.target_state_encoder, self.state_encoder)
         
-        
         # hard update 
         update_moving_average(self.target_state_decoder, self.state_decoder, 1)
         update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
@@ -40,8 +43,8 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
         self.n_soft_update += 1
 
-    def forward(self, inputs, *args, **kwargs):
-        states, G = inputs['states'], inputs['G']  
+    def forward(self, batch, *args, **kwargs):
+        states, G = batch.states, batch.G
         N, T, _ = states.shape
         skill_length = T - 1 
 
@@ -110,53 +113,43 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
             subgoal_recon_f = self.target_state_decoder(subgoal_f)
 
 
-        result = {
+        result = edict(
             # states
-            "states" : states,
-            "states_repr" : state_emb,
-            "hts" : hts,
-            "states_hat" : states_hat,
-            "states_fixed_dist" : states_fixed,
-            # state conditioned prior
-            "prior" : prior,
-            "prior_detach" : prior_detach,
-            # invD
-            "invD" : inverse_dynamics,
-            "invD_detach" : inverse_dynamics_detach,
+            states = states,
+            states_repr = state_emb,
+            hts = hts,
+            states_hat = states_hat,
+            states_fixed_dist = states_fixed,
+            prior = prior,
+            prior_detach = prior_detach,
+            invD = inverse_dynamics,
+            invD_detach = inverse_dynamics_detach,
             # Ds
-            "D" : D,
-            "flat_D" : flat_D,
-
-            "D_target" : subgoal_target, 
-            "flat_D_target" : hts_target[:, 1:],
+            D = D,
+            flat_D = flat_D,
+            D_target =  subgoal_target, 
+            flat_D_target = hts_target[:, 1:],
 
             # f
-            # "subgoal_D" : subgoal_D.clone().detach(),
-            "subgoal_D" : subgoal_D,
-            "subgoal_f" : subgoal_f,
+            subgoal_D =  subgoal_D,
+            subgoal_f = subgoal_f,
             # "subgoal_target" : subgoal,
-            "subgoal_target" : subgoal_target,
+            subgoal_target =  subgoal_target,
 
-            "invD_sub" : invD_sub,
-            "z_sub" : skill_sub,
+            invD_sub = invD_sub,
+            z_sub  = skill_sub,
             # "invD_sub2" : invD_sub2,
 
-
-
             # for metric
-            "z_invD" : skill,
-            "invD_rollout_main" : invD_rollout_main,
-            "subgoal_rollout" : _ht,
-            "subgoal_recon_D" : subgoal_recon_D,
-            "subgoal_recon_f" : subgoal_recon_f,
-            "subgoal_recon_D_f" : subgoal_recon_D_f,
-            "subgoal_recon"  : subgoal_recon
+            z_invD = skill,
+            invD_rollout_main= invD_rollout_main,
+            subgoal_rollout =  _ht,
+            subgoal_recon_D = subgoal_recon_D,
+            subgoal_recon_f =  subgoal_recon_f,
+            subgoal_recon_D_f =  subgoal_recon_D_f,
+            subgoal_recon =  subgoal_recon
 
-            # "D_metric" : D,
-            # "D_target_metric" : subgoal, 
-            # "flat_D" : flat_D,
-            # "flat_D_target" : hts[:, 1:],
-        }
+        )
 
         if self.skill_prior_ppc is not None:
             result['prior_ppc'] = self.skill_prior_ppc.dist(states[:, 0])
@@ -165,7 +158,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
     
 
     @torch.no_grad()
-    def rollout(self, inputs):
+    def rollout(self, batch):
         self.state_encoder.eval()
         self.state_decoder.eval()
         self.skill_prior.eval()
@@ -176,7 +169,7 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         if self.skill_prior_ppc is not None:
             self.skill_prior_ppc.eval()
 
-        states, skill = inputs['states'], inputs['actions']
+        states, skill = batch.states, batch.G
         N, T, _ = states.shape
         skill_length = T - 1
 
@@ -219,118 +212,169 @@ class GoalConditioned_Diversity_Joint_Prior(BaseModule):
         N, T, _ = hts_rollout.shape
         states_rollout = self.target_state_decoder( hts_rollout.view(N * T, -1), rollout = True).view(N, T, -1)
 
-        result =  {
-            "c" : c,
-            "states_rollout" : states_rollout,
-            "skill_sampled" : skill_sampled_orig,
-            "invD_rollout" : invD_rollout,
-            "invD_GT" : invD_GT,
-            "hts_rollout" : hts_rollout 
-        }
+        result =  edict(
+            c = c,
+            states_rollout = states_rollout,
+            skill_sampled = skill_sampled_orig,
+            invD_rollout = invD_rollout,
+            invD_GT = invD_GT,
+            hts_rollout = hts_rollout
+        )
+        
+        # {
+        #     "c" : c,
+        #     "states_rollout" : states_rollout,
+        #     "skill_sampled" : skill_sampled_orig,
+        #     "invD_rollout" : invD_rollout,
+        #     "invD_GT" : invD_GT,
+        #     "hts_rollout" : hts_rollout 
+        # }
         return result 
 
+    def encode(self, states, keep_grad = False):
+        if keep_grad:
+            ht = self.state_encoder(states)
+        else:
+            with torch.no_grad():
+                ht = self.state_encoder(states)
+        return ht
+
+    def dist(self, batch, mode = "policy"):
+        assert mode in ['policy', 'consistency', 'act'], "Invalid mode"
+        if mode == "consistency":
+            return self.consistency(batch)
+        else:
+            state, G = batch.states, batch.G 
+
+            with torch.no_grad():
+                ht = self.state_encoder(state)
+
+            # subgoal 
+            sg_input = torch.cat((ht,  G), dim = -1)
+            diff_subgoal_f = self.subgoal_generator(sg_input)
+            subgoal_f = diff_subgoal_f + ht
+
+            inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
+            # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
 
 
-    def dist(self, inputs):
-        """
-        """
-        state, G = inputs['states'], inputs['G']       
+            skill = inverse_dynamics_hat.rsample() 
+            dynamics_input = torch.cat((ht,  skill), dim = -1)
+            # subgoal_D = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
+            diff = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
+            
+            result =  edict(
+                policy_skill = inverse_dynamics_hat,
+                additional_losses = dict(
+                    state_consistency_f = F.mse_loss(diff_subgoal_f, diff)
+                )
+            )    
 
-        with torch.no_grad():
-            # ht, G = self.state_encoder(state), self.state_encoder(G)
-            ht = self.state_encoder(state)
-
-        # subgoal 
-        sg_input = torch.cat((ht,  G), dim = -1)
-        diff_subgoal_f = self.subgoal_generator(sg_input)
-        subgoal_f = diff_subgoal_f + ht
-
-        inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-        # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-
-
-        skill = inverse_dynamics_hat.rsample() 
-        dynamics_input = torch.cat((ht,  skill), dim = -1)
-        # subgoal_D = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
-        diff = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
-
-
-        result = {
-            "inverse_D" : inverse_dynamics_hat,
-            "subgoal" : diff + ht,
-            "subgoal_target" : subgoal_f,
-        }
-
-        return result
+            return result
     
+    @torch.no_grad()
     def act(self, states, G):
         # 환경별로 state를 처리하는 방법이 다름.
         # 여기서 수행하지 말고, collector에서 전처리해서 넣자. 
 
-        dist_inputs = dict(
+        batch = edict(
             states = prep_state(states, self.device),
             G = prep_state(G, self.device),
         )
 
-        dist = self.dist(dist_inputs, "eval")['inverse_D']
-        return dist.sample().detach().cpu().squeeze(0).numpy()
-        # # TODO explore 여부에 따라 mu or sample을 결정
-        # if self.skill_prior.tanh:
-        #     z_normal, z = dist.rsample_with_pre_tanh_value()
-        #     # to calculate kld analytically 
-        #     loc, scale = dist._normal.base_dist.loc, dist._normal.base_dist.scale 
+        dist = self.dist(batch, mode = "act").policy_skill
 
-        #     return z_normal.detach().cpu().squeeze(0).numpy(), z.detach().cpu().squeeze(0).numpy(), loc.detach().cpu().squeeze(0).numpy(), scale.detach().cpu().squeeze(0).numpy()
-        # else:
-        #     loc, scale = dist.base_dist.loc, dist.base_dist.scale
-        #     return dist.rsample().detach().cpu().squeeze(0).numpy(), loc.detach().cpu().squeeze(0).numpy(), scale.detach().cpu().squeeze(0).numpy()
-
-    def finetune(self, inputs):
+        if isinstance(dist, TanhNormal):
+            z_normal, z = dist.sample_with_pre_tanh_value()
+            return to_skill_embedding(z_normal), to_skill_embedding(z)
+        else:
+            return None, to_skill_embedding(dist.sample())
+        
+    def consistency(self, batch):
         """
         Finetune inverse dynamics and dynamics with the data collected in online.
         """
 
-        states, G, next_states = inputs['states'], inputs['G'], inputs['next_states'] 
-
-        with torch.no_grad():
-            ht = self.state_encoder(states)
-            htH = self.state_encoder(next_states)
-
-        # ht = self.state_encoder(states)
-        # htH = self.target_state_encoder(next_states)
-
-        # finetune invD, D 
-        invD, _ = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
+        states, G, next_states = batch.states, batch.relabeled_goals, batch.next_states
+        self.state_encoder.eval()
+        ht = self.state_encoder(states)
+        htH = self.target_state_encoder(next_states)
+        
+        # inverse dynamics 
+        invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
         z = invD.rsample()
                 
-        result = {
-            "inverse_D" : invD,
-            "subgoal_target" : htH
-        }
-
+        # dynamics 
         dynamics_input = torch.cat((ht,  z), dim = -1)
         diff = self.dynamics(dynamics_input) # subgoal을 얻고, 그걸로 추론한 action을 통해 진짜 subgoal에 도달해야 한다. 
-        result['subgoal'] = ht + diff
 
-        return result
+        state_consistency = F.mse_loss(ht + diff, htH)
+        skill_consistency = nll_dist(
+            batch.actions,
+            invD,
+            batch.actions_normal,
+            tanh = self.tanh
+        ).mean()
+        
+        # GCSL
+        # 똑같은 skill 뽑으면 됨./ 
 
 
+        sg_input = torch.cat((ht,  G), dim = -1)
+        diff_subgoal_f = self.subgoal_generator(sg_input)
+        subgoal_f = diff_subgoal_f + ht
+        invD_sub, _ = self.target_inverse_dynamics.dist(state = ht, subgoal = subgoal_f, tanh = self.tanh)
 
-    def __prior__(self, inputs):
-        states = inputs['states']
+        skill_sub = invD_sub.rsample()
 
-        # with torch.no_grad():
-        #     ht = self.state_encoder(states)
-        #     prior = self.prior_policy.dist(ht)
-        with torch.no_grad():
-            ht = self.state_encoder(states)
-            # if self.env_name == "maze":
-            #     # only visual embedding 
-            #     prior = self.prior_policy.dist(ht[:, :32])
+        dynamics_input = torch.cat((ht, skill_sub), dim = -1)
+        diff_subgoal_D = self.target_dynamics(dynamics_input)
+        subgoal_D = ht + diff_subgoal_D 
 
-            # else:
-            prior = self.skill_prior.dist(ht)
+        # GCSL_loss = F.mse_loss(diff_subgoal_f, diff_subgoal_D) + nll_dist(
+        #     batch.actions,
+        #     invD_sub,
+        #     batch.actions_normal,
+        #     tanh = self.tanh
+        # ).mean()
+        
+        GCSL_loss = F.mse_loss(diff_subgoal_f + ht, htH) + torch_dist.kl_divergence(invD_sub, invD_detach).mean()
 
-        return {
-            "prior" : prior
-        }
+
+        return  edict(
+            state_consistency = state_consistency,
+            skill_consistency = skill_consistency,
+            # GCSL_loss = GCSL_loss.item()
+            GCSL_loss = GCSL_loss
+        )
+
+
+    def get_rl_params(self):
+        
+        return edict(
+            policy = [ 
+                {"params" :  self.subgoal_generator.parameters(), "lr" : self.cfg.policy_lr}
+                ],
+            consistency = {
+                "invD" : {
+                    "params" : self.inverse_dynamics.parameters(),
+                    "lr" : self.cfg.invD_lr, 
+                    "metric" : None,
+                    # "metric" : "skill_consistency"
+                    },
+                "D" : {
+                    "params" : self.dynamics.parameters(), 
+                    "lr" : self.cfg.D_lr, 
+                    "metric" : None,
+                    # "metric" : "state_consistency"
+                    },
+                "f" : {
+                    "params" :  self.subgoal_generator.parameters(), 
+                    "lr" : self.cfg.f_lr, 
+                    # "metric" : "GCSL_loss"
+                    "metric" : None,
+                }
+
+            }
+                
+        )

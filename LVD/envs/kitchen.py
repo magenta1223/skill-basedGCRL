@@ -4,6 +4,8 @@ from d4rl.kitchen.adept_envs import mujoco_env
 from contextlib import contextmanager
 from ..contrib.simpl.env.kitchen import KitchenTask, KitchenEnv
 
+from ..utils import StateProcessor
+
 mujoco_env.USE_DM_CONTROL = False
 all_tasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
 
@@ -49,6 +51,8 @@ class KitchenEnv_GC(KitchenEnv):
         prev_task_elements = self.TASK_ELEMENTS
         self.task = task
         self.TASK_ELEMENTS = task.subtasks
+
+        print(f"TASK : {str(task)}")
         
         yield
         self.task = prev_task

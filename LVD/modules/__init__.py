@@ -13,7 +13,7 @@ __all__ = [
     # subnetworks
     'InverseDynamicsMLP',
     'DecoderNetwork',
-    'PositionalEncoding',
+    'Normal_Distribution',
     # priors
     'PRIOR_WRAPPERS'
 ]

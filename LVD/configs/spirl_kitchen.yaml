@@ -29,4 +29,4 @@ model:
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 
-    
+      # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 

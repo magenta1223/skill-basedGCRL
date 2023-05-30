@@ -18,7 +18,11 @@ class Base_Dataset(Dataset):
         self.end = -1
 
 
-    def _sample_seq(self, index = False):
+    def _sample_seq(self, index= False):
+        # # random_index = random.randint(self.start, self.end - 1)
+        # idx = index % self.n_seqs
+        # return self.seqs[idx]
+
         try:
             if index:
                 print(f"index {index}")

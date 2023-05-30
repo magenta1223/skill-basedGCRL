@@ -1,7 +1,6 @@
 from .storage import Episode
-# from ...utils import StateProcessor
-import numpy as np
 from ....utils import StateProcessor
+import numpy as np
 
 class HierarchicalEpisode(Episode):
     def __init__(self, init_state):
@@ -28,20 +27,14 @@ class HierarchicalEpisode(Episode):
                 # high-action은 H-step마다 값이 None이 아니다.
                 # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
                 high_episode.add_step(
-                    self.high_actions[prev_t],
-                    self.states[t],
-                    sum(self.rewards[prev_t:t]),
-                    self.dones[t],
-                    self.infos[t]
+                    self.high_actions[prev_t], self.states[t],
+                    sum(self.rewards[prev_t:t]), self.dones[t], self.infos[t]
                 )
                 prev_t = t
         
         high_episode.add_step(
-            self.high_actions[prev_t],
-            self.states[-1],
-            sum(self.rewards[prev_t:]),
-            self.dones[-1],
-            self.infos[-1]
+            self.high_actions[prev_t], self.states[-1],
+            sum(self.rewards[prev_t:]), self.dones[-1], self.infos[-1]
         )
         high_episode.raw_episode = self
         return high_episode
@@ -60,7 +53,7 @@ class HierarchicalTimeLimitCollector:
         state, done, t = self.env.reset(), False, 0
         episode = HierarchicalEpisode(state)
 
-        G = self.state_processor.get_goals(state)
+        G = self.state_processor.get_goal(state)
         # state = self.state_processor.state_process(state)
         print(f"G : {self.state_processor.goal_checker(G)}")
 

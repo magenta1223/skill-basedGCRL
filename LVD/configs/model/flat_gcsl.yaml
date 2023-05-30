@@ -1,0 +1,41 @@
+tanh : true
+
+skill_trainer : None
+rl_trainer : LVD.rl.flat_rl_trainer.Flat_RL_Trainer
+
+consistency_update : true
+
+
+policy : 
+  n_blocks : 5
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  tanh : true
+  bias : true
+  dropout : 0
+
+q_function : 
+  n_blocks : 5
+  hidden_dim : 128
+  out_dim : 1
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  bias : true
+  dropout : 0
+
+
+normal_distribution : 
+  n_blocks : 5
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  tanh : true
+  bias : true
+  dropout : 0

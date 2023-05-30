@@ -81,11 +81,6 @@ class Maze_GC(MazeEnv):
         # Goal 후보를 찾아야.. 
         self._viewers = {}
         self.viewer = self._get_viewer(mode = "rgb_array")
-        # self.viewer = self._get_viewer(mode = "rgb_array")
-        # self.viewer_setup()
-
-
-
 
     @contextmanager
     def set_task(self, task):
@@ -97,6 +92,8 @@ class Maze_GC(MazeEnv):
 
         self.task = task
         self.set_target(task.goal_loc)
+        print(f"TASK : {str(task)}")
+
         yield
         self._target = prev_target
         self.task = prev_task
@@ -142,10 +139,7 @@ class Maze_GC(MazeEnv):
         
 
 
-    def step(self, action, init = True):
-
-
-
+    def step(self, action):
         if self.task is None:
             raise RuntimeError('task is not set')
         action = np.clip(action, -1.0, 1.0)
@@ -159,38 +153,18 @@ class Maze_GC(MazeEnv):
         completed = (goal_dist <= complete_threshold)
         done = self.done_on_completed and completed
         
-        # if not init:
-        #     with self.agent_centric_render():
-        #         img = self.sim.render(self.agent_centric_res, self.agent_centric_res, device_id=self.render_device) / 255
-        #         walls = np.abs(img - WALL).mean(axis=-1)
-        #         grounds = np.minimum(np.abs(img - G1).mean(axis=-1), np.abs(img - G2).mean(axis=-1))
-        #         img = np.stack((walls, grounds), axis=-1).argmax(axis=-1)
-        #     ob = np.concatenate((self._get_obs(), img.reshape(-1), np.array(self._target)), axis = 0)
-        # else:
-        #     ob = np.concatenate((self._get_obs(), np.array(self._target)), axis = 0)
-
-
         target = deepcopy(self._target)
         if self.relative:
             ob[:2] -= self.task.init_loc
             target -= self.task.init_loc
         ob = np.concatenate((ob, target), axis = 0)
 
-        # ob = np.concatenate((self._get_obs(), np.array(self._target)), axis = 0)
-
-        # ob -= np.array(self.task.init_loc)
-
-    
-        
         if self.reward_type == 'sparse':
             reward = float(completed) * 100
         elif self.reward_type == 'dense':
             reward = np.exp(-goal_dist)
         else:
             raise ValueError('Unknown reward type %s' % self.reward_type)
-
-
-
 
         return ob, reward, done, {}
 
@@ -205,8 +179,6 @@ class Maze_GC(MazeEnv):
 
         else:
             return super().render(mode)
-
-
     
 maze_cfg = {
     'size':40,
@@ -215,8 +187,6 @@ maze_cfg = {
     'done_on_completed': True,
     'visual_encoder' : None
 }
-
-
 
 maze_meta_tasks = np.array([
     [[10, 24], [16, 18]],

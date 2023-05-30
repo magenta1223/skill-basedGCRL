@@ -6,11 +6,11 @@ import torch
 
 class Episode:
     def __init__(self, init_state):
-        self.__states__ = [init_state]
-        self.__actions__ = []
-        self.__rewards__ = []
-        self.__dones__ = []
-        self.__infos__ = []
+        self.states = [init_state]
+        self.actions = []
+        self.rewards = []
+        self.dones = []
+        self.infos = []
 
     def __repr__(self):
         return f'Episode(cum_reward={sum(self.rewards)}, length={len(self)})'
@@ -19,43 +19,20 @@ class Episode:
         return len(self.actions)
     
     def add_step(self, action, next_state, reward, done, info):
-        self.__actions__.append(action)
-        self.__states__.append(next_state)
-        self.__rewards__.append(reward)
-        self.__dones__.append(done)
-        self.__infos__.append(info)
+        self.actions.append(action)
+        self.states.append(next_state)
+        self.rewards.append(reward)
+        self.dones.append(done)
+        self.infos.append(info)
 
-    def as_transitions(self):
-        return torch.as_tensor(np.concatenate([
-            self.states,
-            self.actions,
-            self.next_states,
-            self.rewards,
-            self.dones,
-        ], axis=-1))
-
-    @property
-    def states(self):
-        return np.array(self.__states__[:-1])
-
-    @property
-    def next_states(self):
-        return np.array(self.__states__[1:])
-
-    @property
-    def actions(self):
-        return np.array(self.__actions__)
-
-    @property
-    def rewards(self):
-        return np.array(self.__rewards__)
-    @property
-    def dones(self):
-        return np.array(self.__dones__)
-
-    @property
-    def infos(self):
-        return np.array(self.__infos__)
+    def as_batch(self):
+        all_states = np.array(self.states)
+        states = torch.tensor(all_states[:-1], dtype=torch.float32)
+        actions = torch.tensor(np.array(self.actions), dtype=torch.float32)
+        rewards = torch.tensor(np.array(self.rewards), dtype=torch.float32).unsqueeze(-1)
+        dones = torch.tensor(np.array(self.dones), dtype=torch.float32).unsqueeze(-1)
+        next_states = torch.tensor(all_states[1:], dtype=torch.float32)
+        return Batch(states, actions, rewards, dones, next_states)
 
 
 class Batch:
@@ -119,9 +96,6 @@ class Buffer:
         
         self.episodes = deque()
         self.episode_ptrs = deque()
-        
-        print(max_size, state_dim, action_dim)
-
         self.transitions = torch.empty(max_size, 2*state_dim + action_dim + 2)
         
         dims = OrderedDict([
@@ -167,6 +141,16 @@ class Buffer:
     def next_states(self):
         return self.transitions[:, self.layout['next_state']]
 
+    @staticmethod
+    def ep_to_transtions(episode):
+        return torch.as_tensor(np.concatenate([
+            episode.states[:-1],
+            episode.actions,
+            np.array(episode.rewards)[:, None],
+            np.array(episode.dones)[:, None],
+            episode.states[1:]
+        ], axis=-1))
+
     def enqueue(self, episode):
         # 에피소드 길이가 0 이 될 때 까지
         while len(self.episodes) > 0:
@@ -196,7 +180,8 @@ class Buffer:
         #     np.array(episode.rewards)[:, None], np.array(episode.dones)[:, None],
         #     episode.states[1:]
         # ], axis=-1))
-        transitions = episode.as_transitions()
+
+        transitions = self.ep_to_transtions(episode)
 
         
         # self.ptr + 에피소드 길이가 최대 크기 이하

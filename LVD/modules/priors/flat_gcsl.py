@@ -6,8 +6,7 @@ from ...contrib import TanhNormal
 from easydict import EasyDict as edict
 import d4rl
 
-
-class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
+class Flat_GCSL(ContextPolicyMixin, BaseModule):
     """
     TODO 
     1) 필요한 모듈이 마구마구 바뀌어도 그에 맞는 method 하나만 만들면
@@ -28,23 +27,9 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
         N, T, _ = states.shape
 
         # -------------- State Enc / Dec -------------- #
-        prior = self.skill_prior.dist(states[:, 0])
-        if self.tanh:
-            prior_dist = prior._normal.base_dist
-        else:
-            prior_dist = prior.base_dist
-        prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
-        prior_pre_scales = inverse_softplus(prior_scales)
-
-        res_locs, res_pre_scales = self.highlevel_policy(torch.cat((states[:,0], G), dim = -1)).chunk(2, dim=-1)
-
+        policy_skill = self.policy.dist(torch.cat((states, G), dim = -1))
         # 혼합
-        locs = res_locs + prior_locs
-        scales = F.softplus(res_pre_scales + prior_pre_scales)
-        policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
-
         return edict(
-            prior = prior,
             states = states,
             policy_skill = policy_skill,
         )
@@ -52,33 +37,12 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
     def encode(self, states, keep_grad = False):
         return states
 
-        
     def dist(self, batch, mode = "policy"): # 이제 이게 필요가 없음. 
         """
         """
         if mode == "consistency":
             states, G = batch.states, batch.relabeled_goals
-        else:
-            states, G = batch.states, batch.G
-
-        # states = prep_state(states, self.device)
-        # G = prep_state(G, self.device)
-        prior = self.skill_prior.dist(states)
-        if self.tanh:
-            prior_dist = prior._normal.base_dist
-        else:
-            prior_dist = prior.base_dist
-        prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
-        prior_pre_scales = inverse_softplus(prior_scales)
-            
-        res_locs, res_pre_scales = self.highlevel_policy(torch.cat((states, G), dim = -1)).chunk(2, dim=-1)
-
-        # 혼합
-        locs = res_locs + prior_locs
-        scales = F.softplus(res_pre_scales + prior_pre_scales)
-        policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
-
-        if mode == "consistency":
+            policy_skill = self.policy.dist(torch.cat((states, G), dim = -1))
             skill_consistency = nll_dist(
                 batch.actions,
                 policy_skill,
@@ -89,10 +53,12 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
             return edict(
                 skill_consistency = skill_consistency
             )
+
         else:
-    
+            states, G = batch.states, batch.G    
+            policy_skill = self.policy.dist(torch.cat((states, G), dim = -1))
+
             return edict(
-                prior = prior,
                 policy_skill = policy_skill,
             )
 
@@ -116,12 +82,16 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
 
     def get_rl_params(self):
         
-
         return edict(
             policy = [
-                {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.policy_lr}
+                {"params" : self.policy.parameters(), "lr" : self.cfg.policy_lr}
             ],
             consistency = {
-                "highpolicy" : {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.consistency_lr, "metric" : "skill_consistency"},
+                "policy" : {
+                    "params" : self.policy.parameters(),
+                    "lr" : self.cfg.consistency_lr, 
+                    "metric" : None,
+                    # "metric" : "skill_consistency"
+                    },
             }
         )

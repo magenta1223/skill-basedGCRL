@@ -12,13 +12,16 @@ from .sac import SAC
 from ..modules import *
 from ..contrib.simpl.torch_utils import itemize
 from ..utils import *
-from ..collector.gc_hierarchical import GC_Hierarchical_Collector, GC_Buffer
+# from ..collector.flat_collector import TimeLimitCollector
+# from ..collector.storage import Buffer_G
+from ..collector.gc_flat import GC_Flat_Collector
+from ..collector.gc_hierarchical import GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 
 seed_everything()
 
-class RL_Trainer:
+class Flat_RL_Trainer:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
         self.set_env()
@@ -35,44 +38,44 @@ class RL_Trainer:
     
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
-
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
 
     def prep(self):
         # load skill learners and prior policy
-        model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
     
         # learnable
-        high_policy = deepcopy(model.prior_policy)
-
+        policy = PRIOR_WRAPPERS['flat_gcsl'](
+            policy = SequentialBuilder(self.cfg.gcsl_policy),
+            tanh =  self.cfg.tanh
+        )
+    
         # non-learnable
-        low_actor = deepcopy(model.skill_decoder.eval())
-        skill_prior = deepcopy(model.prior_policy.skill_prior)
-        low_actor.requires_grad_(False)
-        skill_prior.requires_grad_(False) 
+        action_prior = Normal_Distribution(self.cfg.normal_distribution)
+        action_prior.requires_grad_(False) 
 
         qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(high_policy.device)
-        collector = GC_Hierarchical_Collector(
+        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(policy.device)
+        collector = GC_Flat_Collector(
             self.env,
-            low_actor,
-            horizon = self.cfg.subseq_len -1,
             time_limit= self.cfg.time_limit,
         )
 
         sac_modules = {
-            'policy' : high_policy,
-            'skill_prior' : skill_prior, 
+            'policy' : policy,
+            'skill_prior' : action_prior, 
             'buffer' : buffer, 
             'qfs' : qfs,            
         }        
 
         # See rl_cfgs in LVD/configs/common.yaml 
         sac_config = {**self.rl_cfgs}
-
         sac_config.update(sac_modules)
+
+        sac_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
+        sac_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
+
+
         sac = SAC(sac_config).cuda()
 
         self.collector, self.sac = collector, sac
@@ -140,7 +143,7 @@ class RL_Trainer:
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
             print("success")
 
-        self.sac.buffer.enqueue(episode.as_high_episode()) 
+        self.sac.buffer.enqueue(episode) 
         log['tr_return'] = sum(episode.rewards)
 
         

@@ -47,6 +47,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             dynamics = dynamics,
             flat_dynamics = flat_dynamics,
             # architecture parameters
+            cfg = cfg,
             ema_update = True,
             tanh = self.tanh,
         )

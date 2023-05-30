@@ -1,120 +1,67 @@
 from collections import deque, OrderedDict
 from copy import deepcopy
 
-from ..contrib.simpl.collector.storage import  Batch, Buffer, Episode
+from ...contrib.simpl.collector.storage import  Batch, Buffer, Episode
 import numpy as np
 import torch
 from torch.nn import functional as F
-from ..utils import prep_state
+from ...utils import prep_state, StateProcessor
 from easydict import EasyDict as edict
 
 
-class Episode_G(Episode):
-    def __init__(self, init_state):
-        super().__init__(init_state)
-        self.__G__ = []
-
-    def __repr__(self):
-        return f'Episode(cum_reward={sum(self.rewards)}, length={len(self)})'
-
-    def __len__(self):
-        return len(self.actions)
-    
-    def add_step(self, action, next_state, G, reward, done, info):
-        super().add_step( action, next_state, reward, done, info)
-        self.__G__.append(G)
-
-
-    def __repr__(self):
-        return f'Episode(cum_reward={sum(self.rewards)}, length={len(self)}, G = )'
-    
-    def as_transitions(self):
-        return torch.as_tensor(np.concatenate([
-            self.states,
-            self.actions,
-            self.next_states,
-            self.G,
-            self.rewards[:, None],
-            self.dones[:, None],
-        ], axis=-1))
-
+class GC_Batch(Batch):
+    def __init__(self, states, actions, rewards, dones, next_states, relabeled_goals, transitions=None):
+        # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
+        super().__init__(states, actions, rewards, dones, next_states, transitions)
+        self.data['relabeled_goals'] = relabeled_goals
 
     @property
-    def G(self):
-        return np.array(self.__G__)
+    def relabeled_goals(self):
+        return self.data['relabeled_goals']
 
-
-class Batch_G(Batch):
-    def __init__(self, states, actions, next_states, G, rewards, dones, transitions=None):
-        # super().__init__(states, actions, rewards, dones, next_states, transitions)
-
-        self.data = OrderedDict([
-            ('states', states),
-            ('actions', actions),
-            ('next_states', next_states),
-            ('G', G),
-            ('rewards', rewards),
-            ('dones', dones),
-        ])
-        self.transitions = transitions
-
-
-    def parse(self, tanh = False):
-        batch_dict = edict()
-
-        batch_dict['states'] = prep_state(self.states, self.device) #prep_state(batch.states, self.device)
-        batch_dict['next_states'] = prep_state(self.next_states, self.device)
-        batch_dict['G'] = prep_state(self.G, self.device) 
-        batch_dict['rewards'] = self.rewards
-        batch_dict['dones'] = self.dones
-
-        actions = prep_state(self.actions, self.device) # high-actions
-
-        if tanh:
-            batch_dict['actions'], batch_dict['actions_normal'] = actions.chunk(2, -1)
-        else:
-            batch_dict['actions'] = actions
+    def parse(self):
+        batch_dict = edict(
+            states = self.states,
+            next_states = self.next_states,
+            rewards = self.rewards,
+            dones = self.dones,
+            relabeled_goals = self.relabeled_goals
+        )
+        batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)
 
         return batch_dict
-    
-    @property
-    def G(self):
-        return self.data['G']
 
-
-class Buffer_G(Buffer):
+class GC_Buffer(Buffer):
     """
     Override 
     H-step state를 다.. 얻어놔야 함. 
     enqueue해서 다 얻어놨고, 이게.. H-step을 쓸 수 있는게 있고 아닌게 있음. 
     그냥 따로 구성하는게 .. 
     """
-    def __init__(self, state_dim, action_dim, goal_dim, max_size, tanh = False):
-        super().__init__(state_dim, action_dim, max_size)
-        # self.state_dim = state_dim
-        # self.action_dim = action_dim
-        # self.max_size = max_size
-        
-        # self.ptr = 0
-        # self.size = 0
-        
-        # self.episodes = deque()
-        # self.episode_ptrs = deque()
-        
-        # for tanh
-        self.tanh = tanh
+    def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name):
+
+        self.state_processor = StateProcessor(env_name)
+
         action_dim *= 2
 
-        # states, next_states, skill, rewards, dones, 
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.max_size = max_size
+        
+        self.ptr = 0
+        self.size = 0
+        
+        self.episodes = deque()
+        self.episode_ptrs = deque()
         self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 2)
         
         dims = OrderedDict([
             ('state', state_dim),
             ('action', action_dim),
-            ('next_state', state_dim),
-            ('G', goal_dim),
             ('reward', 1),
             ('done', 1),
+            ('next_state', state_dim),
+            ('relabled_goal', goal_dim),
         ])
         self.layout = dict()
         prev_i = 0
@@ -125,14 +72,77 @@ class Buffer_G(Buffer):
         
         self.device = None
 
+
     @property
-    def G(self):
-        return self.transitions[:, self.layout['G']]
+    def relabled_goal(self):
+        return self.transitions[:, self.layout['relabled_goal']]
+
+    def ep_to_transtions(self, episode):
+        len_ep = len(episode.states[:-1])
+        # current_indices = np.array(range(len_ep))
+        # relabeled_indices = np.minimum(np.random.randint(1, len_ep, size = len_ep) + current_indices, len_ep- 1).astype(int)
+        # relabeled_goals = self.state_processor.goal_transform(np.array(episode.states)[relabeled_indices])
+
+        # goal_states = self.state_processor.goal_transform(np.array(episode.states))
+        # goal_states = [ self.state_processor.goal_checker(goal) for goal in self.state_processor.goal_transform(np.array(episode.states)) ]
+        # goal_states = np.array(goal_states)
+
+
+        # print(goal_states)
+
+        # # indices = np.where(np.any(goal_states[:-1] != goal_states[1:], axis=-1))[0]
+        # indices = np.where(goal_states[:-1] != goal_states[1:])[0].tolist()
+
+
+        # goals = goal_states[indices]
+
+        # indices = indices + [len(goal_states)]
+        # # relabel_indices = []
+
+        # # for i in range(len(indices)-1):
+        # #     if i == 0:
+        # #         size = indices[0] + 1
+        # #     else:
+        # #         size = indices[i] - indices[i-1]
+
+        # #     print(size)
+        # #     relabel_indices.append(np.full((size), i+1))
+        # # relabel_indices = np.concatenate(relabel_indices, axis = 0)
+
+
+        # relabel_indices = []
+        # for i in range(len(indices)-1):
+        #     if i == 0:
+        #         size = indices[0] + 1
+        #     else:
+        #         size = indices[i] - indices[i-1]
+        #     relabel_indices.append(np.full((size), i+1))
+
+        # size = indices[-1] - indices[-2]
+        # relabel_indices.append(np.full((size), i+1))
+        # relabel_indices = np.concatenate(relabel_indices, axis = 0)
+
+
+        # relabeled_goals = np.concatenate((goals, goal_states[-1][None, :]))[relabel_indices]
+
+
+        relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
+        relabeled_goals = np.tile(relabeled_goal, (len(episode.states)-1, 1))
+
+        return torch.as_tensor(np.concatenate([
+            episode.states[:-1],
+            episode.actions,
+            np.array(episode.rewards)[:, None],
+            np.array(episode.dones)[:, None],
+            episode.states[1:],
+            relabeled_goals
+        ], axis=-1))
 
     def sample(self, n):
         indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
-        return Batch_G(*[transitions[:, i] for i in self.layout.values()], transitions).to(self.device).parse(self.tanh)
+        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions).to(self.device)
+        return batch.parse()
 
 
 class Buffer_TT(Buffer):

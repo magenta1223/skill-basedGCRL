@@ -42,5 +42,5 @@ model:
     z_dim  : ${env.skill_dim}
 
   q_function:
-    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 
+    in_feature: ${add:${env.latent_state_dim}, ${env.n_goal}, ${env.skill_dim}} 
   

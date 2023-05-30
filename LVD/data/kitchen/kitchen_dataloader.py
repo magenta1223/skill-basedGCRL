@@ -150,8 +150,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             # states, actions = self.buffer_prev.sample()
             states, actions = self.buffer_now.sample()
 
-            if self.only_proprioceptive:
-                states = states[:, :self.n_obj]
+
 
             # hindsight relabeling 
             goal_idx = -1

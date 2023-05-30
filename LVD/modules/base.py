@@ -77,8 +77,6 @@ class SequentialBuilder(BaseModule):
         self.layers = nn.ModuleList(layers)
 
 
-    # -------------------- mdoelign -------------------- # 
-    
     def forward(self, x, *args, **kwargs):
         out = x 
         for layer in self.layers:

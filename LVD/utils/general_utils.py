@@ -25,7 +25,8 @@ class ConfigParser:
         if isinstance(v, DictConfig):
             result = "dict"
         # string, module, not path, not default relative path, and not overrided param 
-        
+        elif v == "None":
+            result = "None"
         # 시부레 처음알았네.. 
         elif self.isClass(v):
             result = "class"
@@ -56,6 +57,8 @@ class ConfigParser:
             v_type = self(v)
             if v_type == "dict":
                 v = self.__parse_cfg__(v)
+            elif v_type == "None":
+                v = None
             elif v_type =="class":
                 v = hydra.utils.get_class(v)
             else:

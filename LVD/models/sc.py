@@ -25,6 +25,7 @@ class StateConditioned_Model(BaseModel):
             skill_prior = prior,
             highlevel_policy = highlevel_policy,
             tanh = self.tanh,
+            cfg = cfg,
         )
 
         ## skill encoder

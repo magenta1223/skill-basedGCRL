@@ -1,0 +1,25 @@
+defaults:
+  - common
+  - model: flat_gcsl
+  - env : kitchen
+
+structure : flat_gcsl
+dataset_cls : LVD.data.Kitchen_Dataset
+
+env:
+  auto_alpha : true
+  init_alpha : 0.1
+  increasing_alpha : true
+
+
+model:
+  normal_distribution:
+    action_dim : ${env.action_dim}
+
+  policy:
+    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
+    out_dim : ${multiply:${env.action_dim}, 2}
+
+  q_function:
+    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 
+      # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 

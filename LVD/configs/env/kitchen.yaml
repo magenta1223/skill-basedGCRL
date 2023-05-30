@@ -42,18 +42,18 @@ val_data_size : 5000
 time_limit : 280
 target_kl_start : 50
 target_kl_end : 15
-init_alpha : 0.0005
-increasing_alpha : true
+init_alpha : 0.005
+increasing_alpha : false
 auto_alpha : false
 reuse_rate : 512
-q_warmup : 5000
+q_warmup : 10_000
 q_weight : 1
 precollect : 20
 early_stop_threshold : ${multiply:4, 0.8}
 max_reward : 4
 use_hidden : true
 consistency_lr : 1e-8
-policy_lr : 3e-6
+policy_lr : 3e-5
 buffer_size : 3000
 n_episode : 300
 kl_decay : 0.99

@@ -6,6 +6,26 @@ hydra:
       override_dirname:
         exclude_keys:
           - phase
+          - rl_batch_size
+          - rl.q_warmup
+          - rl.discount
+          - rl.tau
+          - rl.qf_lr
+          - rl.alpha_lr
+          - rl.precollect
+          - env.policy_lr
+          - env.consistency_lr
+          - env.init_alpha
+          - env.auto_alpha
+          - env.increasing_alpha
+          - env.target_kl_start
+          - env.target_kl_end
+          - env.kl_decay
+          - env.reuse_rate
+          - model.invD_lr
+          - model.D_lr
+          - model.f_lr
+          - model.consistency_update 
 
 
 phase : skill
@@ -14,7 +34,7 @@ trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer
 save_ckpt : 20
 early_stop_rounds : 100
 n_rollout_steps : 10
-workers : 14
+workers : 4
 dataset_size : -1
 val_data_size : 5000
 batch_size : 1024
@@ -33,13 +53,13 @@ scheduler_params :
 
 rl :
   render_period : 10
-  q_warmup : 5_000 
-  precollect : 20
-  norm : false
+  q_warmup : 10_000 
   discount : 0.99
   tau : 0.005
   qf_lr : 3e-4
   alpha_lr : 3e-4
+  precollect : 20
+  norm : false
   rl_batch_size : 256
 
 rl_cfgs : [

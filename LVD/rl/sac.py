@@ -5,6 +5,7 @@ import torch
 import torch.distributions as torch_dist
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim import Adam
 from easydict import EasyDict as edict
 from ..utils import *
 from ..models import BaseModel
@@ -21,17 +22,64 @@ class SAC(BaseModel):
         self.qf_optims = [torch.optim.Adam(qf.parameters(), lr=self.qf_lr) for qf in self.qfs]
 
         
-        sac_params = self.policy.get_rl_params()
+        rl_params = self.policy.get_rl_params()
 
-        self.policy_optim = torch.optim.Adam(
-            sac_params['policy'],
-            lr = self.policy_lr # 낮추면 잘 안됨. 왜? 
+        self.policy_optim = Adam(
+            rl_params['policy'],
+            # lr = self.policy_lr # 낮추면 잘 안됨. 왜? 
         )
 
-        self.consistency_optim = torch.optim.Adam(
-            sac_params['consistency'],
-            lr = self.consistency_lr # 낮추면 잘 안됨. 왜? 
-        )
+
+        if rl_params['consistency']:
+
+            # self.consistency_optims = {
+            #     "skill_prior" : {
+            #         "optimizer" : Adam( self.prior_policy.skill_prior.parameters(), lr = self.lr ),
+            #         "metric" : None
+            #     }, 
+            # }
+
+            self.consistency_optims = {  name : {  
+                'optimizer' : Adam( args['params'], lr = args['lr'] ),
+                'metric' : args['metric']
+
+            }   for name, args in rl_params['consistency'].items() }
+
+
+            scheduler_params = edict(
+                factor = 0.5,
+                patience = 10, # 4 epsisode
+                verbose= True,
+            )
+
+
+            self.consistency_schedulers = {
+                k : Scheduler_Helper(v['optimizer'], **scheduler_params, module_name = k) for k, v in self.consistency_optims.items()
+            }
+
+            self.schedulers_metric = {
+                k : v['metric'] for k, v in self.consistency_optims.items()
+            }
+
+            self.consistency_meters = { k : AverageMeter() for k in self.consistency_optims.keys()}
+
+
+
+            # self.consistency_optim = torch.optim.Adam(
+            #     rl_params['consistency'],
+            #     # lr = self.consistency_lr # 낮추면 잘 안됨. 왜? 
+            # )
+    
+            # self.consistency_scheduler = Scheduler_Helper(
+            #     optimizer = self.consistency_optim,
+            #     factor = 0.5,
+            #     patience = 10, # 4 epsisode
+            #     verbose= True,
+            #     module_name = "inverse D, D"
+            # )
+
+
+        self.consistency_meter = AverageMeter()
 
                 
         # Alpha
@@ -52,6 +100,12 @@ class SAC(BaseModel):
 
         self.sample_time_logger = AverageMeter()
 
+        try:
+            self.save_prev_module()
+            self.check_delta = True
+        except:
+            self.check_delta = False
+
 
     @property
     def target_kl(self):
@@ -63,9 +117,7 @@ class SAC(BaseModel):
         
     def entropy(self, states, policy_dists, kl_clip = None):
         with torch.no_grad():
-            # hidden state를 쓸 수도 있고, 아닐수도 있음. 
-            encoded_states = self.policy.encode(states)
-            prior_dists = self.skill_prior.dist(encoded_states)
+            prior_dists = self.skill_prior.dist(self.policy.encode(states))
 
         if kl_clip is not None:                
             entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = kl_clip)
@@ -77,11 +129,13 @@ class SAC(BaseModel):
     def update(self, step_inputs):
         self.train()
 
+        # batch = self.buffer.sample(self.rl_batch_size)
+        # self.episode = step_inputs['episode']
+
         batch = self.buffer.sample(self.rl_batch_size)
+        batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
         self.episode = step_inputs['episode']
-
         self.n_step += 1
-
 
         self.stat = edict()
 
@@ -92,23 +146,20 @@ class SAC(BaseModel):
 
         self.update_qs(batch)
         self.update_networks(batch)
-
-        # for k, v in q_results.items():
-        #     stat[k] = v         
-        # for k, v in policy_results.items():
-        #     stat[k] = v 
-
-
         # ------------------- Alpha ------------------- # 
         self.update_alpha()
 
-        #     self.save_prev_module()
+        if self.check_delta:
+            self.calc_update_ratio("subgoal_generator")
+            self.calc_update_ratio("inverse_dynamics")
+            self.calc_update_ratio("dynamics")
+
         return self.stat
     
 
     def update_networks(self, batch):
         results = {}
-        dist_out = self.policy.dist(batch)
+        dist_out = self.policy.dist(batch, mode = "policy")
         policy_skill_dist = dist_out.policy_skill # 
         policy_skill = policy_skill_dist.rsample() 
 
@@ -116,12 +167,15 @@ class SAC(BaseModel):
         
         # encoded_states = self.policy.encode(batch.states)
         # min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
-        min_qs = torch.min(*[qf( self.q_inputs(batch, policy_skill) ) for qf in self.qfs])
+
+        # q_input = torch.cat((batch.states, batch.G, policy_skill), dim = -1)
+
+        q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
+        
+        min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
 
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
-
-        # policy_loss += torch.sum(dist_out.additional_losses.values())
-        policy_loss += torch.sum(torch.tensor(list(dist_out.additional_losses.values())))
+        policy_loss += self.aggregate_values(dist_out.additional_losses)
 
 
         self.policy_optim.zero_grad()
@@ -143,18 +197,19 @@ class SAC(BaseModel):
 
     @torch.no_grad()
     def compute_target_q(self, batch):
-        
-        batch_next_states = edict({**batch})
-        batch_next_states['states'] = batch['next_states']
-        
-        policy_skill_dist = self.policy.dist(batch_next_states).policy_skill
+        batch_next = edict({**batch})
+        batch_next['states'] = batch['next_states'].clone()
+
+        policy_skill_dist = self.policy.dist(batch_next, mode = "policy").policy_skill
         policy_skill = policy_skill_dist.sample()
 
         # calculate entropy term
-        entropy_term, prior_dists = self.entropy( batch_next_states.states, policy_skill_dist , kl_clip= 20) 
-        min_qs = torch.min(*[target_qf(  self.q_inputs(batch_next_states, policy_skill)  ) for target_qf in self.target_qfs])
+        entropy_term, prior_dists = self.entropy( batch_next.states, policy_skill_dist , kl_clip= 20) 
 
-        soft_qs = (- min_qs + self.alpha * entropy_term)
+        q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
+        
+        min_qs = torch.min(*[target_qf(q_input).squeeze(-1) for target_qf in self.target_qfs])
+        soft_qs = min_qs - self.alpha*entropy_term
 
         rwd_term = batch.rewards
         ent_term = (1 - batch.dones) * self.discount * soft_qs
@@ -168,7 +223,10 @@ class SAC(BaseModel):
 
         qf_losses = []  
         for qf, qf_optim in zip(self.qfs, self.qf_optims):
-            qs = qf(self.q_inputs(batch))
+            # qs = qf(self.q_inputs(batch)).squeeze(-1)
+            # q_input = torch.cat((batch.states, batch.G, batch.actions), dim = -1)
+            q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+            qs = qf(q_input).squeeze(-1)
             qf_loss = (qs - target_qs).pow(2).mean()
             qf_optim.zero_grad()
             qf_loss.backward()
@@ -192,6 +250,7 @@ class SAC(BaseModel):
 
         results = {}
         if self.auto_alpha:
+            print("update alpha")
             # dual gradient decent 
             alpha_loss = (self.alpha * (self.target_kl - self.stat.kl)).mean()
 
@@ -203,7 +262,7 @@ class SAC(BaseModel):
             self.alpha_optim.step()
             
             results['alpha_loss'] = alpha_loss
-            results['alpha'] = self.alpha
+        results['alpha'] = self.alpha
 
         self.stat.update(results)
 
@@ -211,43 +270,49 @@ class SAC(BaseModel):
     def warmup_Q(self, step_inputs):
         # self.train()
         self.stat = {}
-        batch = self.buffer.sample(self.rl_batch_size)
         self.episode = step_inputs['episode']
 
+        for _ in range(int(self.q_warmup)):
+            batch = self.buffer.sample(self.rl_batch_size)
+            batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
 
-
-        for _ in range(self.q_warmup):
             if self.consistency_update:
                 self.update_consistency(batch)
             self.update_qs(batch)
-                        
-
+            self.update_networks(batch)
     
     def update_consistency(self, batch):
 
-        results = {}
-        consistency_losses = self.policy.dist(batch)['consistency_losses']
+        consistency_losses = self.policy.dist(batch, mode = "consistency")
+        consistency_loss = self.aggregate_values(consistency_losses)
 
-        consistency_loss = torch.sum(consistency_losses.values())
-
-        self.consistency_optim.zero_grad()
+        for module_name, optimizer in self.consistency_optims.items():
+            optimizer['optimizer'].zero_grad()
+            
         consistency_loss.backward()
-        self.grad_clip(self.policy_optim)
-        self.consistency_optim.step()
+
+        for module_name, optimizer in self.consistency_optims.items():
+            self.grad_clip(optimizer['optimizer'])
+            optimizer['optimizer'].step()
+
         self.policy.soft_update()
 
-        # # metrics
-        # with torch.no_grad():
-        #     dist = get_dist(step_inputs['loc'], step_inputs['scale'].log(), tanh = self.tanh)
-        #     iD_kld = torch_dist.kl_divergence(dist, outputs['inverse_D']).mean() # KL (post || prior)
-        # self.consistency_meter.update(iD_kld.item(), step_inputs['batch_size'])
-
-        # # scheduler step
-        # if (self.n_step + 1) % 256 == 0:
-        #     self.consistency_scheduler.step(self.consistency_meter.avg)
-        #     self.consistency_meter.reset()
         
-        # log 
+        for module_name, meter in self.consistency_meters.items():
+            target_metric = self.schedulers_metric[module_name]
+            if target_metric is not None:
+                meter.update(consistency_losses[target_metric], batch.states.shape[0])
+
+
+        if (self.n_step + 1) % 256 == 0:
+            for module_name, scheduler in self.consistency_schedulers.items():
+                target_metric = self.schedulers_metric[module_name]
+                meter = self.consistency_meters[module_name]
+                if target_metric is not None:
+                    scheduler.step(meter.avg)
+                    meter.reset()
+
+
 
         self.stat.update(consistency_losses)
     
@@ -258,3 +323,33 @@ class SAC(BaseModel):
             return torch.cat((encoded_states, batch.G, batch.actions), dim = -1)
         else:
             return torch.cat((encoded_states, batch.G, actions), dim = -1)
+    
+    @staticmethod
+    def aggregate_values(loss_dict):
+        loss = 0
+        for k, v in loss_dict.items():
+            loss += v
+        return loss
+    
+    @torch.no_grad()
+    def save_prev_module(self, target = "all"):
+        self.prev_subgoal_generator = copy.deepcopy(self.policy.subgoal_generator).requires_grad_(False)
+        self.prev_inverse_dynamics = copy.deepcopy(self.policy.inverse_dynamics).requires_grad_(False)
+        self.prev_dynamics = copy.deepcopy(self.policy.dynamics).requires_grad_(False)
+
+    @torch.no_grad()
+    def calc_update_ratio(self, module_name):
+        assert module_name in ['subgoal_generator', 'inverse_dynamics', 'dynamics'], "Invalid module name"
+
+        prev_module = getattr(self, f"prev_{module_name}")
+        module = getattr(self.policy, module_name)
+        update_rate = []
+        for (prev_p, p) in zip(prev_module.parameters(), module.parameters()):
+
+            delta = (p - prev_p).norm()
+            prev_norm =  prev_p.norm()
+            
+            if prev_norm.item() != 0:
+                update_rate.append((delta / prev_norm).item())
+
+        self.stat[f'delta_{module_name}'] = np.mean(update_rate)

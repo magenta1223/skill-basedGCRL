@@ -1,4 +1,5 @@
 import math
+from typing import Dict
 import numpy as np
 import torch
 import torch.nn as nn
@@ -77,24 +78,12 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
             batch_action = dist.mean
         return batch_action.squeeze(0).cpu().numpy()
     
+class Normal_Distribution(SequentialBuilder):
+    def __init__(self, config: Dict[str, None]):
+        super().__init__(config)
+        del self.layers
 
-class PositionalEncoding(nn.Module):
+    def dist(self, states):
+        dummy_input = torch.zeros(states.shape[0], self.action_dim * 2)
+        return get_fixed_dist(dummy_input, tanh = self.tanh)
 
-    def __init__(self, d_model: int, max_len: int = 4000):
-        super().__init__()
-
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
-
-    def forward(self, states):
-        """
-        Arguments:
-            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
-        """
-        N, T = states.shape[:2]
-        pos = (states[:, :, :2] * 100).to(int)
-        return self.pe[ pos.view(-1) ].view(N, T, -1)

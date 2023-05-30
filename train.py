@@ -17,17 +17,20 @@ def main(cfg):
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
 
+    rl_overrides = "_".join(["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"])
+
     with open_dict(cfg):
         cfg.run_name = config_path(hydra_config.job.override_dirname)
         cfg.job_name = config_path(hydra_config.job.name)
         cfg.skill_weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"
-        cfg.weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac"
+        cfg.weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{rl_overrides}"
         cfg.project_name = cfg.structure
-        cfg.wandb_run_name = f"{cfg.env.env_name}_{cfg.run_name}"
+        cfg.wandb_run_name = f"{cfg.env.env_name}_{cfg.run_name}_{rl_overrides}"
 
 
-    # integrated_cfg_path = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/overrided.yaml"
-    # OmegaConf.save(cfg, integrated_cfg_path)
+
+    integrated_cfg_path = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/overrided.yaml"
+    OmegaConf.save(cfg, integrated_cfg_path)
 
     config_parser = ConfigParser()
     cfg = config_parser.parse_cfg(cfg)
