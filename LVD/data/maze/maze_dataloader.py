@@ -1,30 +1,12 @@
 from copy import deepcopy
 import numpy as np
 from easydict import EasyDict as edict
-from ...collector.storage import Offline_Buffer
+from ...collector import Offline_Buffer
 from glob import glob
 import h5py
 import pickle
 from ..base_dataset import Base_Dataset
 
-
-
-def parse_h5(file_path):
-    f = h5py.File(file_path)
-    # return {k : np.array(f.get("traj0").get(k))   for k in list(f.get("traj0").keys()) if k != "images"}
-    return edict( 
-        states = np.array(f.get("states")),
-        actions = np.array(f.get("actions")),
-        agent_centric_view = np.array(f.get("images")),
-    )
-
-def parse_pkl(file_path):
-    # return {k : np.array(f.get("traj0").get(k))   for k in list(f.get("traj0").keys()) if k != "images"}
-
-    with open(file_path, 'rb') as f:
-        data = pickle.load(f)
-
-    return data
 
 
 class Maze_Dataset(Base_Dataset):

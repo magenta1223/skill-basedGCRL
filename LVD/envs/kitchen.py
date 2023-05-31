@@ -25,6 +25,10 @@ class KitchenEnv_GC(KitchenEnv):
 
     def __init__(self, *args, **kwargs):
         self.TASK_ELEMENTS = ['top burner']  # for initialization
+        self.ALL_SUBTASKS = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
+        self.all_subtasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
+
+        
         super().__init__(*args, **kwargs)
         
 
@@ -51,6 +55,7 @@ class KitchenEnv_GC(KitchenEnv):
         prev_task_elements = self.TASK_ELEMENTS
         self.task = task
         self.TASK_ELEMENTS = task.subtasks
+        self.all_subtasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
 
         print(f"TASK : {str(task)}")
         
@@ -58,6 +63,36 @@ class KitchenEnv_GC(KitchenEnv):
         self.task = prev_task
         self.TASK_ELEMENTS = prev_task_elements
 
+    def compute_relabeled_reward(self, obs_dict):
+        reward_dict = {}
+        
+        next_q_obs = obs_dict['qp']
+        next_obj_obs = obs_dict['obj_qp']
+        next_goal = self._get_task_goal(task=self.ALL_SUBTASKS)
+        idx_offset = len(next_q_obs)
+        completions = []
+
+        for element in self.all_subtasks:
+            element_idx = OBS_ELEMENT_INDICES[element]
+            distance = np.linalg.norm(
+                next_obj_obs[..., element_idx - idx_offset] -
+                next_goal[element_idx])
+
+            complete = distance < BONUS_THRESH
+            if complete:
+                completions.append(element)
+
+        for completion in completions:
+            self.all_subtasks.remove(completion)
+        relabeled_reward = float(len(completions))
+                
+        return relabeled_reward
+    
+    def step(self, a):
+        obs, reward, done, env_info = super().step(a)
+        relabeled_reward = self.compute_relabeled_reward(self.obs_dict)
+        env_info['relabeled_reward'] = relabeled_reward
+        return obs, reward, done, env_info
 
 # for simpl
 meta_train_tasks = np.array([

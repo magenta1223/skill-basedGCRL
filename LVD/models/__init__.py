@@ -8,6 +8,7 @@ from .gc_div_joint_gp import GoalConditioned_GoalPrompt_Model
 from .skimo import Skimo_Model
 from .simpl import SiMPL_Model
 from .base import BaseModel
+from .flat_gcsl import Flat_GCSL
 
 
 MODELS = {
@@ -21,6 +22,7 @@ MODELS = {
     "gc_div_joint_gp" : GoalConditioned_GoalPrompt_Model,
     "skimo" : Skimo_Model,
     "gc_skimo" : Skimo_Model,
+    'flat_gcsl' : Flat_GCSL
 }
 
 

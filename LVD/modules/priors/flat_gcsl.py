@@ -24,15 +24,17 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         return: state conditioned prior, and detached version for metric
         """
         states, G = batch.states, batch.G
-        N, T, _ = states.shape
 
         # -------------- State Enc / Dec -------------- #
-        policy_skill = self.policy.dist(torch.cat((states, G), dim = -1))
+        policy_skill = self.policy(torch.cat((states, G), dim = -1))
         # 혼합
         return edict(
             states = states,
             policy_skill = policy_skill,
         )
+
+    def soft_update(self):
+        pass
 
     def encode(self, states, keep_grad = False):
         return states
@@ -42,13 +44,8 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         """
         if mode == "consistency":
             states, G = batch.states, batch.relabeled_goals
-            policy_skill = self.policy.dist(torch.cat((states, G), dim = -1))
-            skill_consistency = nll_dist(
-                batch.actions,
-                policy_skill,
-                batch.actions_normal,
-                tanh = self.tanh
-            ).mean()
+            policy_skill = self.policy(torch.cat((states, G), dim = -1))
+            skill_consistency = F.mse_loss(policy_skill, batch.actions)
 
             return edict(
                 skill_consistency = skill_consistency
@@ -56,7 +53,7 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
 
         else:
             states, G = batch.states, batch.G    
-            policy_skill = self.policy.dist(torch.cat((states, G), dim = -1))
+            policy_skill = self.policy(torch.cat((states, G), dim = -1))
 
             return edict(
                 policy_skill = policy_skill,
@@ -71,14 +68,9 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
             G = prep_state(G, self.device),
         )
 
-        dist = self.dist(dist_inputs).policy_skill
+        skill = self.dist(dist_inputs).policy_skill
         # TODO explore 여부에 따라 mu or sample을 결정
-        if self.tanh:
-            z_normal, z = dist.rsample_with_pre_tanh_value()
-            return to_skill_embedding(z_normal), to_skill_embedding(z)
-
-        else:
-            return to_skill_embedding(z)
+        return to_skill_embedding(skill)
 
     def get_rl_params(self):
         

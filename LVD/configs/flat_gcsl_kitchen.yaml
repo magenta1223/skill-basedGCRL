@@ -4,7 +4,7 @@ defaults:
   - env : kitchen
 
 structure : flat_gcsl
-dataset_cls : LVD.data.Kitchen_Dataset
+dataset_cls : LVD.data.Kitchen_Dataset_Flat
 
 env:
   auto_alpha : true
@@ -14,11 +14,13 @@ env:
 
 model:
   normal_distribution:
+    in_feature: ${env.action_dim}
+    out_dim : 1
     action_dim : ${env.action_dim}
 
   policy:
     in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
-    out_dim : ${multiply:${env.action_dim}, 2}
+    out_dim : ${env.action_dim}
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 

@@ -4,6 +4,7 @@ tanh : true
 skill_trainer : LVD.runner.BaseTrainer
 rl_trainer : LVD.rl.rl_trainer.RL_Trainer
 consistency_update : true
+model_update : true
 
 state_encoder :
   n_blocks : 5

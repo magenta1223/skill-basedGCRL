@@ -5,7 +5,7 @@ from easydict import EasyDict as edict
 import random
 import math
 # from proposed.collector.storage import Offline_Buffer
-from ...collector.storage import Offline_Buffer
+from ...collector import Offline_Buffer
 
 from glob import glob
 

@@ -7,27 +7,45 @@ import torch
 from torch.nn import functional as F
 from ...utils import prep_state, StateProcessor
 from easydict import EasyDict as edict
-
+import random
 
 class GC_Batch(Batch):
-    def __init__(self, states, actions, rewards, dones, next_states, relabeled_goals, transitions=None):
+    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False):
         # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
         super().__init__(states, actions, rewards, dones, next_states, transitions)
-        self.data['relabeled_goals'] = relabeled_goals
 
+        self.data['goals'] = goals
+        self.data['relabeled_goals'] = relabeled_goals
+        self.data['relabeled_rewards'] = relabeled_rewards
+
+        self.tanh = tanh
+
+    @property
+    def goals(self):
+        return self.data['goals']
+    
     @property
     def relabeled_goals(self):
         return self.data['relabeled_goals']
 
+    @property
+    def relabeled_rewards(self):
+        return self.data['relabeled_rewards']
+
     def parse(self):
+        
+        relabel = random.random() > 0.8
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,
-            rewards = self.rewards,
+            rewards = self.relabeled_rewards if relabel else self.rewards ,
             dones = self.dones,
-            relabeled_goals = self.relabeled_goals
+            G = self.relabeled_goals if relabel else self.goals
         )
-        batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)
+        if self.tanh:
+            batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)
+        else:
+            batch_dict['actions'] = self.actions
 
         return batch_dict
 
@@ -38,12 +56,14 @@ class GC_Buffer(Buffer):
     enqueue해서 다 얻어놨고, 이게.. H-step을 쓸 수 있는게 있고 아닌게 있음. 
     그냥 따로 구성하는게 .. 
     """
-    def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name):
+    def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False):
 
         self.state_processor = StateProcessor(env_name)
 
-        action_dim *= 2
 
+        self.tanh = tanh
+        if self.tanh:
+            action_dim *= 2
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.max_size = max_size
@@ -53,14 +73,21 @@ class GC_Buffer(Buffer):
         
         self.episodes = deque()
         self.episode_ptrs = deque()
-        self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 2)
-        
+        # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
+
+
+        self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim * 2 + 3) # rwd, relabeled rwd, dones
+        # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
+
+
         dims = OrderedDict([
             ('state', state_dim),
             ('action', action_dim),
             ('reward', 1),
+            ('relabeled_reward', 1),
             ('done', 1),
             ('next_state', state_dim),
+            ('goal', goal_dim),
             ('relabled_goal', goal_dim),
         ])
         self.layout = dict()
@@ -73,59 +100,27 @@ class GC_Buffer(Buffer):
         self.device = None
 
 
+
+    @property
+    def goal(self):
+        return self.transitions[:, self.layout['goal']]
+
     @property
     def relabled_goal(self):
         return self.transitions[:, self.layout['relabled_goal']]
 
+    @property
+    def relabeled_rewards(self):
+        return self.transitions[:, self.layout['relabeled_rewards']]
+
+
+
+
     def ep_to_transtions(self, episode):
         len_ep = len(episode.states[:-1])
-        # current_indices = np.array(range(len_ep))
-        # relabeled_indices = np.minimum(np.random.randint(1, len_ep, size = len_ep) + current_indices, len_ep- 1).astype(int)
-        # relabeled_goals = self.state_processor.goal_transform(np.array(episode.states)[relabeled_indices])
 
-        # goal_states = self.state_processor.goal_transform(np.array(episode.states))
-        # goal_states = [ self.state_processor.goal_checker(goal) for goal in self.state_processor.goal_transform(np.array(episode.states)) ]
-        # goal_states = np.array(goal_states)
-
-
-        # print(goal_states)
-
-        # # indices = np.where(np.any(goal_states[:-1] != goal_states[1:], axis=-1))[0]
-        # indices = np.where(goal_states[:-1] != goal_states[1:])[0].tolist()
-
-
-        # goals = goal_states[indices]
-
-        # indices = indices + [len(goal_states)]
-        # # relabel_indices = []
-
-        # # for i in range(len(indices)-1):
-        # #     if i == 0:
-        # #         size = indices[0] + 1
-        # #     else:
-        # #         size = indices[i] - indices[i-1]
-
-        # #     print(size)
-        # #     relabel_indices.append(np.full((size), i+1))
-        # # relabel_indices = np.concatenate(relabel_indices, axis = 0)
-
-
-        # relabel_indices = []
-        # for i in range(len(indices)-1):
-        #     if i == 0:
-        #         size = indices[0] + 1
-        #     else:
-        #         size = indices[i] - indices[i-1]
-        #     relabel_indices.append(np.full((size), i+1))
-
-        # size = indices[-1] - indices[-2]
-        # relabel_indices.append(np.full((size), i+1))
-        # relabel_indices = np.concatenate(relabel_indices, axis = 0)
-
-
-        # relabeled_goals = np.concatenate((goals, goal_states[-1][None, :]))[relabel_indices]
-
-
+        # last state = goal로 변경
+        # relabeled reward 추가
         relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
         relabeled_goals = np.tile(relabeled_goal, (len(episode.states)-1, 1))
 
@@ -133,15 +128,17 @@ class GC_Buffer(Buffer):
             episode.states[:-1],
             episode.actions,
             np.array(episode.rewards)[:, None],
+            np.array(episode.relabeled_rewards)[:, None],
             np.array(episode.dones)[:, None],
             episode.states[1:],
+            episode.goals,
             relabeled_goals
         ], axis=-1))
 
     def sample(self, n):
         indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
-        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions).to(self.device)
+        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh).to(self.device)
         return batch.parse()
 
 

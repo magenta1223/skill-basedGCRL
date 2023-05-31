@@ -66,6 +66,6 @@ rl_cfgs : [
   rl_batch_size, # general
   q_warmup, discount, tau, # qfs
   policy_lr, consistency_lr, qf_lr, alpha_lr, # lrs
-  consistency_update, init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
+  consistency_update, model_update, init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
   tanh, # distribution   
   ]

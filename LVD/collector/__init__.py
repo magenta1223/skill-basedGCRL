@@ -1,8 +1,13 @@
-import gc_flat
-import gc_hierarchical
+# from . import gc_flat
+# from . import gc_hierarchical
+from .gc_flat import *
+from .gc_hierarchical import *
 
 
 __all__  = [
-    'gc_flat',
-    'gc_hierarchical',
+    'GC_Flat_Collector',
+    'GC_Hierarchical_Collector',
+    'GC_Buffer',
+    'GC_Batch',
+    'Offline_Buffer'
 ]

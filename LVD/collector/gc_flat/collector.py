@@ -30,7 +30,7 @@ class GC_Flat_Collector:
         imgs = []
         
         while not done and t < self.time_limit:
-            action_normal, action = actor.act(state, G)
+            action = actor.act(state, G)
 
             state, reward, done, info = self.env.step(action)
             state = self.state_processor.state_process(state)
@@ -43,9 +43,8 @@ class GC_Flat_Collector:
             if 'TimeLimit.truncated' in info:
                 data_done = not info['TimeLimit.truncated']
             
-            action_w_normal = np.concatenate((action, action_normal), axis = 0)
             
-            episode.add_step(action, action_w_normal, state, reward, data_done, info)
+            episode.add_step(action, state, reward, data_done, info)
 
 
             t += 1

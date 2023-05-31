@@ -54,7 +54,7 @@ class RL_Trainer:
         skill_prior.requires_grad_(False) 
 
         qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(high_policy.device)
+        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh).to(high_policy.device)
         collector = GC_Hierarchical_Collector(
             self.env,
             low_actor,
@@ -79,7 +79,7 @@ class RL_Trainer:
 
     def fit(self):
         # for task_obj in self.tasks:
-        for task_obj in self.tasks[1:2]:
+        for task_obj in self.tasks[2:3]:
             task_name = str(task_obj)
             self.prep()
 

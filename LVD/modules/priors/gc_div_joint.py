@@ -295,7 +295,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         Finetune inverse dynamics and dynamics with the data collected in online.
         """
 
-        states, G, next_states = batch.states, batch.relabeled_goals, batch.next_states
+        states, G, next_states = batch.states, batch.G, batch.next_states
         self.state_encoder.eval()
         ht = self.state_encoder(states)
         htH = self.target_state_encoder(next_states)
@@ -344,8 +344,8 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         return  edict(
             state_consistency = state_consistency,
             skill_consistency = skill_consistency,
-            # GCSL_loss = GCSL_loss.item()
-            GCSL_loss = GCSL_loss
+            GCSL_loss = GCSL_loss.item()
+            # GCSL_loss = GCSL_loss
         )
 
 
@@ -368,12 +368,12 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
                     "metric" : None,
                     # "metric" : "state_consistency"
                     },
-                "f" : {
-                    "params" :  self.subgoal_generator.parameters(), 
-                    "lr" : self.cfg.f_lr, 
-                    # "metric" : "GCSL_loss"
-                    "metric" : None,
-                }
+                # "f" : {
+                #     "params" :  self.subgoal_generator.parameters(), 
+                #     "lr" : self.cfg.f_lr, 
+                #     # "metric" : "GCSL_loss"
+                #     "metric" : None,
+                # }
 
             }
                 

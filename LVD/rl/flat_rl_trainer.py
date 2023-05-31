@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import wandb
 import numpy as np
 import torch
-from .sac import SAC
+# from .sac import SAC
+from .flat_gcsl import Flat_GCSL
 from ..modules import *
 from ..contrib.simpl.torch_utils import itemize
 from ..utils import *
@@ -45,17 +46,18 @@ class Flat_RL_Trainer:
         # load skill learners and prior policy
     
         # learnable
-        policy = PRIOR_WRAPPERS['flat_gcsl'](
-            policy = SequentialBuilder(self.cfg.gcsl_policy),
-            tanh =  self.cfg.tanh
-        )
-    
+        # policy = PRIOR_WRAPPERS['flat_gcsl'](
+        #     policy = SequentialBuilder(self.cfg.gcsl_policy),
+        #     tanh =  self.cfg.tanh
+        # )
+        model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
+        policy = deepcopy(model.prior_policy)
         # non-learnable
         action_prior = Normal_Distribution(self.cfg.normal_distribution)
         action_prior.requires_grad_(False) 
 
-        qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(policy.device)
+        qfs = [SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
+        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.action_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(policy.device)
         collector = GC_Flat_Collector(
             self.env,
             time_limit= self.cfg.time_limit,
@@ -76,7 +78,7 @@ class Flat_RL_Trainer:
         sac_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
 
 
-        sac = SAC(sac_config).cuda()
+        sac = Flat_GCSL(sac_config).cuda()
 
         self.collector, self.sac = collector, sac
 
@@ -137,7 +139,7 @@ class Flat_RL_Trainer:
         log = {}
 
         # ------------- Collect Data ------------- #
-        with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
+        with self.sac.policy.expl() : #, collector.env.step_render():
             episode, G = self.collector.collect_episode(self.sac.policy, verbose = True)
 
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
@@ -150,16 +152,6 @@ class Flat_RL_Trainer:
         if self.sac.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
-        
-        if n_ep == self.cfg.precollect:
-            step_inputs = edict(
-                episode = n_ep,
-                G = G
-            )
-            # Q-warmup
-            print("Warmup Value function")
-            self.sac.warmup_Q(step_inputs)
-
         n_step = self.n_step(episode)
         # print(f"Reuse!! : {n_step}")
 
@@ -179,7 +171,7 @@ class Flat_RL_Trainer:
         if self.env.name == "maze":
             return draw_maze(plt.gca(), self.env, list(self.sac.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":
-            with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
+            with self.sac.policy.expl() : #, collector.env.step_render():
                 imgs = self.collector.collect_episode(self.sac.policy, vis = True)
             imgs = np.array(imgs).transpose(0, 3, 1, 2)
             return wandb.Video(imgs, fps=50, format = "mp4")

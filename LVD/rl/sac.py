@@ -133,7 +133,7 @@ class SAC(BaseModel):
         # self.episode = step_inputs['episode']
 
         batch = self.buffer.sample(self.rl_batch_size)
-        batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
+        # batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
         self.episode = step_inputs['episode']
         self.n_step += 1
 
@@ -145,7 +145,9 @@ class SAC(BaseModel):
             self.update_consistency(batch)
 
         self.update_qs(batch)
-        self.update_networks(batch)
+
+        if self.model_update:
+            self.update_networks(batch)
         # ------------------- Alpha ------------------- # 
         self.update_alpha()
 
@@ -171,9 +173,7 @@ class SAC(BaseModel):
         # q_input = torch.cat((batch.states, batch.G, policy_skill), dim = -1)
 
         q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
-        
         min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
-
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
         policy_loss += self.aggregate_values(dist_out.additional_losses)
 
@@ -274,7 +274,7 @@ class SAC(BaseModel):
 
         for _ in range(int(self.q_warmup)):
             batch = self.buffer.sample(self.rl_batch_size)
-            batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
+            # batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
 
             if self.consistency_update:
                 self.update_consistency(batch)
@@ -312,9 +312,30 @@ class SAC(BaseModel):
                     scheduler.step(meter.avg)
                     meter.reset()
 
-
-
         self.stat.update(consistency_losses)
+
+
+        # 
+
+
+        dist_out = self.policy.dist(batch, mode = "policy")
+        policy_skill_dist = dist_out.policy_skill # 
+        policy_skill = policy_skill_dist.rsample() 
+
+        entropy_term, prior_dists = self.entropy(  batch.states,  policy_skill_dist, kl_clip= None) # policy의 dist로는 gradient 전파함 .
+        
+        # encoded_states = self.policy.encode(batch.states)
+        # min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
+
+        # q_input = torch.cat((batch.states, batch.G, policy_skill), dim = -1)
+
+        q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
+        min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
+        policy_loss = (- min_qs + self.alpha * entropy_term).mean()
+        policy_loss += self.aggregate_values(dist_out.additional_losses)
+
+
+
     
 
     def q_inputs(self, batch, actions = None):
