@@ -34,7 +34,11 @@ class GC_Batch(Batch):
 
     def parse(self):
         
-        relabel = random.random() > 0.8
+        relabel = random.random() > 0.8 
+
+        
+
+        # relabel = True
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,

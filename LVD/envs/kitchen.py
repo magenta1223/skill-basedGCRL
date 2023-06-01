@@ -73,6 +73,7 @@ class KitchenEnv_GC(KitchenEnv):
         completions = []
 
         for element in self.all_subtasks:
+            # 뭔가 완료 될 때 마다 reward에 +1 
             element_idx = OBS_ELEMENT_INDICES[element]
             distance = np.linalg.norm(
                 next_obj_obs[..., element_idx - idx_offset] -

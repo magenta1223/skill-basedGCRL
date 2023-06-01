@@ -52,7 +52,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         # for state reconstruction and dynamics
         states_repr = self.state_encoder(states.view(N * T, -1))
         states_hat = self.state_decoder(states_repr).view(N, T, -1)
-        hts = states_repr.view(N, T, -1).clone()
+        hts = states_repr.view(N, T, -1).clone().detach()
 
         with torch.no_grad():
             # for MMD loss of WAE
@@ -65,6 +65,25 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
             # target for dynamics & subgoal generator 
             hts_target = self.target_state_encoder(states.view(N * T, -1)).view(N, T, -1)
             subgoal_target = hts_target[:, -1]
+
+
+        # states_repr = self.state_encoder(states.view(N * T, -1))
+        # states_hat = self.state_decoder(states_repr).view(N, T, -1)
+        # hts = states_repr.view(N, T, -1).clone()
+        # start, subgoal = hts[:, 0], hts[:, -1]
+        # with torch.no_grad():
+        #     # for MMD loss of WAE
+        #     state_emb = states_repr.view(N, T, -1)[:, 0]
+        #     states_fixed = torch.randn(512, *state_emb.shape[1:]).cuda()
+
+        #     # target for dynamics & subgoal generator 
+        #     hts_target = self.target_state_encoder(states.view(N * T, -1)).view(N, T, -1)
+        #     subgoal_target = hts_target[:, -1]
+
+
+
+
+
 
         # -------------- State-Conditioned Prior -------------- #
         prior, prior_detach = self.skill_prior.dist(start, detached = True)
