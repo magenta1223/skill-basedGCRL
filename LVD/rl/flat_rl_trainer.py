@@ -13,10 +13,7 @@ from .flat_gcsl import Flat_GCSL
 from ..modules import *
 from ..contrib.simpl.torch_utils import itemize
 from ..utils import *
-# from ..collector.flat_collector import TimeLimitCollector
-# from ..collector.storage import Buffer_G
-from ..collector.gc_flat import GC_Flat_Collector
-from ..collector.gc_hierarchical import GC_Buffer
+from ..collector import GC_Flat_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 

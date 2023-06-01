@@ -12,7 +12,7 @@ from .sac import SAC
 from ..modules import *
 from ..contrib.simpl.torch_utils import itemize
 from ..utils import *
-from ..collector.gc_hierarchical import GC_Hierarchical_Collector, GC_Buffer
+from ..collector import GC_Hierarchical_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 
