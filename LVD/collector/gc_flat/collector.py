@@ -34,6 +34,7 @@ class GC_Flat_Collector:
             action = actor.act(state, G)
 
             state, reward, done, info = self.env.step(action)
+            relabeled_reward = info['relabeled_reward']
             state = self.state_processor.state_process(state)
 
             if vis:
@@ -45,7 +46,9 @@ class GC_Flat_Collector:
                 data_done = not info['TimeLimit.truncated']
             
             
-            episode.add_step(action, state, reward, data_done, info)
+            episode.add_step(action, state, G, reward, relabeled_reward, data_done, info)
+
+
 
 
             t += 1
