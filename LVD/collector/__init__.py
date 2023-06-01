@@ -2,7 +2,7 @@
 # from . import gc_hierarchical
 from .gc_flat import *
 from .gc_hierarchical import *
-
+from .common import *
 
 __all__  = [
     'GC_Flat_Collector',
