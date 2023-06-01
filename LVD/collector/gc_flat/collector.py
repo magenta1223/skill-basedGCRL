@@ -4,6 +4,7 @@ from ...utils import StateProcessor
 import numpy as np
 from copy import deepcopy
 import torch
+from ..common import *
 
 
 
@@ -25,7 +26,7 @@ class GC_Flat_Collector:
 
         # print(f"G : {self.state_processor.goal_checker(G)}")
 
-        episode = Episode(state)
+        episode = Episode_RR(state)
         actor.eval()
         imgs = []
         

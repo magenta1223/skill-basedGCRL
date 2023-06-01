@@ -1,66 +1,68 @@
-from ...contrib.simpl.collector.hierarchical import HierarchicalEpisode, Episode
+# from ...contrib.simpl.collector.hierarchical import HierarchicalEpisode, Episode
+
+from ..common import *
 from ...utils import StateProcessor
 
 import numpy as np
 from copy import deepcopy
 import torch
 
-class Episode_RR(Episode):
-    def __init__(self, init_state):
-        super().__init__(init_state)
-        self.relabeled_rewards = []
-        self.goals = []
+# class Episode_RR(Episode):
+#     def __init__(self, init_state):
+#         super().__init__(init_state)
+#         self.relabeled_rewards = []
+#         self.goals = []
 
-    def add_step(self, action, next_state, goal, reward, relabeled_reward, done, info):
-        super().add_step(action, next_state, reward, done, info)
-        self.relabeled_rewards.append(relabeled_reward)
-        self.goals.append(goal)
+#     def add_step(self, action, next_state, goal, reward, relabeled_reward, done, info):
+#         super().add_step(action, next_state, reward, done, info)
+#         self.relabeled_rewards.append(relabeled_reward)
+#         self.goals.append(goal)
 
 
-class HierarchicalEpisode_RR(Episode_RR):
-    def __init__(self, init_state):
-        super().__init__(init_state)
-        # self.low_actions = self.actions
-        self.high_actions = []
+# class HierarchicalEpisode_RR(Episode_RR):
+#     def __init__(self, init_state):
+#         super().__init__(init_state)
+#         # self.low_actions = self.actions
+#         self.high_actions = []
     
-    def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):
-        # MDP transitions
-        super().add_step(low_action, next_state, goal, reward, relabeled_reward, done, info)
-        self.high_actions.append(high_action)
+#     def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):
+#         # MDP transitions
+#         super().add_step(low_action, next_state, goal, reward, relabeled_reward, done, info)
+#         self.high_actions.append(high_action)
 
-    def as_high_episode(self):
-        """
-        high-action은 H-step마다 값이 None 이 아
-        """
+#     def as_high_episode(self):
+#         """
+#         high-action은 H-step마다 값이 None 이 아
+#         """
 
-        high_episode = Episode_RR(self.states[0])
-        prev_t = 0
-        for t in range(1, len(self)):
-            if self.high_actions[t] is not None:
-                # high-action은 H-step마다 값이 None이 아니다.
-                # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
-                high_episode.add_step(
-                    self.high_actions[prev_t],
-                    self.states[t],
-                    self.goals[t],
-                    sum(self.rewards[prev_t:t]),
-                    sum(self.relabeled_rewards[prev_t:t]),
-                    self.dones[t],
-                    self.infos[t]
-                )
-                prev_t = t
+#         high_episode = Episode_RR(self.states[0])
+#         prev_t = 0
+#         for t in range(1, len(self)):
+#             if self.high_actions[t] is not None:
+#                 # high-action은 H-step마다 값이 None이 아니다.
+#                 # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
+#                 high_episode.add_step(
+#                     self.high_actions[prev_t],
+#                     self.states[t],
+#                     self.goals[t],
+#                     sum(self.rewards[prev_t:t]),
+#                     sum(self.relabeled_rewards[prev_t:t]),
+#                     self.dones[t],
+#                     self.infos[t]
+#                 )
+#                 prev_t = t
         
-        high_episode.add_step(
-            self.high_actions[prev_t],
-            self.states[-1],
-            self.goals[t],
-            sum(self.rewards[prev_t:]), 
-            sum(self.relabeled_rewards[prev_t:]),
-            self.dones[-1], 
-            self.infos[-1]
-        )
-        high_episode.raw_episode = self
-        return high_episode
+#         high_episode.add_step(
+#             self.high_actions[prev_t],
+#             self.states[-1],
+#             self.goals[t],
+#             sum(self.rewards[prev_t:]), 
+#             sum(self.relabeled_rewards[prev_t:]),
+#             self.dones[-1], 
+#             self.infos[-1]
+#         )
+#         high_episode.raw_episode = self
+#         return high_episode
 
 
 
