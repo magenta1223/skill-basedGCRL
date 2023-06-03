@@ -80,17 +80,13 @@ class StateProcessor_Kitchen:
         state[..., :9] = 0
         return state[..., :30]
 
-    def state_goal_checker(self, state, mode = "state"):
+    @staticmethod
+    def to_ppc(state):
         """
-        Check the state satisfiy which goal state
+        to proprioceptive state
         """
-        if mode =="state":
-            # state -> goal -> check
-            return self.goal_checker(self.goal_transform(state)) 
-        else:
-            # get goals from state -> check 
-            return self.goal_checker(self.get_goal(state)) 
-
+        state[..., 9:] = 0
+        return state
 
 class StateProcessor_Maze:
     @staticmethod
@@ -108,6 +104,13 @@ class StateProcessor_Maze:
     @staticmethod
     def goal_transform(state):
         return state[..., :2]
+    @staticmethod
+    def to_ppc(state):
+        """
+        to proprioceptive state
+        """
+        state[..., 9:] = 0
+        return state
 
 
 class StateProcessor_Carla:
@@ -173,7 +176,13 @@ class StateProcessor_Carla:
     @staticmethod
     def goal_transform(state):
         return state[..., 12 :14]
-
+    @staticmethod
+    def to_ppc(state):
+        """
+        to proprioceptive state
+        """
+        state[..., 9:] = 0
+        return state
 
 
 class StateProcessor:
@@ -190,6 +199,7 @@ class StateProcessor:
         self.get_goal = processor.get_goal
         self.state_process = processor.state_process
         self.goal_transform = processor.goal_transform
+        self.to_ppc = processor.to_ppc
 
 
     def state_goal_checker(self, state, mode = "state"):

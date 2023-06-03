@@ -78,8 +78,8 @@ class RL_Trainer:
         self.collector, self.sac = collector, sac
 
     def fit(self):
-        for task_obj in self.tasks:
-        # for task_obj in self.tasks[2:3]:
+        # for task_obj in self.tasks:
+        for task_obj in self.tasks[3:6]:
             task_name = str(task_obj)
             self.prep()
 

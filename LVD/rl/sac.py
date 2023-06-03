@@ -117,7 +117,7 @@ class SAC(BaseModel):
         
     def entropy(self, states, policy_dists, kl_clip = None):
         with torch.no_grad():
-            prior_dists = self.skill_prior.dist(self.policy.encode(states))
+            prior_dists = self.skill_prior.dist(self.policy.encode(states, prior = True))
 
         if kl_clip is not None:                
             entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = kl_clip)

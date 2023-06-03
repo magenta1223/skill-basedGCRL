@@ -173,6 +173,12 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         
 class Kitchen_Dataset_Flat(Kitchen_Dataset):
 
+    def __len__(self):
+        if self.dataset_size != -1:
+            return self.dataset_size
+        return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0])
+
+
     def __getitem__(self, index):
         seq = self._sample_seq()
         start_idx, goal_idx = self.sample_indices(seq.states)

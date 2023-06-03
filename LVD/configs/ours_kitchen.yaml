@@ -30,7 +30,11 @@ model:
   prior:
     in_feature : ${env.latent_state_dim} 
     out_dim : ${multiply:${env.skill_dim}, 2}
-  
+
+  state_to_ppc:
+    in_feature : ${env.latent_state_dim} 
+    out_dim : ${env.latent_state_dim}
+
   ppc:
     in_feature : ${env.state_dim} 
     out_dim : ${multiply:${env.skill_dim}, 2}

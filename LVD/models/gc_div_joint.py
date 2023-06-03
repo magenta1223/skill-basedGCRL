@@ -26,20 +26,20 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
         subgoal_generator = SequentialBuilder(cfg.subgoal_generator)
         prior = SequentialBuilder(cfg.prior)
+        state_to_ppc = SequentialBuilder(cfg.state_to_ppc)
         flat_dynamics = SequentialBuilder(cfg.dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
-        if self.robotics:
-            # ppc_config = {**cfg.prior_config}
-            # ppc_config['in_feature'] = self.state_dim
-            prior_proprioceptive = SequentialBuilder(cfg.ppc)
-        else:
-            prior_proprioceptive = None
+        # if self.robotics:
+        #     prior_proprioceptive = SequentialBuilder(cfg.ppc)
+        # else:
+        #     prior_proprioceptive = None
         
         self.prior_policy = PRIOR_WRAPPERS['gc_div_joint'](
             # components  
             skill_prior = prior,
-            skill_prior_ppc = prior_proprioceptive,
+            state_to_ppc = state_to_ppc,
+            # skill_prior_ppc = prior_proprioceptive,
             state_encoder = state_encoder,
             state_decoder = state_decoder,
             inverse_dynamics = inverse_dynamics,
@@ -50,6 +50,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             cfg = cfg,
             ema_update = True,
             tanh = self.tanh,
+            dynamics_grad_cut = self.dynamics_grad_cut
         )
 
         ### ----------------- Skill Enc / Dec Modules ----------------- ###
@@ -99,18 +100,26 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                 ], lr = self.lr
                 ),
                 "metric" : "recon_state"
+            },
+            "state2ppc" : {
+                "optimizer" : RAdam([
+                    {'params' : self.prior_policy.state_to_ppc.parameters()},
+                ], lr = self.lr
+                ),
+                "metric" : "ppc_loss"
             }
+
 
         }
 
-        if self.robotics:
-            self.optimizers['ppc'] = {
-                "optimizer" : RAdam(
-                    [{'params' : self.prior_policy.skill_prior_ppc.parameters()}],            
-                    lr = self.lr
-                ),
-                "metric" : None
-            }
+        # if self.robotics:
+        #     self.optimizers['ppc'] = {
+        #         "optimizer" : RAdam(
+        #             [{'params' : self.prior_policy.skill_prior_ppc.parameters()}],            
+        #             lr = self.lr
+        #         ),
+        #         "metric" : None
+        #     }
         
         self.c = 0
 
@@ -186,6 +195,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         #     skill = z
         # )
 
+        batch['skill'] = z
+
         # skill prior
         self.outputs =  self.prior_policy(batch)
         
@@ -221,7 +232,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             tanh = self.tanh
         ).mean() 
 
-        # # ----------- Dynamics -------------- # 
+        # ----------- Dynamics -------------- # 
         flat_D_loss = self.loss_fn('recon')(
             self.outputs['flat_D'],
             self.outputs['flat_D_target']
@@ -239,29 +250,36 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         r_int = r_int_f + r_int_D
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_D'])
 
-        reg_term = self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']).mean()
-        # reg_term = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean()
+        # reg_term = self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']).mean()
+        reg_term = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean()
 
         F_loss = r_int + reg_term 
 
         loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
-        z_tilde = self.outputs['states_repr']
-        z = self.outputs['states_fixed_dist']
-        mmd_loss = compute_mmd(z_tilde, z) * self.wae_coef
-        loss = loss + recon_state + mmd_loss
+        # z_tilde = self.outputs['states_repr']
+        # z = self.outputs['states_fixed_dist']
+        # mmd_loss = compute_mmd(z_tilde, z) * self.wae_coef
+        loss = loss + recon_state #+ mmd_loss
+
+        ppc_loss = self.loss_fn("recon")(
+            self.outputs['states_ppc'], 
+            self.outputs['states_ppc_target'], 
+        )
+
+        loss += ppc_loss
 
 
-        if self.robotics:
-            ppc_loss = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['prior_ppc'], # proprioceptive for stitching
-                self.outputs['z_normal'],
-                tanh = self.tanh
-            ).mean()
+        # if self.robotics:
+        #     ppc_loss = self.loss_fn('prior')(
+        #         self.outputs['z'],
+        #         self.outputs['prior_ppc'], # proprioceptive for stitching
+        #         self.outputs['z_normal'],
+        #         tanh = self.tanh
+        #     ).mean()
 
-            loss += ppc_loss
+        #     loss += ppc_loss
 
             
         self.loss_dict = {           
@@ -279,7 +297,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             "F_skill_kld" : reg_term.item(),
             "skill_metric" : recon.item() + reg.item() * self.reg_beta,
             "Rec_state" : recon_state.item(),
-            "mmd_loss" : mmd_loss.item(),
+            # "mmd_loss" : mmd_loss.item(),
             "ppc_loss" : ppc_loss.item() if self.robotics else 0
         }       
 
