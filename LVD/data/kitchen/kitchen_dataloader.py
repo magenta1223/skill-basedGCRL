@@ -188,8 +188,8 @@ class Kitchen_Dataset_Flat(Kitchen_Dataset):
         
         # 
         output = edict(
-            states = seq.states[start_idx : start_idx + self.subseq_len -1, :self.n_obj + self.n_env],
-            actions = seq.actions[start_idx : start_idx + self.subseq_len-1],
+            states = seq.states[start_idx, :self.n_obj + self.n_env],
+            actions = seq.actions[start_idx],
             G = G
         )
 

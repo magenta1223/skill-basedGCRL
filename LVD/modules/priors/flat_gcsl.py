@@ -25,17 +25,17 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         """
         states, G = batch.states, batch.G
         
-        N, T = states.shape[:2]
 
         # -------------- State Enc / Dec -------------- #
-        states_unrolled = states.view(N * T, -1) # N * T, -1
-        G_unrolled = G.unsqueeze(1).repeat(1, T, 1).view(N * T, -1)
-        policy_input = torch.cat((states_unrolled, G_unrolled), dim = -1)
-        policy_skill = self.policy(policy_input).view(N, T, -1)
-        policy_skill = torch.tanh(policy_skill)
-
-        # policy_skill = self.policy(torch.cat((states, G), dim = -1))
+        # N, T = states.shape[:2]
+        # states_unrolled = states.view(N * T, -1) # N * T, -1
+        # G_unrolled = G.unsqueeze(1).repeat(1, T, 1).view(N * T, -1)
+        # policy_input = torch.cat((states_unrolled, G_unrolled), dim = -1)
+        # policy_skill = self.policy(policy_input).view(N, T, -1)
         # policy_skill = torch.tanh(policy_skill)
+
+        policy_skill = self.policy(torch.cat((states, G), dim = -1))
+        policy_skill = torch.tanh(policy_skill)
         # tanh normal로 ? 
         # 혼합
         return edict(
