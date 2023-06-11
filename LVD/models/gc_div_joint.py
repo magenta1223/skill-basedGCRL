@@ -5,7 +5,7 @@ from ..modules import *
 from ..utils import *
 from .base import BaseModel
 from easydict import EasyDict as edict
-
+from copy import deepcopy
 
 class GoalConditioned_Diversity_Joint_Model(BaseModel):
     """
@@ -50,7 +50,9 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             cfg = cfg,
             ema_update = True,
             tanh = self.tanh,
-            dynamics_grad_cut = self.dynamics_grad_cut
+            dynamics_grad_cut = self.dynamics_grad_cut,
+            bypass = self.bypass,
+            diff = self.diff
         )
 
         ### ----------------- Skill Enc / Dec Modules ----------------- ###
@@ -151,6 +153,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
         # state reconstruction 
         self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
+        self.loss_dict['recon_state_target'] = self.loss_fn('recon')(self.outputs['states_hat_target'], self.outputs['states']) # ? 
+
 
     def forward(self, batch):
 
@@ -255,13 +259,16 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
         F_loss = r_int + reg_term 
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss
-
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
-        # z_tilde = self.outputs['states_repr']
-        # z = self.outputs['states_fixed_dist']
-        # mmd_loss = compute_mmd(z_tilde, z) * self.wae_coef
-        loss = loss + recon_state #+ mmd_loss
+
+
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state
+
+        if self.mmd:
+            z_tilde = self.outputs['states_repr']
+            z = self.outputs['states_fixed_dist']
+            mmd_loss = compute_mmd(z_tilde, z)
+            loss +=  mmd_loss * self.wae_coef
 
         ppc_loss = self.loss_fn("recon")(
             self.outputs['states_ppc'], 
@@ -297,8 +304,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             "F_skill_kld" : reg_term.item(),
             "skill_metric" : recon.item() + reg.item() * self.reg_beta,
             "Rec_state" : recon_state.item(),
-            # "mmd_loss" : mmd_loss.item(),
-            "ppc_loss" : ppc_loss.item() if self.robotics else 0
+            "mmd_loss" : mmd_loss.item() if self.mmd else 0,
+            "ppc_loss" : ppc_loss.item() if self.robotics or self.mmd else 0
         }       
 
 
@@ -328,7 +335,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.c = c
 
     
-    def __main_network__(self, batch, validate = False):
+    def __main_network__(self, batch, validate = False, rollout = False):
 
         self(batch)
         loss = self.compute_loss(batch)
@@ -344,16 +351,18 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                 optimizer['optimizer'].step()
 
         # ------------------ Rollout  ------------------ #
+        training = deepcopy(self.training)
         self.eval()
-        self.rollout(batch)
+        if rollout:
+            self.rollout(batch)
     
-        if self.training:
+        if training:
             self.train()
 
-    def optimize(self, batch, e):
+    def optimize(self, batch, e, rollout = False):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(batch)
+        self.__main_network__(batch, rollout = rollout)
         self.get_metrics()
         self.prior_policy.soft_update()
         return self.loss_dict
@@ -361,7 +370,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
     @torch.no_grad()
     def validate(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-        self.__main_network__(batch, validate= True)
+        self.__main_network__(batch, validate= True, rollout = False)
         self.get_metrics()
         self.step += 1
 

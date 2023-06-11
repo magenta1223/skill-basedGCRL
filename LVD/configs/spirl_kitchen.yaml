@@ -7,6 +7,9 @@ structure : sc
 dataset_cls : LVD.data.Kitchen_Dataset
 
 
+env:
+  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+
 model:
   prior:
     in_feature : ${env.state_dim}

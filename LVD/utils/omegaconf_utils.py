@@ -18,7 +18,14 @@ def get_trainer(phase, skill_trainer, rl_trainer):
     else:
         return rl_trainer
 
+def get_cycle(batch_size):
+    """
+    maintains iters / epoch constantly 
+    """
+    return batch_size // 20
+
 OmegaConf.register_new_resolver("add", add)
 OmegaConf.register_new_resolver("multiply", multiply)
 OmegaConf.register_new_resolver("config_path", config_path)
 OmegaConf.register_new_resolver("get_trainer", get_trainer)
+OmegaConf.register_new_resolver("get_cycle", get_cycle)

@@ -94,7 +94,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         # rollout method
         skill_length = self.subseq_len - 1
         rollout_length = skill_length + ((self.plan_H - skill_length) // skill_length)
-        self.buffer_now = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 1024)
+        self.buffer_now = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= int(1e4))
 
 
     def set_mode(self, mode):

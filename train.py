@@ -13,7 +13,9 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
-    
+
+    print(OmegaConf.to_yaml(cfg))
+
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
 
@@ -26,6 +28,7 @@ def main(cfg):
         cfg.weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{rl_overrides}"
         cfg.project_name = cfg.structure
         cfg.wandb_run_name = f"{cfg.env.env_name}_{cfg.run_name}_{rl_overrides}"
+
 
 
 

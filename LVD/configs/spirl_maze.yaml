@@ -7,7 +7,9 @@ dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
 structure : sc
 
 
-
+env:
+  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+  
 model:
   prior:
     in_feature : ${env.state_dim}

@@ -25,18 +25,19 @@ max_seq_len : 280
 epoch_cycles_train : 50
 
 
-batch_size : 1024
-mixin_start : 30
+batch_size : 500
+mixin_start : 1
 mixin_ratio : 0.05
 plan_H : 100
 epochs : 70
+# epochs : 40
 warmup_steps : 30
 
 skill_dim : 10
 latent_state_dim : 32
 reg_beta : 0.0005
 prior_state_dim : 30
-wae_coef : 1
+wae_coef : 10
 val_data_size : 5000
 
 time_limit : 280

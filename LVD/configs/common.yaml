@@ -31,10 +31,12 @@ hydra:
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 
+
+
 save_ckpt : 20
 early_stop_rounds : 100
 n_rollout_steps : 10
-workers : 4
+workers : 16
 dataset_size : -1
 val_data_size : 5000
 batch_size : 1024

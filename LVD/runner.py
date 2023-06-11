@@ -245,11 +245,15 @@ class Diversity_Trainer(BaseTrainer):
     def fit(self):
         print("optimizing")
         print(f"weights save path : {self.model_id}")
-
+        rollout  = False
         for e in range(self.cfg.epochs):
             start = time.time()
 
-            train_loss_dict  = self.train_one_epoch(self.train_loader, e)
+            if e == self.cfg.mixin_start - 1:
+                rollout = True
+
+
+            train_loss_dict  = self.train_one_epoch(self.train_loader, e, rollout)
             valid_loss_dict = self.validate(self.val_loader, e)
 
             message = f'[Epoch {e}]\n'
@@ -289,8 +293,7 @@ class Diversity_Trainer(BaseTrainer):
             if e > self.cfg.save_ckpt:
                 self.save(f'{self.model_id}/{e}.bin')
 
-            # if e == self.warmup_steps + 10:
-            # if e == 1:
+
             if e == self.cfg.mixin_start:
                 self.train_loader.set_mode("with_buffer")
 
@@ -303,7 +306,7 @@ class Diversity_Trainer(BaseTrainer):
         
 
 
-    def train_one_epoch(self, loader, e):
+    def train_one_epoch(self, loader, e, rollout):
         # print(loader.dataset.mode)
         self.meter_initialize()
         # start = time.time()
@@ -313,12 +316,12 @@ class Diversity_Trainer(BaseTrainer):
 
             # optim_start = time.time()
             self.model.train()
-            loss = self.model.optimize(batch, e)
+            loss = self.model.optimize(batch, e, rollout)
 
             # if i == 0:
             #     print("Optimize : ", f"{time.time()-optim_start:.5f}")
-
-            loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"))
+            if "states_novel" in loss.keys():
+                loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"))
 
 
             if not len(self.meters):
@@ -339,8 +342,10 @@ class Diversity_Trainer(BaseTrainer):
         for i, batch in enumerate(loader):
             self.model.eval() # ?
             loss = self.model.validate(batch, e)
-            loss.pop("states_novel")
-            loss.pop("actions_novel")
+
+            if "states_novel" in loss.keys():
+                loss.pop("states_novel")
+                loss.pop("actions_novel")
 
             if not len(self.meters):
                 for key in loss.keys():

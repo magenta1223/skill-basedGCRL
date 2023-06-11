@@ -28,6 +28,7 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         # -------------- State Enc / Dec -------------- #
         policy_skill = self.policy(torch.cat((states, G), dim = -1))
         policy_skill = torch.tanh(policy_skill)
+        # tanh normal로 ? 
         # 혼합
         return edict(
             states = states,

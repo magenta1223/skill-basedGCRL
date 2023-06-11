@@ -5,7 +5,8 @@ defaults:
 
 dataset_cls : LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset
 structure : skimo
-
+env:
+  epoch_cycles_train: ${get_cycle:${env.batch_size}}
 
 model:
   state_encoder :
