@@ -29,9 +29,8 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
 
         # -------------- State Enc / Dec -------------- #
         states_unrolled = states.view(N * T, -1) # N * T, -1
-
-
-        policy_input = torch.cat((states_unrolled, G.unsqueeze(1).repeat(1, T, 1)), dim = -1)
+        G_unrolled = G.unsqueeze(1).repeat(1, T, 1).view(N * T, -1)
+        policy_input = torch.cat((states_unrolled, G_unrolled), dim = -1)
         policy_skill = self.policy(policy_input).view(N, T, -1)
         policy_skill = torch.tanh(policy_skill)
 
