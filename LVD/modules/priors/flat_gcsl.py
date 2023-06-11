@@ -24,10 +24,19 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         return: state conditioned prior, and detached version for metric
         """
         states, G = batch.states, batch.G
+        
+        N, T = states.shape[:2]
 
         # -------------- State Enc / Dec -------------- #
-        policy_skill = self.policy(torch.cat((states, G), dim = -1))
+        states_unrolled = states.view(N * T, -1) # N * T, -1
+
+
+        policy_input = torch.cat((states_unrolled, G.unsqueeze(1).repeat(1, T, 1)), dim = -1)
+        policy_skill = self.policy(policy_input).view(N, T, -1)
         policy_skill = torch.tanh(policy_skill)
+
+        # policy_skill = self.policy(torch.cat((states, G), dim = -1))
+        # policy_skill = torch.tanh(policy_skill)
         # tanh normal로 ? 
         # 혼합
         return edict(

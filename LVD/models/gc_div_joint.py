@@ -83,7 +83,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                     {"params" : self.prior_policy.dynamics.parameters()},
                     {"params" : self.prior_policy.flat_dynamics.parameters()},
                 ], lr = self.lr ),
-                "metric" : "D"
+                # "metric" : "D",
+                "metric" : "Rec_D_subgoal"
                 # "metric" : "Prior_GC"
 
             }, 

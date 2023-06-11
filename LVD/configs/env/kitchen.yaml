@@ -31,7 +31,7 @@ mixin_ratio : 0.05
 plan_H : 100
 epochs : 70
 # epochs : 40
-warmup_steps : 30
+warmup_steps : 20
 
 skill_dim : 10
 latent_state_dim : 32

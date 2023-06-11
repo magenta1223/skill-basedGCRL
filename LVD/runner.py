@@ -132,9 +132,6 @@ class BaseTrainer:
                 skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
 
             if e >= self.cfg.warmup_steps:
-                # if self.scheduler:
-                #     self.scheduler.step(valid_loss_dict['metric'])
-
                 for module_name, scheduler in self.schedulers.items():
                     if module_name != "skill_enc_dec":
                         scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
