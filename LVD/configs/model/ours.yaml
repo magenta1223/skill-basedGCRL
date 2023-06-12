@@ -9,8 +9,11 @@ invD_lr : 1e-6
 D_lr : 1e-5
 f_lr : 1e-8
 
-dynamics_grad_cut : false
-bypass : true
+
+grad_pass:
+  invD: true
+  D : false
+
 diff : false
 mmd : true
 

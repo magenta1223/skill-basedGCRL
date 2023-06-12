@@ -50,8 +50,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             cfg = cfg,
             ema_update = True,
             tanh = self.tanh,
-            dynamics_grad_cut = self.dynamics_grad_cut,
-            bypass = self.bypass,
+            grad_pass_invD = self.grad_pass.invD,
+            grad_pass_D = self.grad_pass.D,
             diff = self.diff
         )
 

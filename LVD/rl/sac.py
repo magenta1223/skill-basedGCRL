@@ -31,14 +31,6 @@ class SAC(BaseModel):
 
 
         if rl_params['consistency']:
-
-            # self.consistency_optims = {
-            #     "skill_prior" : {
-            #         "optimizer" : Adam( self.prior_policy.skill_prior.parameters(), lr = self.lr ),
-            #         "metric" : None
-            #     }, 
-            # }
-
             self.consistency_optims = {  name : {  
                 'optimizer' : Adam( args['params'], lr = args['lr'] ),
                 'metric' : args['metric']
@@ -316,8 +308,6 @@ class SAC(BaseModel):
 
 
         # 
-
-
         dist_out = self.policy.dist(batch, mode = "policy")
         policy_skill_dist = dist_out.policy_skill # 
         policy_skill = policy_skill_dist.rsample() 

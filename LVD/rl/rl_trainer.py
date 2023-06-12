@@ -79,7 +79,7 @@ class RL_Trainer:
 
     def fit(self):
         # for task_obj in self.tasks:
-        for task_obj in self.tasks[3:6]:
+        for task_obj in self.tasks:
             task_name = str(task_obj)
             self.prep()
 
@@ -157,10 +157,10 @@ class RL_Trainer:
             print("Warmup Value function")
             self.sac.warmup_Q(step_inputs)
 
-        n_step = self.n_step(episode)
+        # n_step = self.n_step(episode)
         # print(f"Reuse!! : {n_step}")
-
-        for _ in range(max(n_step, 1)):
+        # for _ in range(max(n_step, 1)):
+        for _ in range(self.cfg.step_per_ep):
             step_inputs = edict(
                 episode = n_ep,
                 G = G

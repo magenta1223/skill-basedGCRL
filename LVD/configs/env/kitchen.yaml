@@ -2,14 +2,6 @@ env_name : kitchen
 env_name_offline : kitchen-mixed-v0
 robotics : true
 
-# env_cls : LVD.envs.KitchenEnv_GC
-# env_cfg : LVD.envs.kitchen_cfg
-# task_cls : LVD.envs.KitchenTask_GC
-# meta_tasks : LVD.envs.kitchen_meta_tasks
-# target_tasks : LVD.envs.kitchen_tasks
-# ablation_tasks : LVD.envs.kitchen_ablation_tasks
-
-
 envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
 
 
@@ -26,7 +18,7 @@ epoch_cycles_train : 50
 
 
 batch_size : 500
-mixin_start : 1
+mixin_start : 30
 mixin_ratio : 0.05
 plan_H : 100
 epochs : 70
@@ -47,6 +39,7 @@ init_alpha : 0.005
 increasing_alpha : false
 auto_alpha : false
 reuse_rate : 512
+step_per_ep : 100
 q_warmup : 10_000
 q_weight : 1
 precollect : 20

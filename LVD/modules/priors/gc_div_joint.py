@@ -134,7 +134,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         return result
     
     def forward_invD(self, hts):
-        if not self.bypass:
+        if not self.grad_pass_invD:
             hts = hts.clone().detach()
         start, subgoal = hts[:,0], hts[:, -1]
         inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
@@ -150,8 +150,12 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
             else:
                 flat_D = self.flat_dynamics(flat_dynamics_input)
 
+    
             if self.diff:
-                flat_D += start.clone().detach()
+                if self.grad_pass_D:
+                    flat_D += start
+                else:
+                    flat_D += start.clone().detach()
 
         else:
             N, T = start.shape[:2]
@@ -165,7 +169,12 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
                 flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
 
             if self.diff:
-                flat_D += start[:,:-1].clone().detach()
+                # flat_D += start[:,:-1].clone().detach()
+
+                if self.grad_pass_D:
+                    flat_D += start[:,:-1]
+                else:
+                    flat_D += start[:,:-1].clone().detach()
 
         return flat_D
 
@@ -181,7 +190,10 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
 
         if self.diff:
-            D += start.clone().detach()
+            if self.grad_pass_D:
+                D += start
+            else:
+                D += start.clone().detach()
 
         return D
 
@@ -370,7 +382,10 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
 
         # inverse dynamics 
-        invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.tanh)
+        if self.bypass:
+            invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
+        else:
+            invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.tanh)
         D = self.forward_D(ht, batch.actions)
 
         # state_consistency = F.mse_loss(ht.clone().detach() + diff, htH) + mmd_loss
@@ -384,7 +399,6 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         
         # GCSL
         # 똑같은 skill 뽑으면 됨./ 
-
 
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
 
@@ -409,7 +423,6 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
 
     def get_rl_params(self):
-        
         return edict(
             policy = [ 
                 {"params" :  self.subgoal_generator.parameters(), "lr" : self.cfg.policy_lr}
@@ -429,7 +442,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
                     },
                 "state_enc" : {
                     "params" :  self.state_encoder.parameters(), 
-                    "lr" : 1e-3, 
+                    "lr" : 1e-6, # now best : 1e-6
                     # "metric" : "GCSL_loss"
                     "metric" : None,
                 }
