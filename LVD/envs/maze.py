@@ -165,8 +165,28 @@ class Maze_GC(MazeEnv):
             reward = np.exp(-goal_dist)
         else:
             raise ValueError('Unknown reward type %s' % self.reward_type)
+        
+        # relabeled_reward = self.compute_relabeled_reward()
+        
+        env_info = {}
+        env_info['relabeled_reward'] = 0 
+        # GC buffer에서 조절
+        
 
-        return ob, reward, done, {}
+        return ob, reward, done, env_info
+
+    def compute_relabeled_reward(self):
+        if self.reward_type == 'sparse':
+            reward = 100
+        elif self.reward_type == 'dense':
+            reward = 1
+        else:
+            raise ValueError('Unknown reward type %s' % self.reward_type)
+
+        return reward
+
+
+
 
     def render(self, mode = "rgb_array"):
         if mode == "agent_centric":

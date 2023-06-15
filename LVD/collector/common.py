@@ -121,6 +121,7 @@ class GC_Buffer(Buffer):
     def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False):
 
         self.state_processor = StateProcessor(env_name)
+        self.env_name = env_name
 
 
         self.tanh = tanh
@@ -186,11 +187,19 @@ class GC_Buffer(Buffer):
         relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
         relabeled_goals = np.tile(relabeled_goal, (len(episode.states)-1, 1))
 
+        relabeled_rewards = deepcopy(episode.relabeled_rewards)
+
+        if self.env_name == "maze":
+            relabeled_rewards[-1] = 100
+
+        relabeled_rewards = np.array(relabeled_rewards)[:, None]
+
+
         return torch.as_tensor(np.concatenate([
             episode.states[:-1],
             episode.actions,
             np.array(episode.rewards)[:, None],
-            np.array(episode.relabeled_rewards)[:, None],
+            relabeled_rewards,
             np.array(episode.dones)[:, None],
             episode.states[1:],
             episode.goals,

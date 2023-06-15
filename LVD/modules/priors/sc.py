@@ -56,10 +56,12 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
     def dist(self, batch, mode = "policy"): # 이제 이게 필요가 없음. 
         """
         """
-        if mode == "consistency":
-            states, G = batch.states, batch.relabeled_goals
-        else:
-            states, G = batch.states, batch.G
+        # if mode == "consistency":
+        #     states, G = batch.states, batch.relabeled_goals
+        # else:
+        #     states, G = batch.states, batch.G
+
+        states, G = batch.states, batch.G
 
         # states = prep_state(states, self.device)
         # G = prep_state(G, self.device)
