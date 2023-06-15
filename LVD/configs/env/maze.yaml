@@ -1,13 +1,5 @@
 env_name : maze
 robotics : false
-
-# env_cls : LVD.envs.Maze_GC
-# env_cfg : LVD.envs.maze_config
-# task_cls : LVD.envs.MazeTask_GC
-# meta_tasks : LVD.envs.maze_meta_tasks
-# target_tasks : LVD.envs.maze_tasks
-# ablation_tasks : LVD.envs.maze_ablation_tasks
-
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 
 
@@ -20,7 +12,6 @@ normalize : false
 
 subseq_len : 11
 max_seq_len : 2000
-data_dir : "."
 epoch_cycles_train : 20
 
 
@@ -31,8 +22,8 @@ plan_H : 100
 epochs : 150
 warmup_steps : 75
 
-latent_dim : 10
-latent_state_dim : 32
+skill_dim : 10
+latent_state_dim : 64
 reg_beta : 0.01
 prior_state_dim : 4
 wae_coef : 1

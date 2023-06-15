@@ -90,7 +90,7 @@ class StateProcessor_Kitchen:
 
 class StateProcessor_Maze:
     @staticmethod
-    def state_process_maze(state):
+    def state_process(state):
         return state[..., :-2]
 
     @staticmethod

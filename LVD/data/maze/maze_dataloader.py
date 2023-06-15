@@ -19,16 +19,8 @@ class Maze_Dataset(Base_Dataset):
             self.seqs = pickle.load(f)
 
         self.n_seqs = len(self.seqs)
-        # self.phase = phase
-        # self.dataset_size = dataset_size
-        # self.shuffle = shuffle
-        # self.device = "cuda"
+        self.shuffle = self.phase == "train"
 
-        # for k, v in data_conf.dataset_spec.items():
-        #     setattr(self, k, v) 
-
-        # for k, v in kwargs.items():
-        #     setattr(self, k, v)    
 
         if self.phase == "train":
             self.start = 0
@@ -97,8 +89,9 @@ class Maze_Dataset_Div(Maze_Dataset):
         # total 100 epsiode planning
         # self.buffer_now = Offline_Buffer(state_dim= 30, action_dim= 9, trajectory_length = 19, max_size= 1024)
         
-        rollout_length = skill_length + ((self.plan_H - skill_length) // skill_length)
-        self.buffer_now = Offline_Buffer(state_dim= self.buffer_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 1024)
+        # rollout_length = skill_length + ((self.plan_H - skill_length) // skill_length)
+        rollout_length = self.plan_H
+        self.buffer_now = Offline_Buffer(state_dim= self.buffer_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 10000)
         # self.buffer_now = Offline_Buffer(state_dim= self.state_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 1024)
 
 
@@ -112,11 +105,10 @@ class Maze_Dataset_Div(Maze_Dataset):
         return self.__mode__
 
 
-    def enqueue(self, states, actions):
-        self.buffer_now.enqueue(states, actions)
+    def enqueue(self, states, actions, c = None):
+        self.buffer_now.enqueue(states, actions, c)
 
     def update_buffer(self):
-        print("BUFFER RESET!!! ")        
         self.buffer_prev.copy_from(self.buffer_now)
         # self.buffer_now.reset()
 
@@ -132,48 +124,40 @@ class Maze_Dataset_Div(Maze_Dataset):
         actions = seq['actions']
         
         # relative position. 
-        if self.relative:
-            criterion = states[np.random.randint(0, states.shape[0]), :2]
-            states[:, :2] -= criterion
+
         
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
-
-
-        
-
 
         G = states[goal_idx][:2]
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
 
-        data = {
-            'states': states,
-            'actions': actions,
-            'G' : G,
-            'rollout' : True
-        }
-
-        return data
+        return edict(
+            states = states,
+            actions = actions, 
+            G = G,
+            rollout = True,
+            weights = 1
+        )
 
     def __skill_learning_with_buffer__(self, index):
 
         if np.random.rand() < self.mixin_ratio:
             # hindsight relabeling 
-            states_images, actions = self.buffer_now.sample()
+            states_images, actions, c = self.buffer_now.sample()
             
             # # relative position 
             # states_images[:, :2] -= states_images[0, :2]
             # G[ :2] -= states_images[0, :2]
 
-            output = edict(
+            return edict(
                 states = states_images[:self.subseq_len],
                 actions = actions[:self.subseq_len-1],
                 G = deepcopy(states_images[-1][:self.n_obj][:2] ),
-                rollout = False
+                rollout = False,
+                weights = 1,
                 # rollout = True if start_idx < 280 - self.plan_H else False
             )
-
-            return output
         else:
             return self.__skill_learning__(index)

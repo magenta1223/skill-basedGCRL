@@ -60,9 +60,15 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
         subgoal_generator = SequentialBuilder(cfg.subgoal_generator)
         prior = SequentialBuilder(cfg.prior)
-        state_to_ppc = SequentialBuilder(cfg.state_to_ppc)
         flat_dynamics = SequentialBuilder(cfg.dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
+
+        if cfg.robotics:
+            print(cfg)
+            state_to_ppc = SequentialBuilder(cfg.state_to_ppc)
+        else:
+            state_to_ppc = torch.nn.Identity()
+
 
         # if self.robotics:
         #     prior_proprioceptive = SequentialBuilder(cfg.ppc)
@@ -468,6 +474,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.loss_dict['actions_novel'] = actions_novel[batch.rollout].detach().cpu()
         self.c = c
         self.loss_dict['c'] = c
+        
 
 
         # self.loss_dict['states_novel'] 
@@ -477,7 +484,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         
         # if imginary_goals:
         #     print(imginary_goals)
-        if render:
+        if render and self.env.name == "kitchen":
             imgs = []
             with self.env.set_task(self.tasks[0]):
                 init_qvel = self.env.init_qvel
