@@ -5,6 +5,7 @@ import torch
 from LVD.utils import *
 from LVD.models import *
 import warnings
+import cv2
 
 warnings.filterwarnings("ignore")
 
@@ -66,11 +67,15 @@ class BaseTrainer:
         self.meters = {}
 
     def set_logger(self):
-        log_path = f"logs/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}/{self.cfg.job_name}.log"
+        self.run_path = f"logs/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}"
+        
+        log_path = f"{self.run_path}/{self.cfg.job_name}.log"
         self.logger = Logger(log_path, verbose= False)
 
         self.model_id = f"weights/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}/skill"
         os.makedirs(self.model_id, exist_ok = True)
+
+        os.makedirs(f"{self.run_path}/imgs", exist_ok= True)
 
     def meter_initialize(self):
         self.meters = {}
@@ -271,11 +276,15 @@ class Diversity_Trainer(BaseTrainer):
 
             if "skill_enc_dec" in self.schedulers.keys():
                 skill_scheduler = self.schedulers['skill_enc_dec']
-                skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
+                target_metric = self.schedulers_metric["skill_enc_dec"]
+                if target_metric is not None:
+                    skill_scheduler.step(valid_loss_dict[target_metric])
 
             if "state" in self.schedulers.keys():
                 state_scheduler = self.schedulers['state']
-                state_scheduler.step(valid_loss_dict[self.schedulers_metric['state']])
+                target_metric = self.schedulers_metric["state"]
+                if target_metric is not None:
+                    state_scheduler.step(valid_loss_dict[target_metric])
 
             if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers.items():
@@ -307,19 +316,27 @@ class Diversity_Trainer(BaseTrainer):
         # print(loader.dataset.mode)
         self.meter_initialize()
         # start = time.time()
+        imgs = None
         for i, batch in enumerate(loader):
             # if i == 0:
             #     print("Loading : ", f"{time.time()-start:.5f}")
-
             # optim_start = time.time()
+            render = False
+
+            if i == 0:
+                render = True
+        
             self.model.train()
-            loss = self.model.optimize(batch, e, rollout)
+            loss = self.model.optimize(batch, e, rollout, render)
 
             # if i == 0:
             #     print("Optimize : ", f"{time.time()-optim_start:.5f}")
             if "states_novel" in loss.keys():
-                loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"))
-
+                
+                loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"), loss.pop("c"))
+            
+            if "render" in loss.keys():
+                imgs = loss.pop("render")
 
             if not len(self.meters):
                 for key in loss.keys():
@@ -327,6 +344,16 @@ class Diversity_Trainer(BaseTrainer):
   
             for k, v in loss.items():
                 self.meters[k].update(v, batch['states'].shape[0])
+
+
+        if imgs is not None:
+            path = f"{self.run_path}/imgs/{e}.mp4"
+            print(f"Rendered : {path}")
+            out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, (400,400))
+            for i in range(len(imgs)):
+                # writing to a image array
+                out.write(cv2.cvtColor(imgs[i], cv2.COLOR_BGR2RGB))
+            out.release() 
 
         return { k : v.avg for k, v in self.meters.items() }
 

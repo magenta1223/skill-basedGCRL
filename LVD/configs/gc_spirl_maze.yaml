@@ -1,19 +1,15 @@
 defaults:
   - common
-  - model: spirl
-  - env : kitchen
+  - model: gc_spirl
+  - env : maze
 
-structure : spirl
-dataset_cls : LVD.data.Kitchen_Dataset
-
+dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
+structure : sc
 
 
 env:
   epoch_cycles_train: ${get_cycle:${env.batch_size}}
-  init_alpha : 0.1
-  auto_alpha : true
-  increasing_alpha : true
-
+  
 model:
   prior:
     in_feature : ${env.state_dim}
@@ -31,9 +27,8 @@ model:
 
 
   high_policy:
-    in_feature : ${env.state_dim} 
+    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   q_function:
-    in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 
-      # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 
+    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 

@@ -1,7 +1,7 @@
 tanh : true
-
+gc : true
 skill_trainer : LVD.runner.BaseTrainer
-rl_trainer : LVD.rl.flat_rl_trainer.Flat_RL_Trainer
+rl_trainer : LVD.rl.Flat_RL_Trainer
 
 consistency_update : true
 model_update : false

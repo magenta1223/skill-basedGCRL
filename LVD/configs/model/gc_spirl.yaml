@@ -4,55 +4,13 @@ gc : true
 
 skill_trainer : LVD.runner.BaseTrainer
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
+
 consistency_update : true
 model_update : true
-
-state_encoder :
-  n_blocks : 5
-  hidden_dim : 128 
-  module_type : linear
-  linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  bias : true
-  dropout : 0
-
-
-state_decoder :
-  n_blocks : 5
-  hidden_dim : 128 
-  module_type : linear
-  linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  bias : true
-  dropout : 0
-
-dynamics :
-  n_blocks : 5
-  hidden_dim : 128 
-  module_type : linear
-  linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  bias : true
-  dropout : 0
-
-reward_function :
-  n_blocks : 5
-  hidden_dim : 128 
-  module_type : linear
-  linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  bias : true
-  dropout : 0
-
 
 prior : 
   n_blocks : 5
   hidden_dim : 128
-  out_dim : 20
   module_type : linear
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.LayerNorm
@@ -64,7 +22,6 @@ prior :
 skill_encoder : 
   n_blocks : 1
   hidden_dim : 128
-  out_dim : 20
   module_type : rnn
   rnn_cls : torch.nn.LSTM
   linear_cls : LVD.modules.base.LinearBlock
@@ -89,7 +46,6 @@ skill_decoder :
 high_policy : 
   n_blocks : 5
   hidden_dim : 128
-  out_dim : 20
   module_type : linear
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.LayerNorm

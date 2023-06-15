@@ -98,8 +98,7 @@ class GC_Hierarchical_Collector:
                         
             with self.low_actor.condition(high_action):
                 low_action = self.low_actor.act(state)
-
-
+            
             state, reward, done, info = self.env.step(low_action)
             relabeled_reward = info['relabeled_reward']
             state = self.state_processor.state_process(state)

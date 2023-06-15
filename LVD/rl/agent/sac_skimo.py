@@ -7,11 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from ..modules.base import BaseModule
-from ..contrib.simpl.math import clipped_kl, inverse_softplus
-from ..utils.utils import prep_state, kl_annealing, AverageMeter
-from ..contrib.momentum_encode import update_moving_average
-from ..contrib.dists import *
+from ...modules import BaseModule
+from ...contrib.simpl.math import clipped_kl, inverse_softplus
+from ...utils import prep_state, kl_annealing, AverageMeter
+from ...contrib import *
+# from ...contrib.dists import *
 
 
 class SAC(BaseModule):

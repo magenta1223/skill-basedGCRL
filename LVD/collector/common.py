@@ -11,6 +11,9 @@ from ..contrib.simpl.collector.storage import  Batch, Buffer, Episode
 
 
 class Episode_RR(Episode):
+    """
+    Episode for relabeled reward 
+    """
     def __init__(self, init_state):
         super().__init__(init_state)
         self.relabeled_rewards = []
@@ -114,10 +117,6 @@ class GC_Batch(Batch):
 
 class GC_Buffer(Buffer):
     """
-    Override 
-    H-step state를 다.. 얻어놔야 함. 
-    enqueue해서 다 얻어놨고, 이게.. H-step을 쓸 수 있는게 있고 아닌게 있음. 
-    그냥 따로 구성하는게 .. 
     """
     def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False):
 
@@ -217,8 +216,9 @@ class Offline_Buffer:
 
         self.states = torch.empty(max_size, trajectory_length + 1, state_dim)
         self.actions = torch.empty(max_size, trajectory_length, action_dim)
+        self.cs = torch.empty(max_size)
 
-    def enqueue(self, states, actions):
+    def enqueue(self, states, actions, c = None):
         N, T, _ = actions.shape
         self.size = min(  self.size + N, self.max_size)        
         # if exceed max size
@@ -230,9 +230,14 @@ class Offline_Buffer:
             states = states[self.max_size - self.pos : ]
             actions = actions[self.max_size - self.pos : ]
 
+            if c is not None:
+                self.cs[self.pos : self.max_size] = c # c 는 scalar임. 
+
         N = states.shape[0]
         self.states[self.pos : self.pos + N] = states
         self.actions[self.pos : self.pos + N] = actions
+        if c is not None:
+            self.cs[self.pos : self.pos + N] = c
 
         self.pos += N
 
@@ -242,8 +247,9 @@ class Offline_Buffer:
 
         states = self.states[i].numpy()
         actions = self.actions[i].numpy()
+        c = self.cs[i].numpy()
 
-        return states, actions
+        return states, actions, c
 
 
     def copy_from(self, buffer):

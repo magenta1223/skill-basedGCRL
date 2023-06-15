@@ -70,4 +70,5 @@ rl_cfgs : [
   policy_lr, consistency_lr, qf_lr, alpha_lr, # lrs
   consistency_update, model_update, init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
   tanh, # distribution   
+  gc,
   ]

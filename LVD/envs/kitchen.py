@@ -38,7 +38,14 @@ class KitchenEnv_GC(KitchenEnv):
     def _get_task_goal(self, task=None):
         if task is None:
             task = self.TASK_ELEMENTS
-        new_goal = np.zeros_like(self.goal)
+        # new_goal = np.zeros_like(self.goal) # 여기서 zero가 아니고 초기 상태여야 함. 
+        
+        new_goal = np.array([ 
+            0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  , # robot arms
+            0.  , 0.  , 0.  , 0.  , 0.  , 0.  , 0.  ,  0.  ,  0.  ,
+            0.  , 0.  , 0.01, 0.  ,  0.  , 0.27,  0.35,  1.62,  1.  ,
+            0.  , 0.  , 0.  ])
+
         for element in task:
             element_idx = OBS_ELEMENT_INDICES[element]
             element_goal = OBS_ELEMENT_GOALS[element]
@@ -57,7 +64,7 @@ class KitchenEnv_GC(KitchenEnv):
         self.TASK_ELEMENTS = task.subtasks
         self.all_subtasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
 
-        print(f"TASK : {str(task)}")
+        # print(f"TASK : {str(task)}")
         
         yield
         self.task = prev_task
@@ -131,7 +138,7 @@ tasks = np.array([
     # [6,0,2,4],  # KBLH
     # [5,1,2,4],  # MTLH
     # Well-algined, Missing
-    # [5,6,0,1], # MKBT
+    [5,6,0,1], # MKBT
     [5,6,0,2], # MKBL
     # Mis-algined, Missing 
     [6,1,2,4],  # KTLH

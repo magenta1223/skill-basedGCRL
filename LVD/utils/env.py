@@ -50,7 +50,7 @@ class StateProcessor_Kitchen:
         """
         Check achieved goal.
         """
-        assert len(state.shape) == 1, "Only 1 sample for goal check"
+        assert len(state.shape) == 1, f"Only 1 sample for goal check. {state.shape}"
 
         achieved_goal = []
         for obj, indices in OBS_ELEMENT_INDICES.items():

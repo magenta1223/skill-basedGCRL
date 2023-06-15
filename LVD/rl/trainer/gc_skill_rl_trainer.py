@@ -8,18 +8,17 @@ import matplotlib.pyplot as plt
 import wandb
 import numpy as np
 import torch
-# from .sac import SAC
-from .flat_gcsl import Flat_GCSL
-from ..modules import *
-from ..contrib.simpl.torch_utils import itemize
-from ..utils import *
-from ..collector import GC_Flat_Collector, GC_Buffer
+from ..agent import SAC
+from ...modules import *
+from ...contrib.simpl.torch_utils import itemize
+from ...utils import *
+from ...collector import GC_Hierarchical_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 
 seed_everything()
 
-class Flat_RL_Trainer:
+class GC_Skill_RL_Trainer:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
         self.set_env()
@@ -36,52 +35,51 @@ class Flat_RL_Trainer:
     
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
+
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
 
     def prep(self):
         # load skill learners and prior policy
+        model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
     
         # learnable
-        # policy = PRIOR_WRAPPERS['flat_gcsl'](
-        #     policy = SequentialBuilder(self.cfg.gcsl_policy),
-        #     tanh =  self.cfg.tanh
-        # )
-        model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
-        policy = deepcopy(model.prior_policy)
-        # non-learnable
-        action_prior = Normal_Distribution(self.cfg.normal_distribution)
-        action_prior.requires_grad_(False) 
+        high_policy = deepcopy(model.prior_policy)
 
-        qfs = [SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.action_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(policy.device)
-        collector = GC_Flat_Collector(
+        # non-learnable
+        low_actor = deepcopy(model.skill_decoder.eval())
+        skill_prior = deepcopy(model.prior_policy.skill_prior)
+        low_actor.requires_grad_(False)
+        skill_prior.requires_grad_(False) 
+
+        qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
+        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh).to(high_policy.device)
+        collector = GC_Hierarchical_Collector(
             self.env,
+            low_actor,
+            horizon = self.cfg.subseq_len -1,
             time_limit= self.cfg.time_limit,
         )
 
         sac_modules = {
-            'policy' : policy,
-            'skill_prior' : action_prior, 
+            'policy' : high_policy,
+            'skill_prior' : skill_prior, 
             'buffer' : buffer, 
             'qfs' : qfs,            
         }        
 
         # See rl_cfgs in LVD/configs/common.yaml 
         sac_config = {**self.rl_cfgs}
+
         sac_config.update(sac_modules)
-
-        sac_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
-        sac_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
-
-
-        sac = Flat_GCSL(sac_config).cuda()
+        sac = SAC(sac_config).cuda()
 
         self.collector, self.sac = collector, sac
 
     def fit(self):
         # for task_obj in self.tasks:
-        for task_obj in self.tasks[1:2]:
+        for task_obj in self.tasks:
             task_name = str(task_obj)
             self.prep()
 
@@ -136,23 +134,33 @@ class Flat_RL_Trainer:
         log = {}
 
         # ------------- Collect Data ------------- #
-        with self.sac.policy.expl() : #, collector.env.step_render():
+        with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
             episode, G = self.collector.collect_episode(self.sac.policy, verbose = True)
 
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
             print("success")
 
-        self.sac.buffer.enqueue(episode) 
+        self.sac.buffer.enqueue(episode.as_high_episode()) 
         log['tr_return'] = sum(episode.rewards)
 
         
         if self.sac.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
-        n_step = self.n_step(episode)
-        # print(f"Reuse!! : {n_step}")
+        
+        if n_ep == self.cfg.precollect:
+            step_inputs = edict(
+                episode = n_ep,
+                G = G
+            )
+            # Q-warmup
+            print("Warmup Value function")
+            self.sac.warmup_Q(step_inputs)
 
-        for _ in range(max(n_step, 1)):
+        # n_step = self.n_step(episode)
+        # print(f"Reuse!! : {n_step}")
+        # for _ in range(max(n_step, 1)):
+        for _ in range(self.cfg.step_per_ep):
             step_inputs = edict(
                 episode = n_ep,
                 G = G
@@ -168,7 +176,7 @@ class Flat_RL_Trainer:
         if self.env.name == "maze":
             return draw_maze(plt.gca(), self.env, list(self.sac.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":
-            with self.sac.policy.expl() : #, collector.env.step_render():
+            with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
                 imgs = self.collector.collect_episode(self.sac.policy, vis = True)
             imgs = np.array(imgs).transpose(0, 3, 1, 2)
             return wandb.Video(imgs, fps=50, format = "mp4")

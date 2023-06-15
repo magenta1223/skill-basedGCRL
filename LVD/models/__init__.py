@@ -9,6 +9,7 @@ from .skimo import Skimo_Model
 from .simpl import SiMPL_Model
 from .base import BaseModel
 from .flat_gcsl import Flat_GCSL
+from .spirl import SPiRL_Model
 
 
 MODELS = {
@@ -20,6 +21,7 @@ MODELS = {
     # "gc_div" : GoalConditioned_Diversity_Model,
     "gc_div_joint" : GoalConditioned_Diversity_Joint_Model,
     "gc_div_joint_gp" : GoalConditioned_GoalPrompt_Model,
+    "spirl" : SPiRL_Model,
     "skimo" : Skimo_Model,
     "gc_skimo" : Skimo_Model,
     'flat_gcsl' : Flat_GCSL

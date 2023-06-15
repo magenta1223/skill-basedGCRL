@@ -32,8 +32,8 @@ class RepeatedDataLoader(DataLoader):
     def set_mode(self, mode):
         self.dataset.set_mode(mode)
     
-    def enqueue(self, states, actions):
-        self.dataset.enqueue(states, actions)
+    def enqueue(self, states, actions, c = None):
+        self.dataset.enqueue(states, actions, c)
 
     def update_buffer(self):
         self.dataset.update_buffer()

@@ -7,9 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from easydict import EasyDict as edict
-from ..utils import *
-from ..models import BaseModel
-from ..contrib import *
+from ...utils import *
+from ...models import BaseModel
+from ...contrib import *
 
 
 class SAC(BaseModel):
@@ -54,24 +54,6 @@ class SAC(BaseModel):
             }
 
             self.consistency_meters = { k : AverageMeter() for k in self.consistency_optims.keys()}
-
-
-
-            # self.consistency_optim = torch.optim.Adam(
-            #     rl_params['consistency'],
-            #     # lr = self.consistency_lr # 낮추면 잘 안됨. 왜? 
-            # )
-    
-            # self.consistency_scheduler = Scheduler_Helper(
-            #     optimizer = self.consistency_optim,
-            #     factor = 0.5,
-            #     patience = 10, # 4 epsisode
-            #     verbose= True,
-            #     module_name = "inverse D, D"
-            # )
-
-
-        self.consistency_meter = AverageMeter()
 
                 
         # Alpha
@@ -163,8 +145,11 @@ class SAC(BaseModel):
         # min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
 
         # q_input = torch.cat((batch.states, batch.G, policy_skill), dim = -1)
+        if self.gc:
+            q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
+        else:
+            q_input = torch.cat((self.policy.encode(batch.states), policy_skill), dim = -1)
 
-        q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
         min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
         policy_loss += self.aggregate_values(dist_out.additional_losses)
@@ -197,9 +182,11 @@ class SAC(BaseModel):
 
         # calculate entropy term
         entropy_term, prior_dists = self.entropy( batch_next.states, policy_skill_dist , kl_clip= 20) 
+        if self.gc:
+            q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
+        else:
+            q_input = torch.cat((self.policy.encode(batch_next.states), policy_skill), dim = -1)
 
-        q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
-        
         min_qs = torch.min(*[target_qf(q_input).squeeze(-1) for target_qf in self.target_qfs])
         soft_qs = min_qs - self.alpha*entropy_term
 
@@ -217,7 +204,11 @@ class SAC(BaseModel):
         for qf, qf_optim in zip(self.qfs, self.qf_optims):
             # qs = qf(self.q_inputs(batch)).squeeze(-1)
             # q_input = torch.cat((batch.states, batch.G, batch.actions), dim = -1)
-            q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+            if self.gc:
+                q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+            else:
+                q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
+
             qs = qf(q_input).squeeze(-1)
             qf_loss = (qs - target_qs).pow(2).mean()
             qf_optim.zero_grad()
@@ -318,8 +309,10 @@ class SAC(BaseModel):
         # min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
 
         # q_input = torch.cat((batch.states, batch.G, policy_skill), dim = -1)
-
-        q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
+        if self.gc:
+            q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
+        else:
+            q_input = torch.cat((self.policy.encode(batch.states), policy_skill), dim = -1)
         min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
         policy_loss += self.aggregate_values(dist_out.additional_losses)

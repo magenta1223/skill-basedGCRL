@@ -1,15 +1,15 @@
 defaults:
   - common
-  - model: spirl
-  - env : maze
+  - model: gc_spirl
+  - env : kitchen
 
-dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
 structure : sc
+dataset_cls : LVD.data.Kitchen_Dataset
 
 
 env:
   epoch_cycles_train: ${get_cycle:${env.batch_size}}
-  
+
 model:
   prior:
     in_feature : ${env.state_dim}
@@ -32,3 +32,4 @@ model:
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 
+      # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 

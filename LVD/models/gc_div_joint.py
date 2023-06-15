@@ -6,6 +6,8 @@ from ..utils import *
 from .base import BaseModel
 from easydict import EasyDict as edict
 from copy import deepcopy
+import cv2
+
 
 class GoalConditioned_Diversity_Joint_Model(BaseModel):
     """
@@ -16,6 +18,38 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.use_amp = False
         self.Hsteps = self.subseq_len -1
 
+        envtask_cfg = self.envtask_cfg
+
+        self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+
+
+        self.state_processor = StateProcessor(cfg.env_name)
+
+        self.seen_tasks = ['KBTS',
+                            'MKBS',
+                            'MKLH',
+                            'KTLS',
+                            'BTLS',
+                            'MTLH',
+                            'MBTS',
+                            'KBLH',
+                            'MKLS',
+                            'MBSH',
+                            'MKBH',
+                            'KBSH',
+                            'MBTH',
+                            'BTSH',
+                            'MBLS',
+                            'MLSH',
+                            'KLSH',
+                            'MBTL',
+                            'MKTL',
+                            'MKSH',
+                            'KBTL',
+                            'KBLS',
+                            'MKTH',
+                            'KBTH']
 
 
         # state enc/dec
@@ -93,6 +127,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                     {"params" : self.prior_policy.subgoal_generator.parameters()},
                 ], lr = self.lr ),
                 "metric" : "F_skill_GT"
+                # "metric" : None
                 # "metric" : "Prior_GC"
             }, 
             
@@ -103,6 +138,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                 ], lr = self.lr
                 ),
                 "metric" : "recon_state"
+                # "metric" : None
             },
             "state2ppc" : {
                 "optimizer" : RAdam([
@@ -123,38 +159,78 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         #         ),
         #         "metric" : None
         #     }
-        
+
+        def weighted_mse(pred, target, weights):
+            agg_dims = list(range(1, len(pred.shape)))
+            mse = torch.pow(pred - target, 2).mean(dim = agg_dims)
+
+            weighted_error = mse * weights
+            weighted_mse_loss = torch.mean(weighted_error)
+            return weighted_mse_loss
+
+        self.loss_fns['recon'] = ['mse', weighted_mse]
+        self.loss_fns['recon_orig'] = ['mse', torch.nn.MSELoss()]
+
+
         self.c = 0
 
     @torch.no_grad()
-    def get_metrics(self):
+    def get_metrics(self, batch):
         """
         Metrics
         """
-        # ----------- Metrics ----------- #
-        # KL (post || invD by subgoal from f)
-        self.loss_dict['F_skill_GT'] = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean().item()
+        # # ----------- Metrics ----------- #
+        # # KL (post || invD by subgoal from f)
+        # self.loss_dict['F_skill_GT'] = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean().item()
+    
+        # # KL (post || state-conditioned prior)
+        # self.loss_dict['Prior_S']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior']).mean().item()
+        
+        # # KL (post || goal-conditioned policy)
+        # self.loss_dict['Prior_GC']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']).mean().item()
+        
+        # # KL (invD || prior)
+        # self.loss_dict['Prior_GC_S']  = self.loss_fn('reg')(self.outputs['invD'], self.outputs['prior']).mean().item()
+        
+        # # dummy metric 
+        # self.loss_dict['metric'] = self.loss_dict['Prior_GC']
+        
+        # # subgoal by flat dynamics rollout
+        # reconstructed_subgoal = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
+        # self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :]).item()
+        # self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D']).item()
+
+        # # state reconstruction 
+        # self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
+        # self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(self.outputs['subgoal_recon_f'], self.outputs['states'][:,-1]) # ? 
+
+        weights = batch.weights
+        self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item()
     
         # KL (post || state-conditioned prior)
-        self.loss_dict['Prior_S']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior']).mean().item()
+        self.loss_dict['Prior_S']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior'])*weights).mean().item()
         
         # KL (post || goal-conditioned policy)
-        self.loss_dict['Prior_GC']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']).mean().item()
+        self.loss_dict['Prior_GC']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean().item()
         
         # KL (invD || prior)
-        self.loss_dict['Prior_GC_S']  = self.loss_fn('reg')(self.outputs['invD'], self.outputs['prior']).mean().item()
+        self.loss_dict['Prior_GC_S']  = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['prior'])*weights).mean().item()
         
         # dummy metric 
         self.loss_dict['metric'] = self.loss_dict['Prior_GC']
         
         # subgoal by flat dynamics rollout
         reconstructed_subgoal = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
-        self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :]).item()
-        self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D']).item()
+        self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :], weights).item()
+        self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D'], weights).item()
 
         # state reconstruction 
-        self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
-        self.loss_dict['recon_state_target'] = self.loss_fn('recon')(self.outputs['states_hat_target'], self.outputs['states']) # ? 
+        self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
+        self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(self.outputs['subgoal_recon_f'], self.outputs['states'][:,-1], weights) # ? 
+
+        # self.loss_dict['recon_state_orig'] = self.loss_fn('recon_orig')(self.outputs['states_hat'], self.outputs['states']) # ? 
+
+
 
 
     def forward(self, batch):
@@ -217,50 +293,117 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
     def compute_loss(self, batch):
 
+        # # # ----------- Skill Recon & Regularization -------------- # 
+        # recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions)
+        # reg = self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']).mean()
+        
+
+        # # ----------- State/Goal Conditioned Prior -------------- # 
+        # prior = self.loss_fn('prior')(
+        #     self.outputs['z'],
+        #     self.outputs['prior'], # distributions to optimize
+        #     self.outputs['z_normal'],
+        #     tanh = self.tanh
+        # ).mean()
+
+        # invD_loss = self.loss_fn('prior')(
+        #     self.outputs['z'],
+        #     self.outputs['invD'], 
+        #     self.outputs['z_normal'],
+        #     tanh = self.tanh
+        # ).mean() 
+
+        # # ----------- Dynamics -------------- # 
+        # flat_D_loss = self.loss_fn('recon')(
+        #     self.outputs['flat_D'],
+        #     self.outputs['flat_D_target']
+        # ) * 0.1 # 1/skill horizon  
+
+        # D_loss = self.loss_fn('recon')(
+        #     self.outputs['D'],
+        #     self.outputs['D_target']
+        # )         
+        
+
+        # # # ----------- subgoal generator -------------- # 
+        # r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_target'])
+        # r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_target'])
+        # r_int = r_int_f + r_int_D
+        # # r_int = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_D'])
+
+        # # reg_term = self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']).mean()
+        # reg_term = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean()
+
+        # F_loss = r_int + reg_term 
+
+        # recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
+
+
+        # loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state
+
+        # if self.mmd:
+        #     z_tilde = self.outputs['states_repr']
+        #     z = self.outputs['states_fixed_dist']
+        #     mmd_loss = compute_mmd(z_tilde, z)
+        #     loss +=  mmd_loss * self.wae_coef
+
+        # ppc_loss = self.loss_fn("recon")(
+        #     self.outputs['states_ppc'], 
+        #     self.outputs['states_ppc_target'], 
+        # )
+
+        # loss += ppc_loss
+
+        # 생성된 data에 대한 discount 
+        weights = batch.weights
+
         # ----------- Skill Recon & Regularization -------------- # 
-        recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions)
-        reg = self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']).mean()
+        
+        recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions, weights)
+        reg = (self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']) * weights).mean()
         
 
         # ----------- State/Goal Conditioned Prior -------------- # 
-        prior = self.loss_fn('prior')(
+        prior = (self.loss_fn('prior')(
             self.outputs['z'],
             self.outputs['prior'], # distributions to optimize
             self.outputs['z_normal'],
             tanh = self.tanh
-        ).mean()
+        ) * weights).mean()
 
-        invD_loss = self.loss_fn('prior')(
+        invD_loss = (self.loss_fn('prior')(
             self.outputs['z'],
             self.outputs['invD'], 
             self.outputs['z_normal'],
             tanh = self.tanh
-        ).mean() 
+        ) * weights).mean() 
 
         # ----------- Dynamics -------------- # 
         flat_D_loss = self.loss_fn('recon')(
             self.outputs['flat_D'],
-            self.outputs['flat_D_target']
-        ) 
+            self.outputs['flat_D_target'],
+            weights
+        ) * 0.1 # 1/skill horizon  
 
         D_loss = self.loss_fn('recon')(
             self.outputs['D'],
-            self.outputs['D_target']
+            self.outputs['D_target'],
+            weights
         )         
         
 
         # # ----------- subgoal generator -------------- # 
-        r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_target'])
-        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_target'])
+        r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_target'], weights)
+        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_target'], weights)
         r_int = r_int_f + r_int_D
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_D'])
 
         # reg_term = self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']).mean()
-        reg_term = self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']).mean()
+        reg_term = (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean()
 
         F_loss = r_int + reg_term 
 
-        recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
+        recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
 
         loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state
@@ -274,22 +417,11 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         ppc_loss = self.loss_fn("recon")(
             self.outputs['states_ppc'], 
             self.outputs['states_ppc_target'], 
+            weights
         )
 
         loss += ppc_loss
 
-
-        # if self.robotics:
-        #     ppc_loss = self.loss_fn('prior')(
-        #         self.outputs['z'],
-        #         self.outputs['prior_ppc'], # proprioceptive for stitching
-        #         self.outputs['z_normal'],
-        #         tanh = self.tanh
-        #     ).mean()
-
-        #     loss += ppc_loss
-
-            
         self.loss_dict = {           
             # total
             "loss" : loss.item(), #+ prior_loss.item(),
@@ -306,14 +438,15 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             "skill_metric" : recon.item() + reg.item() * self.reg_beta,
             "Rec_state" : recon_state.item(),
             "mmd_loss" : mmd_loss.item() if self.mmd else 0,
-            "ppc_loss" : ppc_loss.item() if self.robotics or self.mmd else 0
+            "ppc_loss" : ppc_loss.item() if self.robotics or self.mmd else 0,
+            "state_embed_std" : self.outputs['states_repr'].std(dim = -1).mean().item()
         }       
 
 
         return loss
     
     @torch.no_grad()
-    def rollout(self, batch):
+    def rollout(self, batch, render = False):
         result = self.prior_policy.rollout(batch)
 
         # indexing outlier 
@@ -334,9 +467,27 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.loss_dict['states_novel'] = states_novel[batch.rollout].detach().cpu()
         self.loss_dict['actions_novel'] = actions_novel[batch.rollout].detach().cpu()
         self.c = c
+        self.loss_dict['c'] = c
 
+
+        # self.loss_dict['states_novel'] 
+        # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 
+        imginary_goals = set(self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in self.loss_dict['states_novel'])
+        imginary_goals = [g for g in imginary_goals if g not in self.seen_tasks and len(g) == 4]
+        
+        if imginary_goals:
+            print(imginary_goals)
+        if render:
+            imgs = []
+            with self.env.set_task(self.tasks[0]):
+                init_qvel = self.env.init_qvel
+                for state in self.loss_dict['states_novel'][0]:
+                    self.env.set_state(state, init_qvel)
+                    imgs.append(self.env.render(mode= "rgb_array"))
+
+            self.loss_dict['render'] = imgs
     
-    def __main_network__(self, batch, validate = False, rollout = False):
+    def __main_network__(self, batch, validate = False, rollout = False, render = False):
 
         self(batch)
         loss = self.compute_loss(batch)
@@ -355,16 +506,16 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         training = deepcopy(self.training)
         self.eval()
         if rollout:
-            self.rollout(batch)
+            self.rollout(batch, render)
     
         if training:
             self.train()
 
-    def optimize(self, batch, e, rollout = False):
+    def optimize(self, batch, e, rollout = False, render = False):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(batch, rollout = rollout)
-        self.get_metrics()
+        self.__main_network__(batch, rollout = rollout, render = render)
+        self.get_metrics(batch)
         self.prior_policy.soft_update()
         return self.loss_dict
     
@@ -372,7 +523,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
     def validate(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
         self.__main_network__(batch, validate= True, rollout = False)
-        self.get_metrics()
+        self.get_metrics(batch)
         self.step += 1
 
         return self.loss_dict
