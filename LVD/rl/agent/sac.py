@@ -233,7 +233,6 @@ class SAC(BaseModel):
 
         results = {}
         if self.auto_alpha:
-            print("update alpha")
             # dual gradient decent 
             alpha_loss = (self.alpha * (self.target_kl - self.stat.kl)).mean()
 
