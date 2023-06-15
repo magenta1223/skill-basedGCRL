@@ -250,32 +250,34 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
 
 
-            # hindsight relabeling
-            goal_idx = start_idx + self.subseq_len
+            # # hindsight relabeling
+            # goal_idx = start_idx + self.subseq_len
 
-            # 새로운 subtask가 등장하면 거기부터 goal로 ㄱㄱ 
-            g_achieved = set(self.sp.goal_checker(states[start_idx]))
+            # # 새로운 subtask가 등장하면 거기부터 goal로 ㄱㄱ 
+            # g_achieved = set(self.sp.goal_checker(states[start_idx]))
 
-            while True:
-                g = self.sp.goal_checker(states[goal_idx])
-                if g:
-                    # 새로운 subtask가 존재할 경우 여기부터 goal임. 
-                    if set(g) - g_achieved:
-                        break
-                goal_idx += 1
-                if goal_idx == len(states) -1:
-                    break
+            # while True:
+            #     g = self.sp.goal_checker(states[goal_idx])
+            #     if g:
+            #         # 새로운 subtask가 존재할 경우 여기부터 goal임. 
+            #         if set(g) - g_achieved:
+            #             break
+            #     goal_idx += 1
+            #     if goal_idx == len(states) -1:
+            #         break
             
-            if goal_idx < len(states) - 1:
-                goal_idx = np.random.randint(goal_idx, len(states) -1)
+            # if goal_idx < len(states) - 1:
+            #     goal_idx = np.random.randint(goal_idx, len(states) -1)
             
+            goal_idx = -1
 
             # G = deepcopy(states[goal_idx])[self.n_obj:self.n_obj + self.n_goal]
             G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
             G[ : self.n_obj] = 0 # only env state
 
             discount_start = np.exp(self.discount_lambda * (start_idx - c))
-            discount_G = np.exp(self.discount_lambda * (goal_idx - c))
+            # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
+            discount_G = 1
 
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]

@@ -111,6 +111,7 @@ class GC_Skill_RL_Trainer:
                     del log['tr_return']
 
                     if (n_ep + 1) % self.cfg.render_period == 0:
+                        
                         log['policy_vis'] = self.visualize()
 
                     ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']

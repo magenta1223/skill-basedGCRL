@@ -472,11 +472,11 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
         # self.loss_dict['states_novel'] 
         # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 
-        imginary_goals = set(self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in self.loss_dict['states_novel'])
-        imginary_goals = [g for g in imginary_goals if g not in self.seen_tasks and len(g) == 4]
+        # imginary_goals = set(self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in self.loss_dict['states_novel'])
+        # imginary_goals = [g for g in imginary_goals if g not in self.seen_tasks and len(g) == 4]
         
-        if imginary_goals:
-            print(imginary_goals)
+        # if imginary_goals:
+        #     print(imginary_goals)
         if render:
             imgs = []
             with self.env.set_task(self.tasks[0]):

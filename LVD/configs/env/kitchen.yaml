@@ -46,7 +46,7 @@ precollect : 20
 early_stop_threshold : ${multiply:4, 0.8}
 max_reward : 4
 use_hidden : true
-consistency_lr : 1e-8
+consistency_lr : 3e-5
 policy_lr : 3e-5
 buffer_size : 3000
 n_episode : 300

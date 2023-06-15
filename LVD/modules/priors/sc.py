@@ -63,13 +63,14 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
 
         # states = prep_state(states, self.device)
         # G = prep_state(G, self.device)
-        prior = self.skill_prior.dist(states)
-        if self.tanh:
-            prior_dist = prior._normal.base_dist
-        else:
-            prior_dist = prior.base_dist
-        prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
-        prior_pre_scales = inverse_softplus(prior_scales)
+        with torch.no_grad():
+            prior = self.skill_prior.dist(states)
+            if self.tanh:
+                prior_dist = prior._normal.base_dist
+            else:
+                prior_dist = prior.base_dist
+            prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
+            prior_pre_scales = inverse_softplus(prior_scales)
             
         res_locs, res_pre_scales = self.highlevel_policy(torch.cat((states, G), dim = -1)).chunk(2, dim=-1)
 
@@ -84,13 +85,12 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
                 policy_skill,
                 batch.actions_normal,
                 tanh = self.tanh
-            ).mean()
+            ).mean() # gcsl loss 
 
             return edict(
                 skill_consistency = skill_consistency
             )
         else:
-    
             return edict(
                 prior = prior,
                 policy_skill = policy_skill,
