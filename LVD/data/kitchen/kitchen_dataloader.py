@@ -79,10 +79,8 @@ class Kitchen_Dataset(Base_Dataset):
             start = end_idx+1
 
         self.n_seqs = len(self.seqs)
-
         self.shuffle = self.phase == "train"
-
-        # random.shuffle(self.seqs)
+        random.shuffle(self.seqs)
 
         if self.phase == "train":
             self.start = 0

@@ -5,7 +5,7 @@ gc : false
 skill_trainer : LVD.runner.BaseTrainer
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 
-consistency_update : true
+consistency_update : false
 model_update : true
 
 prior : 
