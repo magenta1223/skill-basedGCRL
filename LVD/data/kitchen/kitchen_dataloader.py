@@ -108,12 +108,21 @@ class Kitchen_Dataset(Base_Dataset):
 
         # G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
         # G[ : self.n_obj] = 0 # only env state
-        if seq.goals[start_idx] + 1 == seq.max_g:
-            g_index = seq.max_g
-        else:
-            g_index = np.random.randint(low = seq.goals[start_idx] + 1, high = seq.max_g)
 
-        G = seq.unique_goals[g_index]
+        seg_points = deepcopy(seq.points)
+        seg_points = sorted( seg_points + [start_idx])
+        start_pos = seg_points.index(start_idx)
+        # a가 seg_points의 마지막이라면 -> last state 를 goal로
+        # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
+        if start_pos == (len(seg_points) - 1):
+            g_index = len(seq.states) - 1
+        else:
+            # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
+            g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+
+        G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
+        G[ : self.n_obj] = 0 # only env state
+
 
 
         output = edict(
