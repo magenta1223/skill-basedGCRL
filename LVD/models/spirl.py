@@ -66,7 +66,6 @@ class SPiRL_Model(BaseModel):
         # ----------- Metrics ----------- #
         # KL (post || state-conditioned prior)
         self.loss_dict['Prior_S']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior']).mean().item()
-        self.loss_dict['Policy_loss']  = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean().item()
 
         # dummy metric 
         self.loss_dict['metric'] = self.loss_dict['Prior_S']
