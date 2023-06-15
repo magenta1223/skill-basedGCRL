@@ -49,8 +49,11 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
             policy_skill = policy_skill,
         )
 
-    def encode(self, states, keep_grad = False):
+    def encode(self, states, keep_grad = False, prior = False):
         return states
+
+    def soft_update(self):
+        pass
 
         
     def dist(self, batch, mode = "policy"): # 이제 이게 필요가 없음. 
