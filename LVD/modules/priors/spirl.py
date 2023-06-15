@@ -36,7 +36,7 @@ class SPiRL_Prior(ContextPolicyMixin, BaseModule):
             # policy_skill = policy_skill,
         )
 
-    def encode(self, states, keep_grad = False):
+    def encode(self, states, keep_grad = False, prior = False):
         return states
 
         
