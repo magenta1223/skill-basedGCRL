@@ -99,6 +99,7 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
             return edict(
                 prior = prior,
                 policy_skill = policy_skill,
+                additional_losses  = {}
             )
 
     @torch.no_grad()
