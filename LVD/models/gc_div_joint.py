@@ -405,20 +405,13 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_D'])
 
         # reg_term = self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']).mean()
-        reg_term = (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean()
+        # reg_term = (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean()
+        reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean()
+
 
         F_loss = r_int + reg_term 
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
-
-
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state
-
-        if self.mmd:
-            z_tilde = self.outputs['states_repr']
-            z = self.outputs['states_fixed_dist']
-            mmd_loss = compute_mmd(z_tilde, z)
-            loss +=  mmd_loss * self.wae_coef
 
         ppc_loss = self.loss_fn("recon")(
             self.outputs['states_ppc'], 
@@ -426,7 +419,18 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             weights
         )
 
-        loss += ppc_loss
+
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + ppc_loss
+
+        if self.mmd:
+            z_tilde = self.outputs['states_repr']
+            z = self.outputs['states_fixed_dist']
+            mmd_loss = compute_mmd(z_tilde, z)
+            loss +=  mmd_loss * self.wae_coef
+
+
+
+        # loss += ppc_loss
 
         self.loss_dict = {           
             # total

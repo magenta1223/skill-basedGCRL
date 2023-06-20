@@ -173,7 +173,7 @@ class GC_Skill_RL_Trainer:
         return log
 
     def visualize(self):
-        
+        print("visulaize!")
         if self.env.name == "maze":
             return draw_maze(plt.gca(), self.env, list(self.sac.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":

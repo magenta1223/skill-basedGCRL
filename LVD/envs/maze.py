@@ -108,9 +108,7 @@ class Maze_GC(MazeEnv):
 
         ob = deepcopy(self._get_obs())
         target = deepcopy(self._target)
-        if self.relative:
-            ob[:2] -= self.task.init_loc
-            target -= self.task.init_loc
+
 
         ob = np.concatenate((ob, target), axis = 0)
        
@@ -154,9 +152,7 @@ class Maze_GC(MazeEnv):
         done = self.done_on_completed and completed
         
         target = deepcopy(self._target)
-        if self.relative:
-            ob[:2] -= self.task.init_loc
-            target -= self.task.init_loc
+
         ob = np.concatenate((ob, target), axis = 0)
 
         if self.reward_type == 'sparse':
@@ -241,10 +237,10 @@ maze_meta_tasks = np.array([
 
 maze_tasks = np.array([
     [[10, 24], [24, 39]],
-    [[10, 24], [24, 34]],
+    # [[10, 24], [24, 34]],
     # [[10, 24], [15, 40]],
     # [[10, 24], [23, 14]],
-    [[10, 24], [18, 8]],
+    # [[10, 24], [18, 8]],
     # [[10, 24], [24, 9]],
     ])
 

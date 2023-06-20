@@ -14,7 +14,7 @@ subseq_len : 11
 max_seq_len : 2000
 epoch_cycles_train : 20
 
-
+step_per_ep : 400
 batch_size : 1024
 mixin_start : 75
 mixin_ratio : 0.05
@@ -49,3 +49,8 @@ policy_lr : 3e-5
 buffer_size : 20000
 n_episode : 150
 kl_decay : 0.99
+
+
+invD_lr : 1e-6
+D_lr : 1e-5
+f_lr : 1e-8

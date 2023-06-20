@@ -277,7 +277,7 @@ class SAC(BaseModel):
             self.grad_clip(optimizer['optimizer'])
             optimizer['optimizer'].step()
 
-        self.policy.soft_update()
+        # self.policy.soft_update() # 
 
         
         for module_name, meter in self.consistency_meters.items():

@@ -98,15 +98,28 @@ class GC_Batch(Batch):
         
         relabel = random.random() > 0.8 
 
-        
+        # sample별로 해야 함. 
+        batch_size = len(self.states)
+        # indices = np.random.rand(batch_size)
+        indices = torch.rand(len(self.states), 1).cuda()
 
-        # relabel = True
+
+        # print(indices.shape, self.rewards.shape, self.relabeled_rewards.shape)
+        # print(indices.shape, self.goals.shape, self.relabeled_goals.shape)
+        # rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards  )
+        # G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals  )
+
+
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,
-            rewards = self.relabeled_rewards if relabel else self.rewards ,
+            rewards = self.rewards,
+            G = self.goals,
+            # rewards = self.relabeled_rewards if relabel else self.rewards,
+            # G = self.relabeled_goals if relabel else self.goals
+            # rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards  ),
+            # G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals  )
             dones = self.dones,
-            G = self.relabeled_goals if relabel else self.goals
         )
         if self.tanh:
             batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)

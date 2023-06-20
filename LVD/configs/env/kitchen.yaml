@@ -51,3 +51,8 @@ policy_lr : 3e-5
 buffer_size : 3000
 n_episode : 300
 kl_decay : 0.99
+
+
+invD_lr : 1e-6
+D_lr : 1e-5
+f_lr : 1e-8

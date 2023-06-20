@@ -25,7 +25,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         self.target_flat_dynamics = deepcopy(self.flat_dynamics)
 
         self.n_soft_update = 1
-        self.update_freq = 2
+        self.update_freq = 5
         self.state_processor = StateProcessor(self.cfg.env_name)
 
     def soft_update(self):
@@ -50,7 +50,6 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         # -------------- State Enc / Dec -------------- #
         # for state reconstruction and dynamics
         states_repr = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
-        # states_repr += torch.randn_like(states_repr) * 0.01
         states_hat = self.state_decoder(states_repr).view(N, T, -1) 
         hts = states_repr.view(N, T, -1).clone()
 
@@ -412,12 +411,12 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
                     "metric" : None,
                     # "metric" : "state_consistency"
                     },
-                "state_enc" : {
-                    "params" :  self.state_encoder.parameters(), 
-                    "lr" : 1e-6, # now best : 1e-6
-                    # "metric" : "GCSL_loss"
-                    "metric" : None,
-                }
+                # "state_enc" : {
+                #     "params" :  self.state_encoder.parameters(), 
+                #     "lr" : 1e-6, # now best : 1e-6
+                #     # "metric" : "GCSL_loss"
+                #     "metric" : None,
+                # }
                 # "f" : {
                 #     "params" :  self.subgoal_generator.parameters(), 
                 #     "lr" : self.cfg.f_lr, 

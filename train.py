@@ -14,7 +14,7 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
 
-    print(OmegaConf.to_yaml(cfg))
+    # print(OmegaConf.to_yaml(cfg))
 
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)

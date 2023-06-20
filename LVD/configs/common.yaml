@@ -22,10 +22,11 @@ hydra:
           - env.target_kl_end
           - env.kl_decay
           - env.reuse_rate
-          - model.invD_lr
-          - model.D_lr
-          - model.f_lr
+          - env.invD_lr
+          - env.D_lr
+          - env.f_lr
           - model.consistency_update 
+
 
 
 phase : skill
