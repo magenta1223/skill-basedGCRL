@@ -18,10 +18,11 @@ class Logger:
         
 
     def log(self, message):
-        if self.verbose:
-            print(message)
-        with open(self.log_path, 'a+') as logger:
-            logger.write(f'{message}\n')
+        if message is not None:
+            if self.verbose:
+                print(message)
+            with open(self.log_path, 'a+') as logger:
+                logger.write(f'{message}\n')
 
 
     def loss_dict_log(self, loss_dict, set_name):
