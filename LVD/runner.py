@@ -134,12 +134,14 @@ class BaseTrainer:
             # 따라서 skill이 충분히 학습된 이후에 step down을 적용해야 함. 
             if "skill_enc_dec" in self.schedulers.keys():
                 skill_scheduler = self.schedulers['skill_enc_dec']
-                skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
+                msgs = skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
+                self.logger.log(msgs)
 
             if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers.items():
                     if module_name != "skill_enc_dec":
-                        scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
+                        msgs = scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
+                        self.logger.log(msgs)
 
                 if self.loop_indicator(e, valid_loss_dict['metric']):
                     print("early stop", 'loss',  valid_loss_dict['metric'])
@@ -344,6 +346,8 @@ class Diversity_Trainer(BaseTrainer):
   
             for k, v in loss.items():
                 self.meters[k].update(v, batch['states'].shape[0])
+
+
 
 
         if imgs is not None:

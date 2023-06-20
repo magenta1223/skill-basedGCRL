@@ -6,7 +6,7 @@ from glob import glob
 import h5py
 import pickle
 from ..base_dataset import Base_Dataset
-
+import torch
 
 
 class Maze_Dataset(Base_Dataset):
@@ -37,13 +37,14 @@ class Maze_Dataset(Base_Dataset):
     def __getitem__(self, idx):
 
         seq = self.seqs[idx]
-        states = deepcopy(seq.obs)
-        actions = deepcopy(seq.actions)
+        states = deepcopy(seq['obs'])
+        actions = deepcopy(seq['actions'])
 
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
 
         G = states[goal_idx][:2]
+        G[2:] = 0
 
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
@@ -118,9 +119,9 @@ class Maze_Dataset_Div(Maze_Dataset):
         
     def __skill_learning__(self, index):
 
-        seq = self.seqs[index]
+        seq = self.seqs[index] # ? 
         # states = deepcopy(seq['states'])
-        states = deepcopy(seq['obs'])
+        states = deepcopy(seq['obs']) 
         actions = seq['actions']
         
         # relative position. 
@@ -130,8 +131,13 @@ class Maze_Dataset_Div(Maze_Dataset):
         assert start_idx < goal_idx, "Invalid"
 
         G = states[goal_idx][:2]
+        G[2:] = 0
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
+        
+        if self.normalize:
+            states[:, :2] = states[:, :2]/40
+            G[:2] = G[:2]/40
 
         return edict(
             states = states,
@@ -145,16 +151,24 @@ class Maze_Dataset_Div(Maze_Dataset):
 
         if np.random.rand() < self.mixin_ratio:
             # hindsight relabeling 
-            states_images, actions, c = self.buffer_now.sample()
+            states, actions, c = self.buffer_now.sample()
             
             # # relative position 
             # states_images[:, :2] -= states_images[0, :2]
             # G[ :2] -= states_images[0, :2]
+            states = states[:self.subseq_len]
+            G = deepcopy(states[-1][:self.n_obj][:2])
+            G[2:] = 0
+
+
+            if self.normalize:
+                states = torch.clamp(states, 0, 1)
+                G = torch.clamp(G, 0, 1)
 
             return edict(
-                states = states_images[:self.subseq_len],
+                states = states,
                 actions = actions[:self.subseq_len-1],
-                G = deepcopy(states_images[-1][:self.n_obj][:2] ),
+                G = G,
                 rollout = False,
                 weights = 1,
                 # rollout = True if start_idx < 280 - self.plan_H else False

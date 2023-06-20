@@ -29,16 +29,19 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
         self.module_name = module_name
 
     def _reduce_lr(self, epoch):
+        msgs = ""
+
         for i, param_group in enumerate(self.optimizer.param_groups):
             old_lr = float(param_group['lr'])
             new_lr = max(old_lr * self.factor, self.min_lrs[i])
             if old_lr - new_lr > self.eps:
                 param_group['lr'] = new_lr
-                if self.verbose:
-                    epoch_str = ("%.2f" if isinstance(epoch, float) else
-                                 "%.5d") % epoch
-                    print('Epoch {}: reducing learning rate'
-                          ' of {}`s group {} to {:.4e}.'.format(epoch_str, self.module_name, i, new_lr))
-                    
+                epoch_str = ("%.2f" if isinstance(epoch, float) else
+                                "%.5d") % epoch
+                # print('Epoch {}: reducing learning rate'
+                #       ' of {}`s group {} to {:.4e}.'.format(epoch_str, self.module_name, i, new_lr))
+                msgs += f'Epoch {epoch_str}: reducing learning rate of {self.module_name}`s group {i} to {new_lr:.4e}.\n'
+        if self.verbose:
+            print(msgs)
 
-
+        return msgs

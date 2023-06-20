@@ -5,8 +5,10 @@ defaults:
 
 dataset_cls : LVD.data.Maze_Dataset_Div
 structure : gc_div_joint
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+
+# env:
+#   epoch_cycles_train: ${get_cycle:${env.batch_size}}
+
 model:
   state_encoder :
     in_feature : ${env.state_dim} 
@@ -44,4 +46,11 @@ model:
 
   q_function:
     in_feature: ${add:${env.latent_state_dim}, ${env.n_goal}, ${env.skill_dim}} 
-    norm_cls : None
+
+rl:
+  render_period : 5
+  q_warmup : 5_000 
+  qf_lr : 3e-4
+  precollect : 10
+  norm : false
+  rl_batch_size : 256

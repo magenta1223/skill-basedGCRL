@@ -2,7 +2,7 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 
 from LVD.utils import *
-seed_everything(777)
+seed_everything(666)
 from LVD.modules import *
 from LVD.models import *
 from LVD.runner import *

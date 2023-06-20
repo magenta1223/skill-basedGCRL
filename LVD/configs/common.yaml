@@ -26,6 +26,7 @@ hydra:
           - env.D_lr
           - env.f_lr
           - model.consistency_update 
+          - model.q_function.norm_cls
 
 
 

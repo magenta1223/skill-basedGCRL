@@ -158,10 +158,10 @@ class GC_Skill_RL_Trainer:
             print("Warmup Value function")
             self.sac.warmup_Q(step_inputs)
 
-        # n_step = self.n_step(episode)
-        # print(f"Reuse!! : {n_step}")
-        # for _ in range(max(n_step, 1)):
-        for _ in range(self.cfg.step_per_ep):
+        n_step = self.n_step(episode)
+        print(f"Reuse!! : {n_step}")
+        for _ in range(max(n_step, 1)):
+        # for _ in range(self.cfg.step_per_ep):
             step_inputs = edict(
                 episode = n_ep,
                 G = G

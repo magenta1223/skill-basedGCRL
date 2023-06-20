@@ -47,6 +47,9 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
     def forward(self, batch, *args, **kwargs):
         states, G = batch.states, batch.G
         N, T, _ = states.shape
+        skill_length = T - 1 
+
+
         # -------------- State Enc / Dec -------------- #
         # for state reconstruction and dynamics
         states_repr = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
@@ -66,6 +69,9 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
             states_hat_target = self.state_decoder(hts_target).view(N, T, -1)
             
             hts_target = hts_target.view(N, T, -1)
+            _hts = hts.clone().detach()
+            start, subgoal = _hts[:, 0], _hts[:, -1]
+
 
             # hts_target = self.state_encoder(states.view(N * T, -1)).view(N, T, -1)
             subgoal_target = hts_target[:, -1]
@@ -74,19 +80,38 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         states_ppc_pred = self.state_to_ppc(states_repr.clone().detach())
         prior, prior_detach = self.skill_prior.dist(ppc.view(N,T,-1)[:, 0], detached = True)
 
-        # -------------- Inverse Dynamics : Skill Learning -------------- #
-        inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
-        # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts_target[:,-1])
-        
-
-        # -------------- Dynamics Learning -------------- #                
+        # # -------------- Inverse Dynamics : Skill Learning -------------- #
+        # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
+        inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
         skill = inverse_dynamics.rsample()
-        flat_D = self.forward_flatD(hts, skill)
-        D = self.forward_D(hts[:, 0], skill)
+
+        # # -------------- Dynamics Learning -------------- #                
+        # flat_D = self.forward_flatD(hts, skill)
+        flat_dynamics_input = torch.cat((hts[:, :-1], skill.unsqueeze(1).repeat(1, skill_length, 1)), dim=-1)
+        diff_flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
+        flat_D =  hts[:,:-1] + diff_flat_D
+
+        # D = self.forward_D(hts[:, 0], skill)
+        dynamics_input = torch.cat((hts[:, 0], skill), dim = -1)
+        diff_D = self.dynamics(dynamics_input)
+        D =  hts[:,0] + diff_D
+
+        # # -------------- Subgoal Generator -------------- #
+        # invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
+        sg_input = torch.cat((start,  G), dim = -1)
+        diff_subgoal_f = self.subgoal_generator(sg_input)
+        subgoal_f = diff_subgoal_f + start
+        invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
+
+        skill_sub = invD_sub.rsample()
 
 
-        # -------------- Subgoal Generator -------------- #
-        invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
+        dynamics_input = torch.cat((start, skill_sub), dim = -1)
+        diff_subgoal_D = self.target_dynamics(dynamics_input)
+        subgoal_D = start + diff_subgoal_D 
+
+
+
 
         # -------------- Rollout for metric -------------- #
         check_subgoals_input = (hts, inverse_dynamics, D, subgoal_D, subgoal_f)
@@ -149,9 +174,12 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
             flat_D = self.target_flat_dynamics(flat_dynamics_input)
             if self.diff:
                 if self.grad_pass_D:
-                    flat_D += start
+                    # flat_D += start
+                    flat_D = start + flat_D
+
                 else:
-                    flat_D += start.clone().detach()
+                    flat_D = start.clone().detach() + flat_D
+                    # flat_D += start.clone().detach()
         else:
             N, T = start.shape[:2]
             skill_length = T- 1
@@ -161,9 +189,13 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
             if self.diff:
                 if self.grad_pass_D:
-                    flat_D += start[:,:-1]
+                    # flat_D += start[:,:-1]
+                    flat_D = start[:,:-1] + flat_D
+
                 else:
-                    flat_D += start[:,:-1].clone().detach()
+                    # flat_D += start[:,:-1].clone().detach()
+                    flat_D = start[:,:-1].clone().detach() + flat_D
+
         return flat_D
 
     def forward_D(self, start, skill, use_target = False):
@@ -176,9 +208,11 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
         if self.diff:
             if self.grad_pass_D:
-                D += start
+                # D += start
+                D = start + D
             else:
-                D += start.clone().detach()
+                # D += start.clone().detach()
+                D = start.clone().detach() + D
         return D
 
     def forward_subgoal_G(self, start, G):

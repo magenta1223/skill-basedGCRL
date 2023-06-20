@@ -31,7 +31,10 @@ skill_encoder :
   bias : true
   dropout : 0
   batch_first : true
-  
+  proj_bias : true
+
+
+
 skill_decoder : 
   n_blocks : 5
   hidden_dim : 128
