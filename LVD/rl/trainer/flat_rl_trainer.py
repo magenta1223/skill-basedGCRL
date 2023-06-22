@@ -19,7 +19,6 @@ from ...collector import GC_Flat_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 
-seed_everything()
 
 class Flat_RL_Trainer:
     def __init__(self, cfg) -> None:

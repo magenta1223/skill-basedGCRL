@@ -2,7 +2,6 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 
 from LVD.utils import *
-seed_everything(666)
 from LVD.modules import *
 from LVD.models import *
 from LVD.runner import *
@@ -13,7 +12,7 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
-
+    seed_everything(666)
     # print(OmegaConf.to_yaml(cfg))
 
     hydra_config = HydraConfig.get()

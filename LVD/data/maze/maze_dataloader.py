@@ -36,7 +36,7 @@ class Maze_Dataset(Base_Dataset):
 
     def __getitem__(self, idx):
 
-        seq = self.seqs[idx]
+        seq = deepcopy(self.seqs[idx])
         states = deepcopy(seq['obs'])
         actions = deepcopy(seq['actions'])
 
@@ -44,7 +44,7 @@ class Maze_Dataset(Base_Dataset):
         assert start_idx < goal_idx, "Invalid"
 
         G = states[goal_idx][:2]
-        G[2:] = 0
+        # G[2:] = 0
 
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
@@ -119,19 +119,16 @@ class Maze_Dataset_Div(Maze_Dataset):
         
     def __skill_learning__(self, index):
 
-        seq = self.seqs[index] # ? 
+        seq = deepcopy(self.seqs[index]) # ? 
         # states = deepcopy(seq['states'])
-        states = deepcopy(seq['obs']) 
+        states = seq['obs']
         actions = seq['actions']
         
         # relative position. 
-
-        
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
 
-        G = states[goal_idx][:2]
-        G[2:] = 0
+        G = deepcopy(states[goal_idx][:2])
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
         

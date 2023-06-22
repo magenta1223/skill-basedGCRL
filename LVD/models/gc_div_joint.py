@@ -109,8 +109,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                     {"params" : self.skill_encoder.parameters()},
                     {"params" : self.skill_decoder.parameters()},
                 ], lr = self.lr ),
-                # "metric" : "Rec_skill"
-                "metric" : "skill_metric"
+                "metric" : "Rec_skill"
+                # "metric" : "skill_metric"
             }, 
             "invD" : {
                 "optimizer" : RAdam( [
@@ -503,7 +503,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             loss.backward()
 
             for module_name, optimizer in self.optimizers.items():
-                self.grad_clip(optimizer['optimizer'])
+                # self.grad_clip(optimizer['optimizer'])
                 optimizer['optimizer'].step()
 
         # ------------------ Rollout  ------------------ #

@@ -81,37 +81,31 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         prior, prior_detach = self.skill_prior.dist(ppc.view(N,T,-1)[:, 0], detached = True)
 
         # # -------------- Inverse Dynamics : Skill Learning -------------- #
-        # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
-        inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
+        inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
+        # inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
         skill = inverse_dynamics.rsample()
 
         # # -------------- Dynamics Learning -------------- #                
-        # flat_D = self.forward_flatD(hts, skill)
-        flat_dynamics_input = torch.cat((hts[:, :-1], skill.unsqueeze(1).repeat(1, skill_length, 1)), dim=-1)
-        diff_flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
-        flat_D =  hts[:,:-1] + diff_flat_D
+        flat_D = self.forward_flatD(hts, skill)
+        # flat_dynamics_input = torch.cat((hts[:, :-1], skill.unsqueeze(1).repeat(1, skill_length, 1)), dim=-1)
+        # diff_flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
+        # flat_D =  hts[:,:-1] + diff_flat_D
 
-        # D = self.forward_D(hts[:, 0], skill)
-        dynamics_input = torch.cat((hts[:, 0], skill), dim = -1)
-        diff_D = self.dynamics(dynamics_input)
-        D =  hts[:,0] + diff_D
+        D = self.forward_D(hts[:, 0], skill)
+        # dynamics_input = torch.cat((hts[:, 0], skill), dim = -1)
+        # diff_D = self.dynamics(dynamics_input)
+        # D =  hts[:,0] + diff_D
 
         # # -------------- Subgoal Generator -------------- #
-        # invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
-        sg_input = torch.cat((start,  G), dim = -1)
-        diff_subgoal_f = self.subgoal_generator(sg_input)
-        subgoal_f = diff_subgoal_f + start
-        invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
-
-        skill_sub = invD_sub.rsample()
-
-
-        dynamics_input = torch.cat((start, skill_sub), dim = -1)
-        diff_subgoal_D = self.target_dynamics(dynamics_input)
-        subgoal_D = start + diff_subgoal_D 
-
-
-
+        invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
+        # sg_input = torch.cat((start,  G), dim = -1)
+        # diff_subgoal_f = self.subgoal_generator(sg_input)
+        # subgoal_f = diff_subgoal_f + start
+        # invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
+        # skill_sub = invD_sub.rsample()
+        # dynamics_input = torch.cat((start, skill_sub), dim = -1)
+        # diff_subgoal_D = self.target_dynamics(dynamics_input)
+        # subgoal_D = start + diff_subgoal_D 
 
         # -------------- Rollout for metric -------------- #
         check_subgoals_input = (hts, inverse_dynamics, D, subgoal_D, subgoal_f)
@@ -378,7 +372,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         """
         Finetune inverse dynamics and dynamics with the data collected in online.
         """
-
+        # BC를 하려면 반드시 relabeled G여야 함. 
         states, G, next_states = batch.states, batch.G, batch.next_states
         # self.state_encoder.eval()
         ht = self.state_encoder(states)

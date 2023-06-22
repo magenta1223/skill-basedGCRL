@@ -16,7 +16,6 @@ from ...collector import GC_Hierarchical_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 
-seed_everything()
 
 class Skill_RL_Trainer:
     def __init__(self, cfg) -> None:

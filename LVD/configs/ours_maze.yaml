@@ -51,6 +51,6 @@ rl:
   render_period : 5
   q_warmup : 5_000 
   qf_lr : 3e-4
-  precollect : 10
+  precollect : 20
   norm : false
   rl_batch_size : 256

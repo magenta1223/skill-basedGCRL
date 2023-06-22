@@ -113,12 +113,16 @@ class GC_Batch(Batch):
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,
-            rewards = self.rewards,
-            G = self.goals,
+
+            # rewards = self.rewards,
+            # G = self.goals,
+
             # rewards = self.relabeled_rewards if relabel else self.rewards,
-            # G = self.relabeled_goals if relabel else self.goals
-            # rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards  ),
-            # G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals  )
+            # G = self.relabeled_goals if relabel else self.goals,
+            
+            # GCQ
+            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
+            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
             dones = self.dones,
         )
         if self.tanh:

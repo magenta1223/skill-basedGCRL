@@ -12,15 +12,15 @@ normalize : false
 
 subseq_len : 11
 max_seq_len : 2000
-epoch_cycles_train : 20
+epoch_cycles_train : 80
 
 step_per_ep : 400
 batch_size : 1024
 mixin_start : 75
 mixin_ratio : 0.05
 plan_H : 100
-epochs : 150
-warmup_steps : 75
+epochs : 120
+warmup_steps : 50
 
 skill_dim : 10
 latent_state_dim : 64
@@ -32,10 +32,12 @@ val_data_size : 5000
 time_limit : 4000
 target_kl_start : 5
 target_kl_end : 5
-init_alpha : 0.05
+# init_alpha : 0.05
+init_alpha : 0.01
 increasing_alpha : false
 auto_alpha : true
-reuse_rate : 128
+# reuse_rate : 128
+reuse_rate : 512
 q_warmup : 5000
 q_weight : 1
 precollect : 20

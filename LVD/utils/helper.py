@@ -1,4 +1,14 @@
 import torch
+import warnings
+
+EPOCH_DEPRECATION_WARNING = (
+    "The epoch parameter in `scheduler.step()` was not necessary and is being "
+    "deprecated where possible. Please use `scheduler.step()` to step the "
+    "scheduler. During the deprecation, if epoch is different from None, the "
+    "closed form is used instead of the new chainable form, where available. "
+    "Please open an issue if you are unable to replicate your use case: "
+    "https://github.com/pytorch/pytorch/issues/new/choose."
+)
 
 # --------------------- Helper Class --------------------- # 
 
@@ -45,3 +55,35 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
             print(msgs)
 
         return msgs
+    
+
+    def step(self, metrics, epoch=None):
+        # convert `metrics` to float, in case it's a zero-dim Tensor
+        msgs = None
+        current = float(metrics)
+        if epoch is None:
+            epoch = self.last_epoch + 1
+        else:
+            warnings.warn(EPOCH_DEPRECATION_WARNING, UserWarning)
+        self.last_epoch = epoch
+
+        if self.is_better(current, self.best):
+            self.best = current
+            self.num_bad_epochs = 0
+        else:
+            self.num_bad_epochs += 1
+
+        if self.in_cooldown:
+            self.cooldown_counter -= 1
+            self.num_bad_epochs = 0  # ignore any bad epochs in cooldown
+
+        if self.num_bad_epochs > self.patience:
+            msgs = self._reduce_lr(epoch)
+            self.cooldown_counter = self.cooldown
+            self.num_bad_epochs = 0
+
+        self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
+
+        return msgs
+
+

@@ -16,7 +16,6 @@ from ...collector import GC_Hierarchical_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
 
-seed_everything()
 
 class GC_Skill_RL_Trainer:
     def __init__(self, cfg) -> None:
@@ -48,8 +47,9 @@ class GC_Skill_RL_Trainer:
         high_policy = deepcopy(model.prior_policy)
 
         # non-learnable
-        low_actor = deepcopy(model.skill_decoder.eval())
+        low_actor = deepcopy(model.skill_decoder)
         skill_prior = deepcopy(model.prior_policy.skill_prior)
+        low_actor.eval()
         low_actor.requires_grad_(False)
         skill_prior.requires_grad_(False) 
 
@@ -141,14 +141,14 @@ class GC_Skill_RL_Trainer:
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
             print("success")
 
-        self.sac.buffer.enqueue(episode.as_high_episode()) 
+        high_ep = episode.as_high_episode()
+        self.sac.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
 
-        
+    
         if self.sac.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
-        
-        
+
         if n_ep == self.cfg.precollect:
             step_inputs = edict(
                 episode = n_ep,
@@ -157,8 +157,9 @@ class GC_Skill_RL_Trainer:
             # Q-warmup
             print("Warmup Value function")
             self.sac.warmup_Q(step_inputs)
+        
 
-        n_step = self.n_step(episode)
+        n_step = self.n_step(high_ep)
         print(f"Reuse!! : {n_step}")
         for _ in range(max(n_step, 1)):
         # for _ in range(self.cfg.step_per_ep):
@@ -185,4 +186,4 @@ class GC_Skill_RL_Trainer:
             NotImplementedError
 
     def n_step(self, episode):
-        return int(self.cfg.reuse_rate * len(episode) / self.cfg.batch_size)
+        return int(self.cfg.reuse_rate * len(episode) / self.cfg.rl_batch_size)

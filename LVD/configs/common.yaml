@@ -53,7 +53,10 @@ scheduler_params :
   verbose: True
   threshold: 1e-5
   threshold_mode: abs
-  min_lr: 1e-12
+  # threshold: 0.005
+  # threshold_mode: rel
+  # min_lr: 1e-6
+  min_lr: 1e-5
 
 rl :
   render_period : 10

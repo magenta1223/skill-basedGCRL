@@ -133,10 +133,9 @@ class BaseTrainer:
             
             # skill enc, dec를 제외한 모듈은 skill에 dependent함
             # 따라서 skill이 충분히 학습된 이후에 step down을 적용해야 함. 
-            if "skill_enc_dec" in self.schedulers.keys():
-                skill_scheduler = self.schedulers['skill_enc_dec']
-                msgs = skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
-                self.logger.log(msgs)
+            skill_scheduler = self.schedulers['skill_enc_dec']
+            msgs = skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
+            self.logger.log(msgs)
 
             if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers.items():
@@ -277,23 +276,25 @@ class Diversity_Trainer(BaseTrainer):
             self.logger.log(message)
 
 
-            if "skill_enc_dec" in self.schedulers.keys():
-                skill_scheduler = self.schedulers['skill_enc_dec']
-                target_metric = self.schedulers_metric["skill_enc_dec"]
-                if target_metric is not None:
-                    skill_scheduler.step(valid_loss_dict[target_metric])
+            skill_scheduler = self.schedulers['skill_enc_dec']
+            target_metric = self.schedulers_metric["skill_enc_dec"]
+            if target_metric is not None:
+                msg = skill_scheduler.step(valid_loss_dict[target_metric])
+                self.logger.log(msg)
 
             if "state" in self.schedulers.keys():
                 state_scheduler = self.schedulers['state']
                 target_metric = self.schedulers_metric["state"]
                 if target_metric is not None:
-                    state_scheduler.step(valid_loss_dict[target_metric])
+                    msg = state_scheduler.step(valid_loss_dict[target_metric])
+                    self.logger.log(msg)
 
             if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers.items():
                     target_metric = self.schedulers_metric[module_name]
                     if module_name not in  ["skill_enc_dec", "state"] and target_metric is not None:
-                        scheduler.step(valid_loss_dict[target_metric])
+                        msg = scheduler.step(valid_loss_dict[target_metric])
+                        self.logger.log(msg)
 
                 if self.loop_indicator(e, valid_loss_dict['metric']):
                     print("early stop", 'loss',  valid_loss_dict['metric'])
@@ -308,7 +309,6 @@ class Diversity_Trainer(BaseTrainer):
 
             self.train_loader.update_buffer()
             # seed += 1
-            # seed_everything(seed)
 
         self.save(f'{self.model_id}/end.bin')
         self.logger.log('Finished')           
