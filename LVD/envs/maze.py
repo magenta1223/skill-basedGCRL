@@ -238,12 +238,12 @@ maze_meta_tasks = np.array([
 maze_tasks = np.array([
     [[10, 24], [24, 39]],
     [[10, 24], [24, 34]],
-    [[10, 24], [15, 40]], # 이건 될만한데.. ? 
+    # [[10, 24], [15, 40]], # 이건 될만한데.. ? 
     [[10, 24], [23, 14]],
     [[10, 24], [18, 8]],
     # [[10, 24], [24, 9]], # 너무 어려움. 
-    [[10, 24], [36,  21]], 
-    [[10, 24], [40, 29]],
+    # [[10, 24], [36,  21]], 
+    # [[10, 24], [40, 29]],
     ])
 
 
@@ -265,3 +265,13 @@ maze_ablation_tasks = np.array([
     # [[10, 24], [25,  6]],
     
 ])
+
+
+
+
+maze_known_tasks = ['KBTS','MKBS','MKLH','KTLS',
+               'BTLS','MTLH','MBTS','KBLH',
+               'MKLS','MBSH','MKBH','KBSH',
+               'MBTH','BTSH','MBLS','MLSH',
+               'KLSH','MBTL','MKTL','MKSH',
+               'KBTL','KBLS','MKTH','KBTH']

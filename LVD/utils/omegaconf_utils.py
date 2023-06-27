@@ -7,6 +7,13 @@ def add(*args):
 def multiply(*args):
     return np.prod(*[args])
 
+def divide(a, b):
+    share, remainder = divmod(a,b)
+
+    assert remainder == 0, "배수가 아님"
+
+    return share
+
 def config_path(override_dirname):
     if override_dirname == "":
         override_dirname = "default"
@@ -24,8 +31,13 @@ def get_cycle(batch_size):
     """
     return batch_size // 20
 
+def get_outdim(latent_state_dim, distributional):
+    return latent_state_dim * 2 if distributional else latent_state_dim
+
 OmegaConf.register_new_resolver("add", add)
 OmegaConf.register_new_resolver("multiply", multiply)
+OmegaConf.register_new_resolver("divide", divide)
 OmegaConf.register_new_resolver("config_path", config_path)
 OmegaConf.register_new_resolver("get_trainer", get_trainer)
 OmegaConf.register_new_resolver("get_cycle", get_cycle)
+OmegaConf.register_new_resolver("get_outdim", get_outdim)

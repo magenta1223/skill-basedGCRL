@@ -10,6 +10,7 @@ class Kitchen_EnvTaskConfig:
     meta_tasks = kitchen_meta_tasks
     target_tasks = kitchen_tasks
     ablation_tasks = kitchen_ablation_tasks
+    known_tasks = kitchen_known_tasks
 
 class Maze_EnvTaskConfig:
     env_cls = Maze_GC
@@ -18,6 +19,7 @@ class Maze_EnvTaskConfig:
     meta_tasks = maze_meta_tasks
     target_tasks = maze_tasks
     ablation_tasks = maze_ablation_tasks
+    known_tasks = None
 
 
 __all__ = [

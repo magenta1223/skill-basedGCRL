@@ -11,7 +11,7 @@ from ...contrib import update_moving_average
 from easydict import EasyDict as edict
 
 
-class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
+class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     """
     """
     def __init__(self, **submodules):
@@ -23,7 +23,6 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         self.target_inverse_dynamics = deepcopy(self.inverse_dynamics)
         self.target_dynamics = deepcopy(self.dynamics)
         # self.target_flat_dynamics = deepcopy(self.flat_dynamics)
-        self.target_state_to_ppc = deepcopy(self.state_to_ppc)
 
 
         self.n_soft_update = 1
@@ -44,7 +43,6 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
         update_moving_average(self.target_dynamics, self.dynamics, 1)
         # update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
-        update_moving_average(self.target_state_to_ppc, self.state_to_ppc, 1)
 
         self.n_soft_update += 1
 
@@ -55,61 +53,45 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
         # -------------- State Enc / Dec -------------- #
         # for state reconstruction and dynamics
-
-        if self.cfg.distributional:
-            states_dist = self.state_encoder.dist(states.view(N * T, -1)) # N * T, -1 
-            states_repr = states_dist.rsample()
-            normal_dist = get_fixed_dist( torch.zeros_like(states_repr).repeat(1, 2), tanh= self.tanh )
-            scales=  states_dist._normal.base_dist.scale.mean()
-        else:
-            states_dist = None
-            states_repr = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
-            normal_dist = None
-            scales = 0
+        states_repr, ht_ppc, ht_env = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
+        scales = 0
             
-        states_hat = self.state_decoder(states_repr).view(N, T, -1) 
+        states_hat, ppc_hat, env_hat = self.state_decoder(states_repr)
+        states_hat = states_hat.view(N, T, -1) 
         hts = states_repr.view(N, T, -1).clone()
 
         with torch.no_grad():
-            ppc_states = self.state_processor.to_ppc(states.clone())  # env states removed 
-            if self.cfg.distributional:
-                ppc = self.state_encoder.dist(ppc_states.view(N * T, -1)).sample().view(N,T,-1) # forward 
-            else:
-                ppc = self.state_encoder(ppc_states.view(N * T, -1)).view(N,T,-1) # forward 
+            # ppc_states = self.state_processor.to_ppc(states.clone())  # env states removed 
+            # ppc = self.state_encoder(ppc_states.view(N * T, -1)).view(N,T,-1) # forward 
 
             # # for MMD loss of WAE
             state_emb = states_repr.view(N, T, -1)[:, 0] # N, -1 
             states_fixed = torch.randn(512, *state_emb.shape[1:]).cuda() # 512, -1 
 
             # target for dynamics & subgoal generator 
-            if self.cfg.distributional:
-                target_states_dist = self.target_state_encoder.dist(states.view(N * T, -1)) # N * T, -1 
-                hts_target = target_states_dist.sample()
-                states_hat_target = self.state_decoder(hts_target).view(N, T, -1)
-
-            else:
-                hts_target = self.target_state_encoder(states.view(N * T, -1))
-                states_hat_target = self.state_decoder(hts_target).view(N, T, -1)
+            hts_target, _, _ = self.target_state_encoder(states.view(N * T, -1))
+            states_hat_target = self.state_decoder(hts_target)[0].view(N, T, -1)
             
             hts_target = hts_target.view(N, T, -1)
             subgoal_target = hts_target[:, -1]
 
         # -------------- State-Conditioned Prior -------------- #
-        states_ppc_pred = self.state_to_ppc(states_repr.clone().detach()).view(N, T, -1)
-        prior, prior_detach = self.skill_prior.dist(ppc[:, 0], detached = True)
+        prior, prior_detach = self.skill_prior.dist(ht_ppc.view(N, T, -1)[:, 0].clone().detach(), detached = True)
 
         # # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
         skill = inverse_dynamics.rsample()
 
         # # -------------- Dynamics Learning -------------- #                
-        flat_D = self.forward_flatD(hts, skill, ppc_start = ppc)
-        D = self.forward_D(hts[:, 0], skill, ppc_start= ppc[:, 0])
+        flat_D, cache = self.forward_flatD(hts, skill)
+        D = self.forward_D(hts[:, 0], skill)
+        
+        # only env diff만 
+        # diff_flat = flat_D - hts[:, :-1]
 
-        diff_flat = flat_D - hts[:, :-1]
-        diff = self.diff_decoder(diff_flat.clone().detach())
-
-
+        diff_env_latent = cache[-1].view(N, T-1, -1)
+        diff = self.diff_decoder(diff_env_latent.clone().detach())
+        diff_target = states[:, 1:, self.cfg.n_obj:] - states[:, :-1, self.cfg.n_obj:]
 
         # # -------------- Subgoal Generator -------------- #
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
@@ -123,14 +105,10 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
             states = states,
             states_hat = states_hat,
             states_repr = states_repr,
-            states_dist = states_dist,
-            states_fixed_dist = normal_dist if self.cfg.distributional else states_fixed,
 
             # hts = hts,
             # states_hat_target = states_hat_target,
             # full state to proprioceptive state 
-            states_ppc = states_ppc_pred,
-            states_ppc_target = ppc,
     
             prior = prior,
             prior_detach = prior_detach,
@@ -153,7 +131,7 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
 
             diff = diff,
-            diff_target = states[:, 1:] - states[:, :-1],
+            diff_target = diff_target,
 
 
             invD_sub = invD_sub,
@@ -174,57 +152,54 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
         return inverse_dynamics, inverse_dynamics_detach
     
-    def forward_flatD(self, start, skill, ppc_start = None):
+    def forward_flatD(self, start, skill):
         # start = start.clone().detach()
         # rollout / check 
-        if len(start.shape) < 3:
+        ppc, env = start.chunk(2, -1)
+        if len(ppc.shape) < 3:
             # flat_dynamics_input = torch.cat((start, skill), dim=-1)
-            ppc_start = self.target_state_to_ppc(start) 
             # 직접 변환을 하지말고 실제 값을 받아오면 됨. 
-            flat_dynamics_input = torch.cat((ppc_start, skill), dim=-1)
+            flat_dynamics_input = torch.cat((ppc, skill), dim=-1)
             flat_D = self.flat_dynamics(flat_dynamics_input)
-            if self.diff:
-                if self.grad_pass_D:
-                    flat_D = start + flat_D
-                else:
-                    flat_D = start.clone().detach() + flat_D
+
+            ppc_now, env_now = flat_D.chunk(2, -1)
+            if self.grad_pass_D:
+                flat_D = start + flat_D
+            else:
+                flat_D = start.clone().detach() + flat_D
+
         else:
-            N, T = start.shape[:2]
+            N, T = ppc.shape[:2]
             skill_length = T- 1
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-
-            # flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
-            # with torch.no_grad():
-            #     ppc_start = self.state_to_ppc(start.view(N * T, -1)).view(N, T, -1)
-            if ppc_start is None:
-                ppc_start = self.target_state_to_ppc(start.view(N * T, -1)).view(N, T, -1)
-            flat_dynamics_input = torch.cat((ppc_start[:, :-1], skill), dim=-1)
+            flat_dynamics_input = torch.cat((ppc[:, :-1], skill), dim=-1)
 
             # start 대신 state_to_ppc(start) 를 넣어서 학습. 
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
 
-            if self.diff:
-                if self.grad_pass_D:
-                    # flat_D += start[:,:-1]
-                    flat_D = start[:,:-1] + flat_D
+            ppc_now, env_now = flat_D.chunk(2, -1)
+            if self.grad_pass_D:
+                # flat_D += start[:,:-1]
+                flat_D = start[:,:-1] + flat_D
 
-                else:
-                    # flat_D += start[:,:-1].clone().detach()
-                    flat_D = start[:,:-1].clone().detach() + flat_D
+            else:
+                # flat_D += start[:,:-1].clone().detach()
+                flat_D = start[:,:-1].clone().detach() + flat_D
 
-        return flat_D
+        cache = ppc, env, ppc_now, env_now
 
-    def forward_D(self, start, skill, use_target = False, ppc_start = None):
+        return flat_D, cache
+
+    def forward_D(self, start, skill, use_target = False):
         # start = start.clone().detach()
 
         # dynamics_input = torch.cat((start, skill), dim = -1) 
         # with torch.no_grad():
         #     ppc_start = self.state_to_ppc(start)
+        # start = torch.cat((ppc, env), dim = -1)
+        ppc, env = start.chunk(2, -1)
 
-        if ppc_start is None:
-            ppc_start = self.target_state_to_ppc(start)
-
-        dynamics_input = torch.cat((ppc_start, skill), dim=-1)
+        dynamics_input = torch.cat((ppc, skill), dim=-1)
 
         # start 대신 state_to_ppc(start) 를 넣어서 학습. 
         if use_target:
@@ -232,13 +207,13 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         else:
             D = self.dynamics(dynamics_input)
 
-        if self.diff:
-            if self.grad_pass_D:
-                # D += start
-                D = start + D
-            else:
-                # D += start.clone().detach()
-                D = start.clone().detach() + D
+        if self.grad_pass_D:
+            # D += start
+            D = start + D
+        else:
+            # D += start.clone().detach()
+            D = start.clone().detach() + D
+
         return D
 
     def forward_subgoal_G(self, start, G):
@@ -246,8 +221,8 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         
         sg_input = torch.cat((start,  G), dim = -1)
         subgoal_f = self.subgoal_generator(sg_input)
-        if self.diff:
-            subgoal_f = subgoal_f + start
+        subgoal_f = subgoal_f + start
+
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
         skill_sub = invD_sub.rsample()
         subgoal_D = self.forward_D(start, skill_sub, use_target= True)
@@ -278,13 +253,13 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
         _ht = start.clone()
         skill = inverse_dynamics.sample()
         for _ in range(skill_length):
-            _ht = self.forward_flatD(_ht, skill)
+            _ht, _ = self.forward_flatD(_ht, skill)
         invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.tanh)
 
-        subgoal_recon = self.state_decoder(subgoal)
-        subgoal_recon_D = self.state_decoder(D)
-        subgoal_recon_D_f = self.state_decoder(subgoal_D)
-        subgoal_recon_f = self.state_decoder(subgoal_f)
+        subgoal_recon, _, _ = self.state_decoder(subgoal)
+        subgoal_recon_D, _, _ = self.state_decoder(D)
+        subgoal_recon_D_f, _, _ = self.state_decoder(subgoal_D)
+        subgoal_recon_f, _, _ = self.state_decoder(subgoal_f)
 
         return edict(
             invD_rollout_main= invD_rollout_main,
@@ -297,86 +272,14 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
     
     @torch.no_grad()
     def rollout(self, batch):
-        # states = batch.states
-        # N, T, _ = states.shape
-        # skill_length = T - 1
-
-        # if self.cfg.distributional:
-        #     hts = self.state_encoder.dist(states.view(N * T, -1)).sample().view(N, T, -1)  
-        #     ht_ppc = self.state_encoder.dist(states[:, 0]).sample()
-        # else:
-        #     hts = self.state_encoder(states.view(N * T, -1)).view(N, T, -1)  
-        #     ht_ppc = self.state_encoder(states[:, 0])
-
-        # hts_rollout = []
-        # c = random.sample(range(1, skill_length - 1), 1)[0]
-        # _ht = hts[:, c].clone()
-        # # skill_sampled_orig = self.skill_prior.dist(self.state_to_ppc(_ht)).sample()
-        # skill_sampled_orig = self.skill_prior.dist(ht_ppc).sample()
-        # skill_sampled = skill_sampled_orig.clone()
-        # # 1 skill
-        # for _ in range(c, skill_length):
-        #     # execute skill on latent space and append to the original sub-trajectory 
-        #     # _ht = self.forward_flatD(_ht, skill_sampled) 
-        #     # hts_rollout.append(_ht)
-        #     # flat_D로 rollout -> diff in latent space -> diff in raw state space 
-        #     next_ht = self.forward_flatD(_ht, skill_sampled) 
-        #     diff_latent = next_ht - _ht
-        #     diff = self.diff_decoder(diff_latent)
-
-
-        #     _ht = next_ht
-        #     # back to ppc 
-        #     hts_rollout.append(_ht)
-
-
-        
-        # # # for f learning, execute 4 skill more
-        # # for _ in range(9):
-        # #     skill = self.skill_prior.dist(self.state_to_ppc(_ht)).sample()
-        # #     _ht = self.forward_D(_ht, skill)
-        # #     hts_rollout.append(_ht)
-            
-        # # hts_rollout = torch.stack(hts_rollout, dim = 1)
-        # # N, T, _ = hts_rollout.shape
-        # # states_rollout = self.target_state_decoder( hts_rollout.view(N * T, -1), rollout = True).view(N, T, -1)
-
-        # # result =  edict(
-        # #     c = c,
-        # #     states_rollout = states_rollout,
-        # #     skill_sampled = skill_sampled_orig,
-        # #     # hts_rollout = hts_rollout
-        # # )
-        
-        # # for f learning, execute 4 skill more
-        # for i in range(90):
-        #     if i % 10 == 0:
-        #         skill = self.skill_prior.dist(self.state_to_ppc(_ht)).sample()
-        #     _ht = self.forward_flatD(_ht, skill)
-        #     hts_rollout.append(_ht)
-            
-        # hts_rollout = torch.stack(hts_rollout, dim = 1)
-        # N, T, _ = hts_rollout.shape
-        # states_rollout = self.state_decoder( hts_rollout.view(N * T, -1), rollout = True).view(N, T, -1)
-
-        # result =  edict(
-        #     c = c,
-        #     states_rollout = states_rollout,
-        #     skill_sampled = skill_sampled_orig,
-        #     # hts_rollout = hts_rollout
-        # )
-
-
         states = batch.states
         N, T, _ = states.shape
         skill_length = T - 1
 
-        if self.cfg.distributional:
-            hts = self.state_encoder.dist(states.view(N * T, -1)).sample().view(N, T, -1)  
-            ht_ppc = self.state_encoder.dist(states[:, 0]).sample()
-        else:
-            hts = self.state_encoder(states.view(N * T, -1)).view(N, T, -1)  
-            ht_ppc = self.state_encoder(states[:, 0])
+
+        hts, _, ht_env = self.state_encoder(states.view(N * T, -1))
+        hts = hts.view(N, T, -1)  
+        ht_ppc = hts[:, 0].chunk(2, -1)[0]
 
         c = random.sample(range(1, skill_length - 1), 1)[0]
         _ht = hts[:, c].clone()
@@ -384,31 +287,41 @@ class GoalConditioned_Diversity_Joint_Prior(ContextPolicyMixin, BaseModule):
 
         states_rollout = []
         _state = states[:, c]
+        env_raw_state = states[:, c, self.cfg.n_obj:]
 
         # 1 skill
         for _ in range(c, skill_length):
             # execute skill on latent space and append to the original sub-trajectory 
             # flat_D로 rollout -> diff in latent space -> diff in raw state space 
-            next_ht = self.forward_flatD(_ht, skill_sampled) 
-            diff_latent = next_ht - _ht
-            diff = self.diff_decoder(diff_latent)
-            _ht = next_ht
-            # back to ppc 
-            _state = _state + diff
+            next_ht, cache = self.forward_flatD(_ht, skill_sampled) 
+            _, _, _, diff_env_latent = cache
+            diff_env = self.diff_decoder(diff_env_latent)
+            _, ppc_raw_state, _ = self.state_decoder(next_ht)
+            env_raw_state = env_raw_state + diff_env
+
+            _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
+
             states_rollout.append(_state)
+            _ht = next_ht
+            ht_ppc, ht_env = next_ht.chunk(2, -1)
         
         skills = []
         # for f learning, execute 4 skill more
         for i in range(90):
             if i % 10 == 0:
-                skill = self.skill_prior.dist(self.state_to_ppc(_ht)).sample()
-            next_ht = self.forward_flatD(_ht, skill) 
-            diff_latent = next_ht - _ht
-            diff = self.diff_decoder(diff_latent)
-            _ht = next_ht
+                skill = self.skill_prior.dist(ht_ppc).sample()
+            next_ht, cache = self.forward_flatD(_ht, skill) 
+            _, _, _, diff_env_latent = cache
+            diff_env = self.diff_decoder(diff_env_latent)
+            _, ppc_raw_state, _ = self.state_decoder(next_ht)
+            env_raw_state = env_raw_state + diff_env
+
+            _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
+
             # back to ppc 
-            _state = _state + diff
             states_rollout.append(_state)
+            _ht = next_ht
+            ht_ppc, ht_env = next_ht.chunk(2, -1)
             skills.append(skill)
             
         states_rollout = torch.stack(states_rollout, dim = 1)

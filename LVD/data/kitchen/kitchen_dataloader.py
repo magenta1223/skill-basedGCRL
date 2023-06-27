@@ -212,6 +212,10 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
         G[ : self.n_obj] = 0 # only env state
 
+        
+
+
+
         output = dict(
             states=states,
             actions=actions,
@@ -224,7 +228,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
     def __skill_learning_with_buffer__(self):
 
-        if np.random.rand() < self.mixin_ratio:
+        if np.random.rand() < self.mixin_ratio and self.buffer_now.size > 0:
             # T, state_dim + action_dim
             # states, actions = self.buffer_prev.sample()
             # states, actions = self.buffer_now.sample()
@@ -242,6 +246,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             #     weights = discount_start * discount_G
             #     # start_idx = 999 #self.novel
             # )
+            
 
 
 
@@ -282,6 +287,10 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
             actions = actions[start_idx:start_idx+self.subseq_len-1]
+
+
+
+
 
             # trajectory
             output = dict(

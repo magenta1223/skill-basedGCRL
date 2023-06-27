@@ -14,6 +14,8 @@ __all__ = [
     'InverseDynamicsMLP',
     'DecoderNetwork',
     'Normal_Distribution',
+    'Multisource_Encoder',
+    'Multisource_Decoder',
     # priors
     'PRIOR_WRAPPERS'
 ]

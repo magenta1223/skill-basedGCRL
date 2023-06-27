@@ -9,7 +9,7 @@ from copy import deepcopy
 import cv2
 
 
-class GoalConditioned_Diversity_Joint_Model(BaseModel):
+class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
     """
     """
     def __init__(self, cfg):
@@ -28,8 +28,12 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.seen_tasks = envtask_cfg.known_tasks
 
         # state enc/dec
-        state_encoder = SequentialBuilder(cfg.state_encoder)
-        state_decoder = SequentialBuilder(cfg.state_decoder)
+        # state_encoder = SequentialBuilder(cfg.state_encoder)
+        # state_decoder = SequentialBuilder(cfg.state_decoder)
+        
+        state_encoder = Multisource_Encoder(cfg.state_encoder)
+        state_decoder = Multisource_Decoder(cfg.state_decoder)
+
 
         # prior policy submodules
         inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
@@ -39,12 +43,10 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         dynamics = SequentialBuilder(cfg.dynamics)
 
         if cfg.robotics:
-            state_to_ppc = SequentialBuilder(cfg.state_to_ppc)
-            diff_decoder = SequentialBuilder(cfg.state_decoder)
+            diff_decoder = SequentialBuilder(cfg.diff_decoder)
 
         else:
-            state_to_ppc = torch.nn.Identity()
-            diff_decoder = SequentialBuilder(cfg.state_decoder)
+            diff_decoder = SequentialBuilder(cfg.diff_decoder)
 
 
         # if self.robotics:
@@ -52,10 +54,9 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         # else:
         #     prior_proprioceptive = None
         
-        self.prior_policy = PRIOR_WRAPPERS['gc_div_joint'](
+        self.prior_policy = PRIOR_WRAPPERS['gc_div_joint_sep'](
             # components  
             skill_prior = prior,
-            state_to_ppc = state_to_ppc,
             # skill_prior_ppc = prior_proprioceptive,
             state_encoder = state_encoder,
             state_decoder = state_decoder,
@@ -128,14 +129,6 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
                 "metric" : "recon_state"
                 # "metric" : None
             },
-            "state2ppc" : {
-                "optimizer" : RAdam([
-                    {'params' : self.prior_policy.state_to_ppc.parameters()},
-                ], lr = self.lr
-                ),
-                "metric" : "ppc_loss"
-                # "metric" : "ppc_loss"
-            },
             "diff" : {
                 "optimizer" : RAdam([
                     {'params' : self.prior_policy.diff_decoder.parameters()},
@@ -185,7 +178,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         self.loss_dict['metric'] = self.loss_dict['Prior_GC']
         
         # subgoal by flat dynamics rollout
-        reconstructed_subgoal = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
+        reconstructed_subgoal, _, _ = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
         self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :], weights).item()
         self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D'], weights).item()
 
@@ -228,7 +221,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             z_normal = None
             z = skill.clone().detach()
         
-
+        # 
+        # decode_inputs = self.dec_input(skill_states[:, :, :self.n_obj].clone(), skill, self.Hsteps)
         decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
 
         N, T = decode_inputs.shape[:2]
@@ -307,32 +301,22 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
 
-        ppc_loss = self.loss_fn("recon")(
-            self.outputs['states_ppc'], 
-            self.outputs['states_ppc_target'], 
-            weights
-        )
-
-
         diff_loss = self.loss_fn("recon")(
             self.outputs['diff'], 
             self.outputs['diff_target'], 
             weights
         )
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + ppc_loss + diff_loss
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss
         
         reg_state_loss = torch.tensor([0])
+
         if self.mmd:
             z_tilde = self.outputs['states_repr']
             z = self.outputs['states_fixed_dist']
             reg_state_loss = compute_mmd(z_tilde, z)
             loss +=  reg_state_loss * self.state_reg_beta
 
-        if self.distributional:
-            reg_state_loss = self.loss_fn("reg")(self.outputs['states_dist'], self.outputs['states_fixed_dist']).mean()
-            loss = loss + reg_state_loss * self.state_reg_beta
-        
 
 
 
@@ -352,7 +336,6 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
             "skill_metric" : recon.item() + reg.item() * self.reg_beta,
             "Rec_state" : recon_state.item(),
             "Reg_state" : reg_state_loss.item(),
-            "ppc_loss" : ppc_loss.item() if self.robotics or self.mmd else 0,
             "state_embed_std" : self.outputs['states_repr'].std(dim = -1).mean().item(),
             "diff_loss" : diff_loss.item()
         }       
@@ -375,6 +358,7 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
         skills = torch.cat(( skill_sampled.unsqueeze(1).repeat(1,T-c-1, 1), skills ), dim = 1)
 
 
+        # dec_inputs = torch.cat((states_rollout[:,:, :self.n_obj], skills), dim = -1)
         dec_inputs = torch.cat((states_rollout, skills), dim = -1)
 
 
@@ -421,7 +405,8 @@ class GoalConditioned_Diversity_Joint_Model(BaseModel):
 
 
 
-        if render and self.env.name == "kitchen" and unseen_G_indices.sum():
+        if self.env.name == "kitchen" and unseen_G_indices.sum():
+            
             imgs = []
             task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
             with self.env.set_task(self.tasks[0]):

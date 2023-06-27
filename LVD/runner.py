@@ -335,7 +335,6 @@ class Diversity_Trainer(BaseTrainer):
             # if i == 0:
             #     print("Optimize : ", f"{time.time()-optim_start:.5f}")
             if "states_novel" in loss.keys():
-                
                 loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"), loss.pop("c"))
             
             if "render" in loss.keys():

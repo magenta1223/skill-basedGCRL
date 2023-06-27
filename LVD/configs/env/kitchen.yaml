@@ -28,6 +28,7 @@ warmup_steps : 20
 skill_dim : 10
 latent_state_dim : 32
 reg_beta : 0.0005
+state_reg_beta : 1e-4
 prior_state_dim : 30
 wae_coef : 10
 val_data_size : 5000

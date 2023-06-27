@@ -12,30 +12,6 @@ grad_pass:
   D : true
 
 diff : true
-mmd : false
-distributional : true
-
-
-state_encoder :
-  n_blocks : 5
-  hidden_dim : 128 
-  module_type : linear
-  linear_cls : LVD.modules.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  bias : true
-  tanh  : true
-  dropout : 0
-
-state_decoder :
-  n_blocks : 5
-  hidden_dim : 128 
-  module_type : linear
-  linear_cls : LVD.modules.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  bias : true
-  dropout : 0
 
 dynamics :
   n_blocks : 5
@@ -69,30 +45,6 @@ subgoal_generator :
   dropout : 0   
 
 prior : 
-  n_blocks : 5
-  hidden_dim : 128
-  module_type : linear
-  linear_cls : LVD.modules.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  tanh : true
-  bias : true
-  dropout : 0
-
-
-state_to_ppc : 
-  n_blocks : 3
-  hidden_dim : 128
-  module_type : linear
-  linear_cls : LVD.modules.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  tanh : true
-  bias : true
-  dropout : 0
-
-
-ppc : 
   n_blocks : 5
   hidden_dim : 128
   module_type : linear
