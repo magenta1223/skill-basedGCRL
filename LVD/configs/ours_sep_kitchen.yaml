@@ -3,7 +3,7 @@ defaults:
   - model: ours_sep
   - env : kitchen
 
-dataset_cls : LVD.data.Kitchen_Dataset_Div
+dataset_cls : LVD.data.Kitchen_Dataset_Div_Sep
 structure : gc_div_joint_sep
 env:
   epoch_cycles_train: ${get_cycle:${env.batch_size}}
@@ -58,10 +58,13 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
+    # in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
     # in_feature : ${add:${env.n_obj}, ${env.skill_dim}} 
+    in_feature : ${get_indim:${model.decode_only_ppc}, ${env.state_dim}, ${env.n_obj}, ${env.skill_dim}} 
+
     out_dim : ${env.action_dim} 
-    state_dim : ${env.state_dim}
+    # state_dim : ${env.state_dim}
+    state_dim : ${get_statedim:${model.decode_only_ppc}, ${env.state_dim}, ${env.n_obj}}
     z_dim  : ${env.skill_dim}
 
   q_function:

@@ -56,7 +56,7 @@ scheduler_params :
   # threshold: 0.005
   # threshold_mode: rel
   # min_lr: 1e-6
-  min_lr: 1e-5
+  min_lr: 1e-6
 
 rl :
   render_period : 10

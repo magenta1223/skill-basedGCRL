@@ -28,12 +28,11 @@ class RepeatedDataLoader(DataLoader):
     def set_sampler(self, sampler):
         self.batch_sampler = sampler
 
-
     def set_mode(self, mode):
         self.dataset.set_mode(mode)
     
-    def enqueue(self, states, actions, c = None):
-        self.dataset.enqueue(states, actions, c)
+    def enqueue(self, states, actions, *args, **kwargs):
+        self.dataset.enqueue(states, actions, *args, **kwargs)
 
     def update_buffer(self):
         self.dataset.update_buffer()

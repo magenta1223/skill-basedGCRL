@@ -43,6 +43,7 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
 
     # from simpl. for compatibility with simpl
     def dist(self, batch_state_z):
+        # 굳이 필요할까 ?
         if self.state_dim is not None:
             # self.state_dim = 30
             batch_state_z = torch.cat([

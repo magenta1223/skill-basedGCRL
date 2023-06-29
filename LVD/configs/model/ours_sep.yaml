@@ -2,7 +2,7 @@ subseq_len : 11
 tanh : true
 gc : true
 
-skill_trainer : LVD.runner.Diversity_Trainer
+skill_trainer : LVD.runner.Diversity_Trainer2
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 consistency_update : true
 model_update : true
@@ -14,7 +14,7 @@ grad_pass:
 diff : true
 mmd : false
 distributional : true
-
+decode_only_ppc : false
 
 state_encoder :
   n_blocks : 5

@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 from ..contrib.spirl.pytorch_utils import RepeatedDataLoader 
 from easydict import EasyDict as edict
 import random
+from copy import deepcopy
 
 class Base_Dataset(Dataset):
     SPLIT = edict(train=0.99, val=0.01, test=0.0)
@@ -18,7 +19,7 @@ class Base_Dataset(Dataset):
         self.end = -1
 
 
-    def _sample_seq(self, index= False):
+    def _sample_seq(self, index= False, return_index= False):
         # # random_index = random.randint(self.start, self.end - 1)
         # idx = index % self.n_seqs
         # return self.seqs[idx]
@@ -26,14 +27,23 @@ class Base_Dataset(Dataset):
         try:
             if index:
                 print(f"index {index}")
-                return self.seqs[index]
+                if return_index:
+                    return deepcopy(self.seqs[index]), index
+                else:
+                    return deepcopy(self.seqs[index])
             else:
                 # return np.random.choice(self.seqs[self.start:self.end])
                 random_index = random.randint(self.start, self.end - 1)
-                return self.seqs[random_index]
+                if return_index:
+                    return deepcopy(self.seqs[random_index]), random_index
+                else:
+                    return deepcopy(self.seqs[random_index])
 
         except:
-            return self.seqs[-1]
+            if return_index:
+                return deepcopy(self.seqs[-1]), len(self.seqs) - 1
+            else:
+                return deepcopy(self.seqs[-1])
 
 
     def sample_indices(self, states, min_idx = 0): 

@@ -341,28 +341,19 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     def encode(self, states, keep_grad = False, prior = False):
         if keep_grad:
             if prior:
-                if self.cfg.distributional:
-                    ht = self.state_to_ppc(self.state_encoder.dist(states).rsample())
-                else:
-                    ht = self.state_to_ppc(self.state_encoder(states))
+                ht, ht_ppc, ht_env = self.state_encoder(states)
+                ht = ht_ppc
             else:
-                if self.cfg.distributional:
-                    ht = self.state_encoder.dist(states).rsample()
-                else:
-                    ht = self.state_encoder(states)
+                ht, _, _ = self.state_encoder(states)
 
         else:
             with torch.no_grad():
                 if prior:
-                    if self.cfg.distributional:
-                        ht = self.state_to_ppc(self.state_encoder.dist(states).sample())
-                    else:
-                        ht = self.state_to_ppc(self.state_encoder(states))
+                    ht, ht_ppc, ht_env = self.state_encoder(states)
+                    ht = ht_ppc
                 else:
-                    if self.cfg.distributional:
-                        ht = self.state_encoder.dist(states).sample()
-                    else:
-                        ht = self.state_encoder(states)
+                    ht, _, _ = self.state_encoder(states)
+
         return ht
 
     def dist(self, batch, mode = "policy"):
@@ -373,10 +364,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # policy or act
             state, G = batch.states, batch.G 
             with torch.no_grad():
-                if self.cfg.distributional:
-                    ht = self.state_encoder.dist(state).sample()
-                else:
-                    ht = self.state_encoder(state)
+                ht, ht_ppc, ht_env = self.state_encoder(state)
 
             # subgoal 
             _, _, subgoal_f = self.forward_subgoal_G(ht, G)
@@ -424,14 +412,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         # BC를 하려면 반드시 relabeled G여야 함. 
         states, G, next_states = batch.states, batch.G, batch.next_states
         # self.state_encoder.eval()
-        if self.cfg.distributional:
-            ht = self.state_encoder.dist(states).rsample()
-            htH = self.state_encoder.dist(next_states).rsample()
-            htH_target = self.target_state_encoder.dist(next_states).rsample()
-        else:
-            ht = self.state_encoder(states)
-            htH = self.state_encoder(next_states)
-            htH_target = self.target_state_encoder(next_states)
+
+        ht, _, _ = self.state_encoder(states)
+        htH,  _, _ = self.state_encoder(next_states)
+        htH_target,  _, _ = self.target_state_encoder(next_states)
 
 
         # inverse dynamics 

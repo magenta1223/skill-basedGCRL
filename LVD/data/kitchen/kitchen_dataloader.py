@@ -183,13 +183,12 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         
     def __skill_learning__(self):
         
-        seq = deepcopy(self._sample_seq())
+        seq = self._sample_seq()
         start_idx, goal_idx = self.sample_indices(seq.states)
 
         assert start_idx < goal_idx, "Invalid"
 
         # trajectory
-        # states = seq_skill.states[start_idx : start_idx+self.subseq_len, :self.n_obj + self.n_env]
         states = seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim]
         actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
 
@@ -197,8 +196,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         # G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
         # G[ : self.n_obj] = 0 # only env state
 
-
-        seg_points = deepcopy(seq.points)
+        seg_points = seq.points
         seg_points = sorted( seg_points + [start_idx])
         start_pos = seg_points.index(start_idx)
         # a가 seg_points의 마지막이라면 -> last state 를 goal로
@@ -211,10 +209,6 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
         G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
         G[ : self.n_obj] = 0 # only env state
-
-        
-
-
 
         output = dict(
             states=states,
@@ -247,13 +241,8 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             #     # start_idx = 999 #self.novel
             # )
             
-
-
-
             states, actions, c = self.buffer_now.sample()
             start_idx, goal_idx = self.sample_indices(states)
-
-
 
             # # hindsight relabeling
             # goal_idx = start_idx + self.subseq_len
@@ -275,8 +264,6 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             #     goal_idx = np.random.randint(goal_idx, len(states) -1)
             
             goal_idx = -1
-
-            # G = deepcopy(states[goal_idx])[self.n_obj:self.n_obj + self.n_goal]
             G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
             G[ : self.n_obj] = 0 # only env state
 
@@ -287,10 +274,6 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
             actions = actions[start_idx:start_idx+self.subseq_len-1]
-
-
-
-
 
             # trajectory
             output = dict(
@@ -329,3 +312,152 @@ class Kitchen_Dataset_Flat(Kitchen_Dataset):
         )
 
         return output
+    
+
+
+class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
+    """
+    """
+
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+
+        self.__mode__ = "skill_learning"
+
+        self.__getitem_methods__ = {
+            "skill_learning" : self.__skill_learning__,
+            "with_buffer" : self.__skill_learning_with_buffer__,
+        }
+        
+        self.max_generated_seqs = 10000
+        self.generated_seqs = []
+
+        self.discount_lambda = np.log(0.99)
+
+    def set_mode(self, mode):
+        assert mode in ['skill_learning', 'with_buffer']
+        self.__mode__ = mode 
+        print(f"MODE : {self.mode}")
+    
+    @property
+    def mode(self):
+        return self.__mode__
+
+    def enqueue(self, states, actions, c = None, sequence_indices = None):
+        
+        
+        for i, seq_idx in enumerate(sequence_indices):
+            seq = deepcopy(self.seqs[seq_idx])
+            generated_states = states[i]
+            generated_actions = actions[i]
+
+            concatenated_states = np.concatenate((seq.states[:c, :self.state_dim], generated_states), axis = 0)
+            concatenated_actions = np.concatenate((seq.actions[:c], generated_actions), axis = 0)
+            
+            # 뭔가가 tensor임. 
+            new_seq = edict(
+                states = concatenated_states,
+                actions = concatenated_actions,
+                c = c,
+                seq_index = seq_idx
+            )
+
+            self.generated_seqs.append(new_seq)
+
+            if len(self.generated_seqs) > self.max_generated_seqs:
+                self.generated_seqs = self.generated_seqs[1:]
+
+        # self.buffer_now.enqueue(states, actions, c)
+
+    def update_buffer(self):
+        pass
+        # self.buffer_prev.copy_from(self.buffer_now)
+        # self.buffer_now.reset()
+
+    def __getitem__(self, index):
+        # mode에 따라 다른 sampl 
+        return self.__getitem_methods__[self.mode]()
+        
+    def __skill_learning__(self):
+        
+        seq, index = self._sample_seq(return_index= True)
+        start_idx, goal_idx = self.sample_indices(seq.states)
+
+        assert start_idx < goal_idx, "Invalid"
+
+        # trajectory
+        states = seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim]
+        actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
+
+        # hindsight relabeling 
+        # G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
+        # G[ : self.n_obj] = 0 # only env state
+
+        seg_points = deepcopy(seq.points)
+        seg_points = sorted( seg_points + [start_idx])
+        start_pos = seg_points.index(start_idx)
+        # a가 seg_points의 마지막이라면 -> last state 를 goal로
+        # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
+        if start_pos == (len(seg_points) - 1):
+            g_index = len(seq.states) - 1
+        else:
+            # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
+            g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+
+        G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
+        G[ : self.n_obj] = 0 # only env state
+
+        output = dict(
+            states=states,
+            actions=actions,
+            G = G,
+            rollout = True,
+            weights = 1,
+            seq_index = index
+        )
+
+        return output
+
+    def __skill_learning_with_buffer__(self):
+
+        if np.random.rand() < self.mixin_ratio and len(self.generated_seqs) > 0:
+            # np.random.choice()
+            # _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
+            
+            # seq = deepcopy( np.random.choice(self.generated_seqs, 1))
+            # seq = deepcopy(self.generated_seqs[_seq_index])
+            # seq = deepcopy(self.generated_seqs.sample())
+
+            _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
+            seq = deepcopy(self.generated_seqs[_seq_index])
+
+            states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
+            start_idx, goal_idx = self.sample_indices(states)
+            
+            goal_idx = -1
+            G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
+            G[ : self.n_obj] = 0 # only env state
+            
+            # 
+            discount_start = np.exp(self.discount_lambda * (start_idx - c))
+            # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
+            discount_G = 1
+
+
+            states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
+            actions = actions[start_idx:start_idx+self.subseq_len-1]
+
+            # trajectory
+            output = dict(
+                states=states,
+                actions=actions,
+                G=G,
+                rollout = False,
+                weights = discount_start * discount_G,
+                seq_index = seq_index
+                # start_idx = 999 #self.novel
+            )
+
+            return output
+        else:
+            return self.__skill_learning__()

@@ -222,8 +222,10 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             z = skill.clone().detach()
         
         # 
-        # decode_inputs = self.dec_input(skill_states[:, :, :self.n_obj].clone(), skill, self.Hsteps)
-        decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
+        if self.decode_only_ppc:
+            decode_inputs = self.dec_input(skill_states[:, :, :self.n_obj].clone(), skill, self.Hsteps)
+        else:
+            decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
 
         N, T = decode_inputs.shape[:2]
         skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
@@ -358,8 +360,10 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         skills = torch.cat(( skill_sampled.unsqueeze(1).repeat(1,T-c-1, 1), skills ), dim = 1)
 
 
-        # dec_inputs = torch.cat((states_rollout[:,:, :self.n_obj], skills), dim = -1)
-        dec_inputs = torch.cat((states_rollout, skills), dim = -1)
+        if self.decode_only_ppc:
+            dec_inputs = torch.cat((states_rollout[:,:, :self.n_obj], skills), dim = -1)
+        else:
+            dec_inputs = torch.cat((states_rollout, skills), dim = -1)
 
 
         N, T, _ = dec_inputs.shape
@@ -369,7 +373,9 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
         states_novel = torch.cat((batch.states[:, :c+1], states_rollout), dim = 1)[batch.rollout].detach().cpu()
         actions_novel = torch.cat((batch.actions[:, :c], actions_rollout), dim = 1)[batch.rollout].detach().cpu()
+        seq_indices = batch.seq_index[batch.rollout]
         
+
         # unseen tasks인 경우에만 추가, 렌더하고 싶음. 
         if self.seen_tasks is not None:
             # unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) not in self.seen_tasks for state_seq in states_novel]
@@ -380,6 +386,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             if unseen_G_indices.sum():
                 self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
                 self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
+                self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
                 self.c = c
                 self.loss_dict['c'] = c
 
@@ -387,10 +394,15 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         else:
             self.loss_dict['states_novel'] = states_novel
             self.loss_dict['actions_novel'] = actions_novel
+            self.loss_dict['seq_indices'] = seq_indices
             self.c = c
             self.loss_dict['c'] = c
         
-
+        # self.loss_dict['states_novel'] = states_novel
+        # self.loss_dict['actions_novel'] = actions_novel
+        # self.loss_dict['seq_indices'] = seq_indices
+        # self.c = c
+        # self.loss_dict['c'] = c
 
         # self.loss_dict['states_novel'] 
         # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 

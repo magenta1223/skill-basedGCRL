@@ -389,3 +389,81 @@ class Diversity_Trainer(BaseTrainer):
         save_dict = self.save_dict()
         save_dict['cls'] = Diversity_Trainer
         torch.save(save_dict, path)
+
+
+
+class Diversity_Trainer2(Diversity_Trainer):
+    def train_one_epoch(self, loader, e, rollout):
+        # print(loader.dataset.mode)
+        self.meter_initialize()
+        # start = time.time()
+        imgs = None
+        for i, batch in enumerate(loader):
+            # if i == 0:
+            #     print("Loading : ", f"{time.time()-start:.5f}")
+            # optim_start = time.time()
+            render = False
+
+            if i == 0:
+                render = True
+        
+            self.model.train()
+            loss = self.model.optimize(batch, e, rollout, render)
+
+            # if i == 0:
+            #     print("Optimize : ", f"{time.time()-optim_start:.5f}")
+            if "states_novel" in loss.keys():
+                loader.enqueue(loss.pop("states_novel"), loss.pop("actions_novel"), loss.pop("c"), loss.pop("seq_indices"))
+            
+            if "render" in loss.keys():
+                imgs = loss.pop("render")
+
+            if not len(self.meters):
+                for key in loss.keys():
+                    self.meters[key] = AverageMeter()
+  
+            for k, v in loss.items():
+                self.meters[k].update(v, batch['states'].shape[0])
+
+
+
+
+        if imgs is not None:
+            path = f"{self.run_path}/imgs/{e}.mp4"
+            print(f"Rendered : {path}")
+            out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, (400,400))
+            for i in range(len(imgs)):
+                # writing to a image array
+                out.write(cv2.cvtColor(imgs[i], cv2.COLOR_BGR2RGB))
+            out.release() 
+
+        return { k : v.avg for k, v in self.meters.items() }
+
+    @torch.no_grad()
+    def validate(self, loader, e):
+
+        self.model.eval()
+        self.meter_initialize()
+
+        for i, batch in enumerate(loader):
+            self.model.eval() # ?
+            loss = self.model.validate(batch, e)
+
+            if "states_novel" in loss.keys():
+                loss.pop("states_novel")
+                loss.pop("actions_novel")
+
+            if not len(self.meters):
+                for key in loss.keys():
+                    self.meters[key] = AverageMeter()
+
+            for k, v in loss.items():
+                self.meters[k].update(v, batch['states'].shape[0])
+
+        return { k : v.avg for k, v in self.meters.items()}
+    
+    def save(self, path):
+        self.model.eval()
+        save_dict = self.save_dict()
+        save_dict['cls'] = Diversity_Trainer2
+        torch.save(save_dict, path)
