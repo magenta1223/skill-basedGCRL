@@ -1,6 +1,6 @@
 import logging
-from rlcarla.carla_env.collect_data import collect_data
-from rlcarla.carla_env.utils.logger import Logging
+from rlcarla2.carla_env.collect_data import collect_data
+from rlcarla2.carla_env.utils.logger import Logging
 import hydra 
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf
