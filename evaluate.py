@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import torch
 
+from collections import Counter
+
 from LVD.utils import seed_everything
 from LVD.envs import ENV_TASK
 
