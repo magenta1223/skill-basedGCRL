@@ -208,8 +208,8 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             generated_states = states[i]
             generated_actions = actions[i]
 
-            concatenated_states = np.concatenate((seq.states[:c, :self.state_dim], generated_states), axis = 0)
-            concatenated_actions = np.concatenate((seq.actions[:c], generated_actions), axis = 0)
+            concatenated_states = np.concatenate((seq['obs'][:c, :self.state_dim], generated_states), axis = 0)
+            concatenated_actions = np.concatenate((seq['actions'][:c], generated_actions), axis = 0)
             
             # 뭔가가 tensor임. 
             new_seq = edict(
