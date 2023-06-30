@@ -301,12 +301,14 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
-
-        diff_loss = self.loss_fn("recon")(
-            self.outputs['diff'], 
-            self.outputs['diff_target'], 
-            weights
-        )
+        if self.robotics:
+            diff_loss = self.loss_fn("recon")(
+                self.outputs['diff'], 
+                self.outputs['diff_target'], 
+                weights
+            )
+        else:
+            diff_loss = 0
 
         loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss
         

@@ -88,10 +88,13 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         
         # only env diff만 
         # diff_flat = flat_D - hts[:, :-1]
-
-        diff_env_latent = cache[-1].view(N, T-1, -1)
-        diff = self.diff_decoder(diff_env_latent.clone().detach())
-        diff_target = states[:, 1:, self.cfg.n_obj:] - states[:, :-1, self.cfg.n_obj:]
+        if self.cfg.robotics:
+            diff_env_latent = cache[-1].view(N, T-1, -1)
+            diff = self.diff_decoder(diff_env_latent.clone().detach())
+            diff_target = states[:, 1:, self.cfg.n_obj:] - states[:, :-1, self.cfg.n_obj:]
+        else:
+            diff = 0
+            diff_target = 0
 
         # # -------------- Subgoal Generator -------------- #
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
