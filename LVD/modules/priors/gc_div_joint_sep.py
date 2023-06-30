@@ -290,7 +290,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         hts, _, ht_env = self.state_encoder(states.view(N * T, -1))
         hts = hts.view(N, T, -1)  
-        ht_ppc = hts[:, 0].chunk(2, -1)[0]
+        if self.cfg.robotics:
+            ht_ppc = hts[:, 0].chunk(2, -1)[0]
+        else:
+            ht_ppc = hts[:, 0]
 
         c = random.sample(range(1, skill_length - 1), 1)[0]
         _ht = hts[:, c].clone()
@@ -317,7 +320,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             states_rollout.append(_state)
             _ht = next_ht
-            ht_ppc, ht_env = next_ht.chunk(2, -1)
+            if self.cfg.robotics:
+                ht_ppc, ht_env = next_ht.chunk(2, -1)
+            else:
+                ht_ppc = next_ht
         
         skills = []
         # for f learning, execute 4 skill more
@@ -339,7 +345,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # back to ppc 
             states_rollout.append(_state)
             _ht = next_ht
-            ht_ppc, ht_env = next_ht.chunk(2, -1)
+            if self.cfg.robotics:
+                ht_ppc, ht_env = next_ht.chunk(2, -1)
+            else:
+                ht_ppc = next_ht
             skills.append(skill)
             
         states_rollout = torch.stack(states_rollout, dim = 1)
