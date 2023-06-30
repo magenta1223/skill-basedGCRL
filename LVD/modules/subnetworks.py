@@ -94,18 +94,25 @@ class Multisource_Encoder(SequentialBuilder):
         super().__init__(config)
         del self.layers
         
-        ppc_config = {**config}
-        ppc_config['in_feature'] = config['ppc_state_dim']
-        ppc_config['out_dim'] = config['latent_state_dim'] // 2
-        self.ppc_encoder = SequentialBuilder(ppc_config)
-
-        env_config = {**config}
-        env_config['in_feature'] = config['env_state_dim']
-        env_config['out_dim'] = config['latent_state_dim'] // 2
         
-        if env_config['env_state_dim'] == 0:
+        if config['env_state_dim'] == 0:
+            ppc_config = {**config}
+            ppc_config['in_feature'] = config['ppc_state_dim']
+            ppc_config['out_dim'] = config['latent_state_dim']
+            self.ppc_encoder = SequentialBuilder(ppc_config)
             self.env_encoder = None
+
         else:
+
+            ppc_config = {**config}
+            ppc_config['in_feature'] = config['ppc_state_dim']
+            ppc_config['out_dim'] = config['latent_state_dim'] // 2
+            self.ppc_encoder = SequentialBuilder(ppc_config)
+
+            env_config = {**config}
+            env_config['in_feature'] = config['env_state_dim']
+            env_config['out_dim'] = config['latent_state_dim'] // 2
+
             self.env_encoder = SequentialBuilder(env_config)
 
 
@@ -128,19 +135,25 @@ class Multisource_Decoder(SequentialBuilder):
     def __init__(self, config: Dict[str, None]):
         super().__init__(config)
         del self.layers
-        
-        ppc_config = {**config}
-        ppc_config['in_feature'] = config['latent_state_dim'] // 2
-        ppc_config['out_dim'] = config['ppc_state_dim']
-        self.ppc_decoder = SequentialBuilder(ppc_config)
+    
+        if config['env_state_dim'] == 0:
 
-        env_config = {**config}
-        env_config['in_feature'] = config['latent_state_dim'] // 2
-        env_config['out_dim'] = config['env_state_dim']
+            ppc_config = {**config}
+            ppc_config['in_feature'] = config['latent_state_dim']
+            ppc_config['out_dim'] = config['ppc_state_dim']
+            self.ppc_decoder = SequentialBuilder(ppc_config)
 
-        if env_config['env_state_dim'] == 0:
             self.env_decoder = None
         else:
+            ppc_config = {**config}
+            ppc_config['in_feature'] = config['latent_state_dim'] // 2
+            ppc_config['out_dim'] = config['ppc_state_dim']
+            self.ppc_decoder = SequentialBuilder(ppc_config)
+
+            env_config = {**config}
+            env_config['in_feature'] = config['latent_state_dim'] // 2
+            env_config['out_dim'] = config['env_state_dim']
+    
             self.env_decoder = SequentialBuilder(env_config)
 
     def forward(self, state_embedding):
