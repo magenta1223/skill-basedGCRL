@@ -6,9 +6,11 @@ from .kitchen.kitchen_dataloader import *
 __all__ = [
     'Kitchen_Dataset',
     'Kitchen_Dataset_Div',
+    'Kitchen_Dataset_Div_Sep',
     'Kitchen_Dataset_Flat',
     'Maze_Dataset',
     'Maze_Dataset_Div',
+    'Maze_Dataset_Div_Sep'
     'Carla_Dataset',
     'Carla_Dataset_Div',
 ]
