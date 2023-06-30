@@ -359,7 +359,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 states = concatenated_states,
                 actions = concatenated_actions,
                 c = c,
-                seq_index = seq_idx
+                seq_index = seq_idx.item()
             )
 
             self.generated_seqs.append(new_seq)

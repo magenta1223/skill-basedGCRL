@@ -18,15 +18,15 @@ epoch_cycles_train : 50
 
 
 batch_size : 500
-mixin_start : 30
+mixin_start : 60
 mixin_ratio : 0.05
 plan_H : 100
-epochs : 70
+epochs : 100
 # epochs : 40
 warmup_steps : 20
 
 skill_dim : 10
-latent_state_dim : 32
+latent_state_dim : 256
 reg_beta : 0.0005
 state_reg_beta : 1e-4
 prior_state_dim : 30
