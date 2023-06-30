@@ -294,12 +294,15 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # execute skill on latent space and append to the original sub-trajectory 
             # flat_D로 rollout -> diff in latent space -> diff in raw state space 
             next_ht, cache = self.forward_flatD(_ht, skill_sampled) 
-            _, _, _, diff_env_latent = cache
-            diff_env = self.diff_decoder(diff_env_latent)
-            _, ppc_raw_state, _ = self.state_decoder(next_ht)
-            env_raw_state = env_raw_state + diff_env
-
-            _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
+            if self.cfg.robotics:
+                _, _, _, diff_env_latent = cache
+                diff_env = self.diff_decoder(diff_env_latent)
+                _, ppc_raw_state, _ = self.state_decoder(next_ht)
+                env_raw_state = env_raw_state + diff_env
+                _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
+            else:
+                _, ppc_raw_state, _ = self.state_decoder(next_ht)
+                _state = ppc_raw_state
 
             states_rollout.append(_state)
             _ht = next_ht
@@ -311,12 +314,16 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             if i % 10 == 0:
                 skill = self.skill_prior.dist(ht_ppc).sample()
             next_ht, cache = self.forward_flatD(_ht, skill) 
-            _, _, _, diff_env_latent = cache
-            diff_env = self.diff_decoder(diff_env_latent)
-            _, ppc_raw_state, _ = self.state_decoder(next_ht)
-            env_raw_state = env_raw_state + diff_env
+            if self.cfg.robotics:
+                _, _, _, diff_env_latent = cache
+                diff_env = self.diff_decoder(diff_env_latent)
+                _, ppc_raw_state, _ = self.state_decoder(next_ht)
+                env_raw_state = env_raw_state + diff_env
 
-            _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
+                _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
+            else:
+                _, ppc_raw_state, _ = self.state_decoder(next_ht)
+                _state = ppc_raw_state
 
             # back to ppc 
             states_rollout.append(_state)

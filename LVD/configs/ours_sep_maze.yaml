@@ -1,12 +1,14 @@
 defaults:
   - common
   - model: ours_sep
-  - env : kitchen
+  - env : maze
 
-dataset_cls : LVD.data.Kitchen_Dataset_Div_Sep
+dataset_cls : LVD.data.Maze_Dataset_Div_Sep
 structure : gc_div_joint_sep
+
 env:
   epoch_cycles_train: ${get_cycle:${env.batch_size}}
+
 model:
   state_encoder :
     in_feature : ${env.state_dim} 
@@ -15,7 +17,6 @@ model:
     env_state_dim : ${env.n_env}
     out_dim : ${get_outdim:${env.latent_state_dim}, ${model.distributional}} 
   
-
   state_decoder :
     in_feature : ${env.latent_state_dim}
     latent_state_dim : ${env.latent_state_dim}
@@ -24,7 +25,6 @@ model:
     out_dim : ${env.state_dim}
 
   dynamics :
-    # in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}} 
     in_feature : ${add:${divide:${env.latent_state_dim}, 2}, ${env.skill_dim}}
     out_dim : ${env.latent_state_dim} 
   
@@ -51,7 +51,6 @@ model:
   skill_decoder:
     in_feature : ${get_indim:${model.decode_only_ppc}, ${env.state_dim}, ${env.n_obj}, ${env.skill_dim}} 
     out_dim : ${env.action_dim} 
-    # state_dim : ${env.state_dim}
     state_dim : ${get_statedim:${model.decode_only_ppc}, ${env.state_dim}, ${env.n_obj}}
     z_dim  : ${env.skill_dim}
 

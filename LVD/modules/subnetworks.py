@@ -102,17 +102,26 @@ class Multisource_Encoder(SequentialBuilder):
         env_config = {**config}
         env_config['in_feature'] = config['env_state_dim']
         env_config['out_dim'] = config['latent_state_dim'] // 2
-        self.env_encoder = SequentialBuilder(env_config)
+        
+        if env_config['env_state_dim'] == 0:
+            self.env_encoder = None
+        else:
+            self.env_encoder = SequentialBuilder(env_config)
 
 
     def forward(self, x):
-        ppc_state = x[..., :self.ppc_state_dim]
-        env_state = x[..., self.ppc_state_dim :]
+        if self.env_state_dim != 0:
+            ppc_state = x[..., :self.ppc_state_dim]
+            env_state = x[..., self.ppc_state_dim :]
 
-        ppc_embedding = self.ppc_encoder(ppc_state)
-        env_embedding = self.env_encoder(env_state)
-    
-        return torch.cat((ppc_embedding, env_embedding), dim = -1), ppc_embedding, env_embedding 
+            ppc_embedding = self.ppc_encoder(ppc_state)
+            env_embedding = self.env_encoder(env_state)
+        
+            return torch.cat((ppc_embedding, env_embedding), dim = -1), ppc_embedding, env_embedding
+        
+        else:
+            ppc_embedding = self.ppc_encoder(x)
+            return ppc_embedding, ppc_embedding, None
     
 
 class Multisource_Decoder(SequentialBuilder):
@@ -128,14 +137,21 @@ class Multisource_Decoder(SequentialBuilder):
         env_config = {**config}
         env_config['in_feature'] = config['latent_state_dim'] // 2
         env_config['out_dim'] = config['env_state_dim']
-        self.env_decoder = SequentialBuilder(env_config)
 
+        if env_config['env_state_dim'] == 0:
+            self.env_decoder = None
+        else:
+            self.env_decoder = SequentialBuilder(env_config)
 
     def forward(self, state_embedding):
-        ppc_embedding = state_embedding[..., :self.latent_state_dim // 2]
-        env_embedding = state_embedding[..., self.latent_state_dim // 2:]
+        if self.env_state_dim != 0:
+            ppc_embedding = state_embedding[..., :self.latent_state_dim // 2]
+            env_embedding = state_embedding[..., self.latent_state_dim // 2:]
 
-        ppc_state_hat = self.ppc_decoder(ppc_embedding)
-        env_state_hat = self.env_decoder(env_embedding)
-    
-        return torch.cat((ppc_state_hat, env_state_hat), dim = -1), ppc_state_hat,  env_state_hat
+            ppc_state_hat = self.ppc_decoder(ppc_embedding)
+            env_state_hat = self.env_decoder(env_embedding)
+        
+            return torch.cat((ppc_state_hat, env_state_hat), dim = -1), ppc_state_hat,  env_state_hat
+        else:
+            ppc_state_hat = self.ppc_decoder(state_embedding)
+            return ppc_state_hat, ppc_state_hat, None

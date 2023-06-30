@@ -46,8 +46,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             diff_decoder = SequentialBuilder(cfg.diff_decoder)
 
         else:
-            diff_decoder = SequentialBuilder(cfg.diff_decoder)
-
+            diff_decoder = torch.nn.Identity()
 
         # if self.robotics:
         #     prior_proprioceptive = SequentialBuilder(cfg.ppc)
@@ -391,18 +390,18 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 self.loss_dict['c'] = c
 
 
-        # else:
-        #     self.loss_dict['states_novel'] = states_novel
-        #     self.loss_dict['actions_novel'] = actions_novel
-        #     self.loss_dict['seq_indices'] = seq_indices
-        #     self.c = c
-        #     self.loss_dict['c'] = c
+        else:
+            self.loss_dict['states_novel'] = states_novel
+            self.loss_dict['actions_novel'] = actions_novel
+            self.loss_dict['seq_indices'] = seq_indices
+            self.c = c
+            self.loss_dict['c'] = c
         
-        self.loss_dict['states_novel'] = states_novel
-        self.loss_dict['actions_novel'] = actions_novel
-        self.loss_dict['seq_indices'] = seq_indices
-        self.c = c
-        self.loss_dict['c'] = c
+        # self.loss_dict['states_novel'] = states_novel
+        # self.loss_dict['actions_novel'] = actions_novel
+        # self.loss_dict['seq_indices'] = seq_indices
+        # self.c = c
+        # self.loss_dict['c'] = c
 
         # self.loss_dict['states_novel'] 
         # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 

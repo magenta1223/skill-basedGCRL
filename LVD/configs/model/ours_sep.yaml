@@ -89,30 +89,6 @@ prior :
   bias : true
   dropout : 0
 
-
-state_to_ppc : 
-  n_blocks : 3
-  hidden_dim : 128
-  module_type : linear
-  linear_cls : LVD.modules.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  tanh : true
-  bias : true
-  dropout : 0
-
-
-ppc : 
-  n_blocks : 5
-  hidden_dim : 128
-  module_type : linear
-  linear_cls : LVD.modules.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  tanh : true
-  bias : true
-  dropout : 0
-
 skill_encoder : 
   n_blocks : 1
   hidden_dim : 128
