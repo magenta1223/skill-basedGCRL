@@ -308,7 +308,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 weights
             )
         else:
-            diff_loss = 0
+            diff_loss = torch.tensor([0])
 
         loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss
         
