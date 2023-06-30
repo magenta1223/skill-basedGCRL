@@ -155,7 +155,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     def forward_flatD(self, start, skill):
         # start = start.clone().detach()
         # rollout / check 
-        ppc, env = start.chunk(2, -1)
+        if self.cfg.robotics:
+            ppc, env = start.chunk(2, -1)
+        else:
+            ppc, env = start, None
         if len(ppc.shape) < 3:
             # flat_dynamics_input = torch.cat((start, skill), dim=-1)
             # 직접 변환을 하지말고 실제 값을 받아오면 됨. 
@@ -176,8 +179,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             # start 대신 state_to_ppc(start) 를 넣어서 학습. 
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
-
-            ppc_now, env_now = flat_D.chunk(2, -1)
+            if self.cfg.robotics:
+                ppc_now, env_now = flat_D.chunk(2, -1)
+            else:
+                ppc_now, env_now = flat_D, None
             if self.grad_pass_D:
                 # flat_D += start[:,:-1]
                 flat_D = start[:,:-1] + flat_D
@@ -197,7 +202,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         # with torch.no_grad():
         #     ppc_start = self.state_to_ppc(start)
         # start = torch.cat((ppc, env), dim = -1)
-        ppc, env = start.chunk(2, -1)
+        if self.cfg.robotics:
+            ppc, env = start.chunk(2, -1)
+        else:
+            ppc, env = start, None
 
         dynamics_input = torch.cat((ppc, skill), dim=-1)
 

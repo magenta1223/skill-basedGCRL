@@ -15,7 +15,7 @@ model:
     latent_state_dim : ${env.latent_state_dim}
     ppc_state_dim : ${env.n_obj}
     env_state_dim : ${env.n_env}
-    out_dim : ${get_outdim:${env.latent_state_dim}, ${model.distributional}} 
+    out_dim : ${env.latent_state_dim}
   
   state_decoder :
     in_feature : ${env.latent_state_dim}
