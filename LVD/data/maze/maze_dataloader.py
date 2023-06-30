@@ -172,3 +172,128 @@ class Maze_Dataset_Div(Maze_Dataset):
             )
         else:
             return self.__skill_learning__(index)
+
+class Maze_Dataset_Div_Sep(Maze_Dataset):
+    # def __init__(self, data_dir, data_conf, phase, resolution=None, shuffle=True, dataset_size=-1, *args, **kwargs):
+    #     super().__init__(data_dir, data_conf, phase, resolution, shuffle, dataset_size, *args, **kwargs)
+    def __init__(self, cfg, phase = "train"):
+        super().__init__(cfg, phase)
+
+        self.__mode__ = "skill_learning"
+
+        self.__getitem_methods__ = {
+            "skill_learning" : self.__skill_learning__,
+            "with_buffer" : self.__skill_learning_with_buffer__,
+        }
+
+        
+        self.max_generated_seqs = 10000
+        self.generated_seqs = []
+
+        self.discount_lambda = np.log(0.99)
+
+    def set_mode(self, mode):
+        assert mode in ['skill_learning', 'with_buffer']
+        self.__mode__ = mode 
+        print(f"MODE : {self.mode}")
+    
+    @property
+    def mode(self):
+        return self.__mode__
+
+
+    def enqueue(self, states, actions, c = None, sequence_indices = None):
+        for i, seq_idx in enumerate(sequence_indices):
+            seq = deepcopy(self.seqs[seq_idx])
+            generated_states = states[i]
+            generated_actions = actions[i]
+
+            concatenated_states = np.concatenate((seq.states[:c, :self.state_dim], generated_states), axis = 0)
+            concatenated_actions = np.concatenate((seq.actions[:c], generated_actions), axis = 0)
+            
+            # 뭔가가 tensor임. 
+            new_seq = edict(
+                states = concatenated_states,
+                actions = concatenated_actions,
+                c = c,
+                seq_index = seq_idx.item()
+            )
+
+            self.generated_seqs.append(new_seq)
+
+            if len(self.generated_seqs) > self.max_generated_seqs:
+                self.generated_seqs = self.generated_seqs[1:]
+
+    def update_buffer(self):
+        pass
+
+    def __getitem__(self, index):
+        # mode에 따라 다른 sampl 
+        return self.__getitem_methods__[self.mode](index)
+        
+    def __skill_learning__(self, index):
+
+        seq = deepcopy(self.seqs[index]) # ? 
+        # states = deepcopy(seq['states'])
+        states = seq['obs']
+        actions = seq['actions']
+        
+        # relative position. 
+        start_idx, goal_idx = self.sample_indices(states)
+        assert start_idx < goal_idx, "Invalid"
+
+        G = deepcopy(states[goal_idx][:2])
+        states = states[start_idx : start_idx + self.subseq_len]
+        actions = actions[start_idx : start_idx + self.subseq_len -1]
+        
+        if self.normalize:
+            states[:, :2] = states[:, :2]/40
+            G[:2] = G[:2]/40
+
+        return edict(
+            states = states,
+            actions = actions, 
+            G = G,
+            rollout = True,
+            weights = 1,
+            seq_index = index
+        )
+
+    def __skill_learning_with_buffer__(self, index):
+
+        if np.random.rand() < self.mixin_ratio:
+            # hindsight relabeling 
+            _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
+            seq = deepcopy(self.generated_seqs[_seq_index])
+            states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
+            start_idx, goal_idx = self.sample_indices(states)
+
+            goal_idx = -1
+            G = deepcopy(states[goal_idx][:self.n_obj][:2])
+
+            # # relative position 
+            # states_images[:, :2] -= states_images[0, :2]
+            # G[ :2] -= states_images[0, :2]
+            # states = states[:self.subseq_len]
+
+            if start_idx > c :
+                discount_start = np.exp(self.discount_lambda * (start_idx - c))
+            else:
+                discount_start = 1
+            discount_G = 1
+
+            states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
+            actions = actions[start_idx:start_idx+self.subseq_len-1]
+
+            return edict(
+                states = states,
+                actions = actions[:self.subseq_len-1],
+                G = G,
+                rollout = False,
+                weights = discount_start * discount_G,
+                seq_index = seq_index
+
+                # rollout = True if start_idx < 280 - self.plan_H else False
+            )
+        else:
+            return self.__skill_learning__(index)

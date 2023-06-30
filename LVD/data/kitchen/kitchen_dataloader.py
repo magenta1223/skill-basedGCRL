@@ -430,7 +430,6 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
 
             _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
             seq = deepcopy(self.generated_seqs[_seq_index])
-
             states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
             start_idx, goal_idx = self.sample_indices(states)
             
@@ -439,7 +438,11 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             G[ : self.n_obj] = 0 # only env state
             
             # 
-            discount_start = np.exp(self.discount_lambda * (start_idx - c))
+            # 만약 start_idx가 c보다 나중이면 -> discount..해야겠지? 
+            if start_idx > c :
+                discount_start = np.exp(self.discount_lambda * (start_idx - c))
+            else:
+                discount_start = 1
             # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
             discount_G = 1
 
