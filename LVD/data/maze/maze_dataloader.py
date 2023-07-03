@@ -208,14 +208,14 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             generated_states = states[i]
             generated_actions = actions[i]
 
-            concatenated_states = np.concatenate((seq['obs'][:c, :self.state_dim], generated_states), axis = 0)
-            concatenated_actions = np.concatenate((seq['actions'][:c], generated_actions), axis = 0)
+            concatenated_states = np.concatenate((seq['obs'][:c[i], :self.state_dim], generated_states), axis = 0)
+            concatenated_actions = np.concatenate((seq['actions'][:c[i]], generated_actions), axis = 0)
             
             # 뭔가가 tensor임. 
             new_seq = edict(
                 states = concatenated_states,
                 actions = concatenated_actions,
-                c = c,
+                c = c[i].item(),
                 seq_index = seq_idx.item()
             )
 
@@ -256,7 +256,8 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             G = G,
             rollout = True,
             weights = 1,
-            seq_index = index
+            seq_index = index,
+            start_idx = start_idx
         )
 
     def __skill_learning_with_buffer__(self, index):
@@ -291,7 +292,8 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 G = G,
                 rollout = False,
                 weights = discount_start * discount_G,
-                seq_index = seq_index
+                seq_index = seq_index,
+                start_idx = start_idx,
 
                 # rollout = True if start_idx < 280 - self.plan_H else False
             )

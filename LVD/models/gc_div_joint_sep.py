@@ -378,37 +378,36 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         start_indices = batch.start_idx[batch.rollout]
 
         # unseen tasks인 경우에만 추가, 렌더하고 싶음. 
-        if self.seen_tasks is not None:
-            # unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) not in self.seen_tasks for state_seq in states_novel]
-            unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in states_novel]
-            unseen_G_indices = torch.tensor([ G not in self.seen_tasks and len(G) == 4  for G in unseen_G_indices], dtype= torch.bool)
-            # unseen_G_indices = torch.tensor([ G in self.seen_tasks and len(G) == 4  for G in unseen_G_indices], dtype= torch.bool)
+        # if self.seen_tasks is not None:
+        #     # unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) not in self.seen_tasks for state_seq in states_novel]
+        #     unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in states_novel]
+        #     unseen_G_indices = torch.tensor([ G not in self.seen_tasks and len(G) == 4  for G in unseen_G_indices], dtype= torch.bool)
+        #     # unseen_G_indices = torch.tensor([ G in self.seen_tasks and len(G) == 4  for G in unseen_G_indices], dtype= torch.bool)
 
-            if unseen_G_indices.sum():
-                self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
-                self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
-                self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
-                # self.loss_dict['start_indices'] = start_indices[unseen_G_indices]
+        #     if unseen_G_indices.sum():
+        #         self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
+        #         self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
+        #         self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
+        #         # self.loss_dict['start_indices'] = start_indices[unseen_G_indices]
 
-                self.c = c
-                self.loss_dict['c'] = start_indices[unseen_G_indices] + c
-
-
-        else:
-            self.loss_dict['states_novel'] = states_novel
-            self.loss_dict['actions_novel'] = actions_novel
-            self.loss_dict['seq_indices'] = seq_indices
-            # self.loss_dict['start_indices'] = start_indices[unseen_G_indices]
-            self.c = c
-            # self.loss_dict['c'] = c
-            self.loss_dict['c'] = start_indices[unseen_G_indices] + c
+        #         self.c = c
+        #         self.loss_dict['c'] = start_indices[unseen_G_indices] + c
 
 
-        # self.loss_dict['states_novel'] = states_novel
-        # self.loss_dict['actions_novel'] = actions_novel
-        # self.loss_dict['seq_indices'] = seq_indices
-        # self.c = c
-        # self.loss_dict['c'] = c
+        # else:
+        #     self.loss_dict['states_novel'] = states_novel
+        #     self.loss_dict['actions_novel'] = actions_novel
+        #     self.loss_dict['seq_indices'] = seq_indices
+        #     self.c = c
+        #     # self.loss_dict['c'] = c
+        #     self.loss_dict['c'] = start_indices + c
+
+
+        self.loss_dict['states_novel'] = states_novel
+        self.loss_dict['actions_novel'] = actions_novel
+        self.loss_dict['seq_indices'] = seq_indices
+        self.c = c
+        self.loss_dict['c'] = start_indices + c
 
         # self.loss_dict['states_novel'] 
         # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 
@@ -423,21 +422,21 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
 
 
-        if self.env.name == "kitchen" and unseen_G_indices.sum() and not self.render:
+        # if self.env.name == "kitchen" and unseen_G_indices.sum() and not self.render:
             
-            imgs = []
-            task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
-            with self.env.set_task(self.tasks[0]):
-                init_qvel = self.env.init_qvel
-                for state in self.loss_dict['states_novel'][0]:
-                    self.env.set_state(state, init_qvel)
-                    img = self.env.render(mode= "rgb_array")
-                    img = img.copy()
-                    cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
-                    imgs.append(img)
+        #     imgs = []
+        #     task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
+        #     with self.env.set_task(self.tasks[0]):
+        #         init_qvel = self.env.init_qvel
+        #         for state in self.loss_dict['states_novel'][0]:
+        #             self.env.set_state(state, init_qvel)
+        #             img = self.env.render(mode= "rgb_array")
+        #             img = img.copy()
+        #             cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+        #             imgs.append(img)
             
-            self.render = True
-            self.loss_dict['render'] = imgs
+        #     self.render = True
+        #     self.loss_dict['render'] = imgs
     
     def __main_network__(self, batch, validate = False, rollout = False, render = False):
 

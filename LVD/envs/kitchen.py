@@ -130,6 +130,9 @@ meta_train_tasks = np.array([
 ])
 
 
+all_tasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
+
+
 tasks = np.array([
     # # Well-aligned, Not missing
     # [5,6,0,3], # MKBS
@@ -143,8 +146,21 @@ tasks = np.array([
     # Mis-algined, Missing 
     [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
-    # [5,6,0,2],  # MKBL
+    
+    # newly added 
+    [0,2,3,4],  # BLSH
+    [0,1,2,4],  # BTLH
+    [6,1,3,4],  # KTSH
+    [5,0,2,4],  # MBLH
+    [5,6,1,3],  # MKTS
+    [5,1,2,3],  # MTLS
+    [1,2,3,4],  # TLSH
+
 ])
+
+
+    # [5,6,0,2],  # MKBL
+
 
 
 kitchen_subtasks = np.array(['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle'])
@@ -162,3 +178,13 @@ kitchen_known_tasks = ['KBTS','MKBS','MKLH','KTLS',
                'MBTH','BTSH','MBLS','MLSH',
                'KLSH','MBTL','MKTL','MKSH',
                'KBTL','KBLS','MKTH','KBTH']
+
+
+
+
+
+
+
+
+
+kitchen_unseen_tasks = ['']
