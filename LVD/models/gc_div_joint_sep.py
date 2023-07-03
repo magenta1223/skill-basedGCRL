@@ -80,8 +80,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         self.optimizers = {
             "skill_prior" : {
                 "optimizer" : RAdam( self.prior_policy.skill_prior.parameters(), lr = self.lr ),
-                "metric" : "Rec_skill"
-                # "metric" : None
+                # "metric" : "Rec_skill"
+                "metric" : "Prior_S"
             }, 
             "skill_enc_dec" : {
                 "optimizer" : RAdam( [
@@ -95,16 +95,16 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 "optimizer" : RAdam( [
                     {"params" : self.prior_policy.inverse_dynamics.parameters()},
                 ], lr = self.lr ),
-                "metric" : "Rec_skill"
-                # "metric" : "Prior_GC"
+                # "metric" : "Rec_skill"
+                "metric" : "Prior_GC"
             }, 
             "D" : {
                 "optimizer" : RAdam( [
                     {"params" : self.prior_policy.dynamics.parameters()},
                     {"params" : self.prior_policy.flat_dynamics.parameters()},
                 ], lr = self.lr ),
-                "metric" : "Rec_skill"
-                # "metric" : "D",
+                # "metric" : "Rec_skill"
+                "metric" : "D",
                 # "metric" : "Rec_D_subgoal"
                 # "metric" : "Prior_GC"
 
@@ -113,8 +113,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 "optimizer" : RAdam( [
                     {"params" : self.prior_policy.subgoal_generator.parameters()},
                 ], lr = self.lr ),
-                "metric" : "Rec_skill"
-                # "metric" : "F_skill_GT"
+                # "metric" : "Rec_skill"
+                "metric" : "F_skill_GT"
                 # "metric" : None
                 # "metric" : "Prior_GC"
             }, 
@@ -375,7 +375,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         states_novel = torch.cat((batch.states[:, :c+1], states_rollout), dim = 1)[batch.rollout].detach().cpu()
         actions_novel = torch.cat((batch.actions[:, :c], actions_rollout), dim = 1)[batch.rollout].detach().cpu()
         seq_indices = batch.seq_index[batch.rollout]
-        
+        start_indices = batch.start_idx[batch.rollout]
 
         # unseen tasks인 경우에만 추가, 렌더하고 싶음. 
         if self.seen_tasks is not None:
@@ -388,17 +388,22 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
                 self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
                 self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
+                # self.loss_dict['start_indices'] = start_indices[unseen_G_indices]
+
                 self.c = c
-                self.loss_dict['c'] = c
+                self.loss_dict['c'] = start_indices[unseen_G_indices] + c
 
 
         else:
             self.loss_dict['states_novel'] = states_novel
             self.loss_dict['actions_novel'] = actions_novel
             self.loss_dict['seq_indices'] = seq_indices
+            # self.loss_dict['start_indices'] = start_indices[unseen_G_indices]
             self.c = c
-            self.loss_dict['c'] = c
-        
+            # self.loss_dict['c'] = c
+            self.loss_dict['c'] = start_indices[unseen_G_indices] + c
+
+
         # self.loss_dict['states_novel'] = states_novel
         # self.loss_dict['actions_novel'] = actions_novel
         # self.loss_dict['seq_indices'] = seq_indices
@@ -418,7 +423,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
 
 
-        if self.env.name == "kitchen" and unseen_G_indices.sum():
+        if self.env.name == "kitchen" and unseen_G_indices.sum() and not self.render:
             
             imgs = []
             task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
@@ -430,7 +435,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                     img = img.copy()
                     cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
                     imgs.append(img)
-
+            
+            self.render = True
             self.loss_dict['render'] = imgs
     
     def __main_network__(self, batch, validate = False, rollout = False, render = False):

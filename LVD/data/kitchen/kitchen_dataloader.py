@@ -350,11 +350,19 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             seq = deepcopy(self.seqs[seq_idx])
             generated_states = states[i]
             generated_actions = actions[i]
-
+            
+            # start idx도 필요
             concatenated_states = np.concatenate((seq.states[:c, :self.state_dim], generated_states), axis = 0)
             concatenated_actions = np.concatenate((seq.actions[:c], generated_actions), axis = 0)
             
-            # 뭔가가 tensor임. 
+            np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
+            # sequnece가 원래것과 매칭이 안되고 있음. 버그
+            assert 1==0, "a"
+            
+
+            # g = \varphi(s) 인 \varphi는 알고 있음을 가정. (뭐가 열렸는지 돌아갔는지 정도는 알 수 있음.)
+            # 그러면 유의한 goal state가 뭔지 정도는 알 수 있음. 
+            # = 유의미한 goal 변화 없으면 거기서 컽
             new_seq = edict(
                 states = concatenated_states,
                 actions = concatenated_actions,
@@ -413,7 +421,8 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             G = G,
             rollout = True,
             weights = 1,
-            seq_index = index
+            seq_index = index,
+            start_idx = start_idx,
         )
 
         return output
@@ -457,7 +466,8 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 G=G,
                 rollout = False,
                 weights = discount_start * discount_G,
-                seq_index = seq_index
+                seq_index = seq_index,
+                start_idx = start_idx
                 # start_idx = 999 #self.novel
             )
 

@@ -32,7 +32,7 @@ hydra:
 
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
-
+zeroshot : false
 
 
 save_ckpt : 20

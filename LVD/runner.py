@@ -398,14 +398,13 @@ class Diversity_Trainer2(Diversity_Trainer):
         self.meter_initialize()
         # start = time.time()
         imgs = None
+        self.model.render = False
+
         for i, batch in enumerate(loader):
             # if i == 0:
             #     print("Loading : ", f"{time.time()-start:.5f}")
             # optim_start = time.time()
             render = False
-
-            if i == 0:
-                render = True
         
             self.model.train()
             loss = self.model.optimize(batch, e, rollout, render)
