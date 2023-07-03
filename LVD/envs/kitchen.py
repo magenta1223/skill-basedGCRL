@@ -159,8 +159,6 @@ tasks = np.array([
 ])
 
 
-    # [5,6,0,2],  # MKBL
-
 
 
 kitchen_subtasks = np.array(['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle'])

@@ -16,10 +16,10 @@ epoch_cycles_train : 80
 
 step_per_ep : 400
 batch_size : 1024
-mixin_start : 75
+mixin_start : 100
 mixin_ratio : 0.05
 plan_H : 100
-epochs : 120
+epochs : 150
 warmup_steps : 50
 
 skill_dim : 10
