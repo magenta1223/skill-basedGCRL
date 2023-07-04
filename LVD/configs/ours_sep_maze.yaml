@@ -6,8 +6,6 @@ defaults:
 dataset_cls : LVD.data.Maze_Dataset_Div_Sep
 structure : gc_div_joint_sep
 
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
 
 model:
   state_encoder :
