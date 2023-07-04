@@ -13,7 +13,7 @@ grad_pass:
 
 diff : true
 mmd : false
-distributional : true
+distributional : false
 
 
 state_encoder :
