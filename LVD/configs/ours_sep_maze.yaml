@@ -6,6 +6,9 @@ defaults:
 dataset_cls : LVD.data.Maze_Dataset_Div_Sep
 structure : gc_div_joint_sep
 
+scheduler_params:
+  min_lr: 1e-5
+
 
 model:
   state_encoder :

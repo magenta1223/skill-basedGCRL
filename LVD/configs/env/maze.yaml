@@ -23,7 +23,7 @@ epochs : 150
 warmup_steps : 50
 
 skill_dim : 10
-latent_state_dim : 64
+latent_state_dim : 256
 reg_beta : 0.01
 prior_state_dim : 4
 wae_coef : 1
