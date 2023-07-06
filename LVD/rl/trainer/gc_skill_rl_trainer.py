@@ -128,6 +128,13 @@ class GC_Skill_RL_Trainer:
                     wandb.log(log)
                     # clear plot
                     plt.cla()
+                    
+            torch.save({
+                "model" : self.sac,
+                # "collector" : collector if env_name != "carla" else None,
+                # "task" : task_obj if env_name != "carla" else np.array(task_obj),
+                # "env" : env if env_name != "carla" else None,
+            }, f"{self.cfg.weights_path}/{task_name}.bin")   
 
 
     def train_policy(self, n_ep):

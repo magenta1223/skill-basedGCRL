@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from d4rl.kitchen.kitchen_envs import OBS_ELEMENT_GOALS, OBS_ELEMENT_INDICES, BONUS_THRESH
-
 # --------------------------- Env, Model Utils --------------------------- #
 
 def prep_state(states, device):
@@ -214,3 +213,4 @@ class StateProcessor:
         else:
             # get goals from state -> check 
             return self.goal_checker(self.get_goal(state)) 
+        
