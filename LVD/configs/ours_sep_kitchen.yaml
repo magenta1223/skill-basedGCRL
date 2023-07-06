@@ -5,8 +5,8 @@ defaults:
 
 dataset_cls : LVD.data.Kitchen_Dataset_Div_Sep
 structure : gc_div_joint_sep
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+# env:
+#   epoch_cycles_train: ${get_cycle:${env.batch_size}}
 model:
   state_encoder :
     in_feature : ${env.state_dim} 

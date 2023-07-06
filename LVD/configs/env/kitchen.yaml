@@ -17,7 +17,7 @@ max_seq_len : 280
 epoch_cycles_train : 50
 
 
-batch_size : 500
+batch_size : 1024
 mixin_start : 60
 mixin_ratio : 0.05
 plan_H : 100
@@ -56,4 +56,4 @@ kl_decay : 0.99
 
 invD_lr : 1e-6
 D_lr : 1e-5
-f_lr : 1e-8
+f_lr : 1e-6

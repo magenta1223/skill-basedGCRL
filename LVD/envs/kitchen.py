@@ -154,7 +154,7 @@ tasks = np.array([
     [5,0,2,4],  # MBLH
     [5,6,1,3],  # MKTS
     [5,1,2,3],  # MTLS
-    [1,2,3,4],  # TLSH
+    # [1,2,3,4],  # TLSH # 그에 맞는 transition이 존재하지 않음 
 
 ])
 

@@ -264,9 +264,16 @@ class SAC(BaseModel):
                 self.update_consistency(batch)
             self.update_qs(batch)
             # self.update_networks(batch)
+        
+        # orig : 200 
+        for _ in range(1000):
+            # self.update(step_inputs)
+            batch = self.buffer.sample(self.rl_batch_size)
+            self.episode = step_inputs['episode']
+            self.n_step += 1
+            self.update_networks(batch)
+            # ------------------- Alpha ------------------- # 
 
-        for _ in range(200):
-            self.update(step_inputs)
 
 
     

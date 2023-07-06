@@ -27,6 +27,7 @@ hydra:
           - env.f_lr
           - model.consistency_update 
           - model.q_function.norm_cls
+          - model.with_gcsl
 
 
 
@@ -76,4 +77,5 @@ rl_cfgs : [
   consistency_update, model_update, init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
   tanh, # distribution   
   gc,
+  with_gcsl
   ]

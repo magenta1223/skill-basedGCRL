@@ -148,11 +148,14 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     
     # def forward_invD(self, hts):
     def forward_invD(self, start, subgoal):
-        if not self.grad_pass_invD:
+        # if not self.grad_pass_invD:
+        if not self.cfg.grad_pass.invD:
             start = start.clone().detach()
             subgoal = subgoal.clone().detach()
 
-        inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
+        # inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
+        inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.cfg.tanh)
+
         return inverse_dynamics, inverse_dynamics_detach
     
     def forward_flatD(self, start, skill):
@@ -169,7 +172,9 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             flat_D = self.flat_dynamics(flat_dynamics_input)
 
             ppc_now, env_now = flat_D.chunk(2, -1)
-            if self.grad_pass_D:
+            # if self.grad_pass_D:
+            if self.cfg.grad_pass.D:
+
                 flat_D = start + flat_D
             else:
                 flat_D = start.clone().detach() + flat_D
@@ -186,7 +191,8 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
                 ppc_now, env_now = flat_D.chunk(2, -1)
             else:
                 ppc_now, env_now = flat_D, None
-            if self.grad_pass_D:
+            # if self.grad_pass_D:
+            if self.cfg.grad_pass.D:
                 # flat_D += start[:,:-1]
                 flat_D = start[:,:-1] + flat_D
 
@@ -218,7 +224,8 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         else:
             D = self.dynamics(dynamics_input)
 
-        if self.grad_pass_D:
+        # if self.grad_pass_D:
+        if self.cfg.grad_pass.D:
             # D += start
             D = start + D
         else:
@@ -234,26 +241,11 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         subgoal_f = self.subgoal_generator(sg_input)
         subgoal_f = subgoal_f + start
 
-        invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
+        # invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
+        invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.cfg.tanh)
         skill_sub = invD_sub.rsample()
         subgoal_D = self.forward_D(start, skill_sub, use_target= True)
         return invD_sub, subgoal_D, subgoal_f
-
-    def forward_diff_decoder(self, start, skill):
-        """
-        Decode difference in latent space to difference in raw state. 
-        """
-
-        flat_D = self.forward_flatD(start, skill, ppc_start= None)
-        diff_flat = flat_D - start
-        diff = self.diff_decoder(diff_flat.clone().detach())
-        
-        
-
-        
-        return 
-
-
 
 
     @torch.no_grad()
@@ -265,7 +257,9 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         skill = inverse_dynamics.sample()
         for _ in range(skill_length):
             _ht, _ = self.forward_flatD(_ht, skill)
-        invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.tanh)
+        # invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.tanh)
+        invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.cfg.tanh)
+
 
         subgoal_recon, _, _ = self.state_decoder(subgoal)
         subgoal_recon_D, _, _ = self.state_decoder(D)
@@ -396,7 +390,8 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # subgoal 
             _, _, subgoal_f = self.forward_subgoal_G(ht, G)
 
-            inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
+            # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
+            inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.cfg.tanh)
             # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
             
 
@@ -446,10 +441,15 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
 
         # inverse dynamics 
-        if self.grad_pass_invD:
-            invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
+        # if self.grad_pass_invD:
+        if self.cfg.grad_pass.invD:
+            # invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
+            invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.cfg.tanh)
+
         else:
-            invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.tanh)
+            # invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.tanh)
+             invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.cfg.tanh)
+
         D = self.forward_D(ht, batch.actions)
 
         # state_consistency = F.mse_loss(ht.clone().detach() + diff, htH) + mmd_loss
@@ -458,7 +458,9 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             batch.actions,
             invD,
             batch.actions_normal,
-            tanh = self.tanh
+            # tanh = self.tanh
+            tanh = self.cfg.tanh
+
         ).mean()
         
         # GCSL
@@ -466,28 +468,28 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
 
-        # GCSL_loss = F.mse_loss(diff_subgoal_f, diff_subgoal_D) + nll_dist(
-        #     batch.actions,
-        #     invD_sub,
-        #     batch.actions_normal,
-        #     tanh = self.tanh
-        # ).mean()
+        GCSL_loss = F.mse_loss(subgoal_f, htH_target) + nll_dist(
+            batch.actions,
+            invD_sub,
+            batch.actions_normal,
+            tanh = self.cfg.tanh
+        ).mean()
         
         # GCSL_loss = F.mse_loss(diff_subgoal_f + ht, htH) + torch_dist.kl_divergence(invD_sub, invD_detach).mean()
-        GCSL_loss = F.mse_loss(subgoal_f, htH_target) + torch_dist.kl_divergence(invD_sub, invD_detach).mean()
+        # GCSL_loss = F.mse_loss(subgoal_f, htH_target) + torch_dist.kl_divergence(invD_sub, invD_detach).mean()
 
 
 
         return  edict(
             state_consistency = state_consistency,
             skill_consistency = skill_consistency,
-            GCSL_loss = GCSL_loss.item()
+            GCSL_loss = GCSL_loss if self.cfg.with_gcsl else GCSL_loss.item()
             # GCSL_loss = GCSL_loss
         )
 
 
     def get_rl_params(self):
-        return edict(
+        rl_params =  edict(
             policy = [ 
                 {"params" :  self.subgoal_generator.parameters(), "lr" : self.cfg.policy_lr}
                 ],
@@ -510,14 +512,17 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
                 #     # "metric" : "GCSL_loss"
                 #     "metric" : None,
                 # }
-                # "f" : {
-                #     "params" :  self.subgoal_generator.parameters(), 
-                #     "lr" : self.cfg.f_lr, 
-                #     # "metric" : "GCSL_loss"
-                #     "metric" : None,
-                # }
-
 
             }
                 
         )
+
+        if self.cfg.with_gcsl:
+            rl_params["f"] = {
+                "params" :  self.subgoal_generator.parameters(), 
+                "lr" : self.cfg.f_lr, 
+                # "metric" : "GCSL_loss"
+                "metric" : None,
+            }
+
+        return rl_params
