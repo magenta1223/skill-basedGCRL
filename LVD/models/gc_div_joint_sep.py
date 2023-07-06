@@ -7,7 +7,8 @@ from .base import BaseModel
 from easydict import EasyDict as edict
 from copy import deepcopy
 import cv2
-
+from simpl_reproduce.maze.maze_vis import draw_maze
+import numpy as np 
 
 class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
     """
@@ -378,47 +379,48 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         start_indices = batch.start_idx[batch.rollout]
 
         if self.only_unseen:
-
-            # unseen tasks인 경우에만 추가, 렌더하고 싶음. 
+            # only for check whether unseen goal in the robotics env is generated. 
+            # not used for performance measure. 
             if self.seen_tasks is not None:
-                # unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) not in self.seen_tasks for state_seq in states_novel]
                 unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in states_novel]
                 unseen_G_indices = torch.tensor([ G not in self.seen_tasks and len(G) >= 4  for G in unseen_G_indices], dtype= torch.bool)
-                # unseen_G_indices = torch.tensor([ G in self.seen_tasks and len(G) == 4  for G in unseen_G_indices], dtype= torch.bool)
 
                 if unseen_G_indices.sum():
                     self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
                     self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
                     self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
-                    # self.loss_dict['start_indices'] = start_indices[unseen_G_indices]
-
                     self.c = c
                     self.loss_dict['c'] = start_indices[unseen_G_indices] + c
 
 
-            else:
-                self.loss_dict['states_novel'] = states_novel
-                self.loss_dict['actions_novel'] = actions_novel
-                self.loss_dict['seq_indices'] = seq_indices
-                self.c = c
-                # self.loss_dict['c'] = c
-                self.loss_dict['c'] = start_indices + c
 
+                if unseen_G_indices.sum() and not self.render:
+                    if self.env.name == "kitchen":
+                        imgs = []
+                        task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
+                        with self.env.set_task(self.tasks[0]):
+                            init_qvel = self.env.init_qvel
+                            for state in self.loss_dict['states_novel'][0]:
+                                self.env.set_state(state, init_qvel)
+                                img = self.env.render(mode= "rgb_array")
+                                img = img.copy()
+                                cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+                                imgs.append(img)
+                        
+                        self.render = True
+                        self.loss_dict['render'] = imgs
 
-            if self.env.name == "kitchen" and unseen_G_indices.sum() and not self.render:
-                imgs = []
-                task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
-                with self.env.set_task(self.tasks[0]):
-                    init_qvel = self.env.init_qvel
-                    for state in self.loss_dict['states_novel'][0]:
-                        self.env.set_state(state, init_qvel)
-                        img = self.env.render(mode= "rgb_array")
-                        img = img.copy()
-                        cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
-                        imgs.append(img)
-                
-                self.render = True
-                self.loss_dict['render'] = imgs
+                    elif self.env.name == "maze": 
+                        ax = draw_maze(self.loss_dict['states_novel'][0])
+
+                        canvas = ax.get_figure().canvas
+                        canvas.draw()
+                        
+                        img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
+
+                        
+                        self.render = True
+                        self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)                
 
 
         else:

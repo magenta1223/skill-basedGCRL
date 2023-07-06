@@ -428,13 +428,18 @@ class Diversity_Trainer2(Diversity_Trainer):
 
 
         if imgs is not None:
-            path = f"{self.run_path}/imgs/{e}.mp4"
-            print(f"Rendered : {path}")
-            out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, (400,400))
-            for i in range(len(imgs)):
-                # writing to a image array
-                out.write(cv2.cvtColor(imgs[i], cv2.COLOR_BGR2RGB))
-            out.release() 
+            if self.cfg.env_name == "kitchen":
+                path = f"{self.run_path}/imgs/{e}.mp4"
+                print(f"Rendered : {path}")
+                out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, (400,400))
+                for i in range(len(imgs)):
+                    # writing to a image array
+                    out.write(cv2.cvtColor(imgs[i], cv2.COLOR_BGR2RGB))
+                out.release() 
+            elif self.cfg.env_name == "maze":
+                path = f"{self.run_path}/imgs/{e}.png"
+                print(f"Rendered : {path}")
+                cv2.imwrite(path, imgs)
 
         return { k : v.avg for k, v in self.meters.items() }
 
