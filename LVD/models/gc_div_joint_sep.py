@@ -9,6 +9,10 @@ from copy import deepcopy
 import cv2
 from simpl_reproduce.maze.maze_vis import draw_maze
 import numpy as np 
+from matplotlib import pyplot as plt
+from d4rl.pointmaze.maze_model import WALL
+
+
 
 class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
     """
@@ -392,43 +396,73 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                     self.c = c
                     self.loss_dict['c'] = start_indices[unseen_G_indices] + c
 
-
-
-                if unseen_G_indices.sum() and not self.render:
-                    if self.env.name == "kitchen":
-                        imgs = []
-                        task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
-                        with self.env.set_task(self.tasks[0]):
-                            init_qvel = self.env.init_qvel
-                            for state in self.loss_dict['states_novel'][0]:
-                                self.env.set_state(state, init_qvel)
-                                img = self.env.render(mode= "rgb_array")
-                                img = img.copy()
-                                cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
-                                imgs.append(img)
-                        
-                        self.render = True
-                        self.loss_dict['render'] = imgs
-
-                    elif self.env.name == "maze": 
-                        ax = draw_maze(self.loss_dict['states_novel'][0])
-
-                        canvas = ax.get_figure().canvas
-                        canvas.draw()
-                        
-                        img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
-
-                        
-                        self.render = True
-                        self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)                
-
-
         else:
             self.loss_dict['states_novel'] = states_novel
             self.loss_dict['actions_novel'] = actions_novel
             self.loss_dict['seq_indices'] = seq_indices
             self.c = c
             self.loss_dict['c'] = start_indices + c
+
+
+
+        if not self.render:
+            if self.env.name == "kitchen":
+                imgs = []
+                task = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
+                with self.env.set_task(self.tasks[0]):
+                    init_qvel = self.env.init_qvel
+                    for state in self.loss_dict['states_novel'][0]:
+                        self.env.set_state(state, init_qvel)
+                        img = self.env.render(mode= "rgb_array")
+                        img = img.copy()
+                        cv2.putText(img = img,  text = task, color = (255,0,0),  org = (400 // 2, 400 // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+                        imgs.append(img)
+                
+                self.render = True
+                self.loss_dict['render'] = imgs
+
+            elif self.env.name == "maze": 
+                ax = plt.gca()
+                
+                orig_goal = batch.G[batch.rollout][unseen_G_indices][0].detach().cpu().numpy()
+                generated_traj = self.loss_dict['states_novel'][0].detach().cpu().numpy()
+                generated_goal = generated_traj[-1][:2]
+
+                img = np.rot90(self.env.maze_arr != WALL)
+                extent = [
+                    -0.5, self.env.maze_arr.shape[0]-0.5,
+                    -0.5, self.env.maze_arr.shape[1]-0.5
+                ]
+                
+                ax.imshow((1-img)/5, extent=extent, cmap='Reds', alpha=0.2)
+
+                # original goal  
+                ax.scatter(*orig_goal, marker='x', c='red', s=200, zorder=10, linewidths=4)
+                # trajectory end 
+                ax.scatter(*generated_goal, marker='x', c='blue', s=200, zorder=10, linewidths=4)
+                # rollout start 
+                ax.scatter(*generated_traj[0][:2], marker='x', c='green', s=200, zorder=10, linewidths=4)
+
+                ax.set_xlim(0, self.env.maze_size+1)
+                ax.set_ylim(0, self.env.maze_size+1)
+
+                # generated trajectory 
+                states = deepcopy(generated_traj).detach().cpu().numpy()
+                ax.plot(*states[:, :2].T  , color='royalblue', alpha=0.5)
+
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+                canvas = ax.get_figure().canvas
+                canvas.draw()
+                
+                img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
+
+                self.render = True
+                self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)     
+
+
+
 
         # self.loss_dict['states_novel'] 
         # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 
