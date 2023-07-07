@@ -440,7 +440,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 # trajectory end 
                 ax.scatter(*generated_goal, marker='x', c='blue', s=200, zorder=10, linewidths=4)
                 # rollout start 
-                ax.scatter(*generated_traj[0][:2], marker='x', c='green', s=200, zorder=10, linewidths=4)
+                ax.scatter(*generated_traj[0][:2], marker='o', c='green', s=200, zorder=10, linewidths=4)
 
                 ax.set_xlim(0, self.env.maze_size+1)
                 ax.set_ylim(0, self.env.maze_size+1)
@@ -458,7 +458,9 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
 
                 self.render = True
-                self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)     
+                self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)    
+
+                plt.cla() 
 
 
 
