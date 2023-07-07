@@ -93,11 +93,7 @@ class GC_Skill_RL_Trainer:
             # TODO : collector.env로 통일. ㅈㄴ헷갈림. 
 
             with self.collector.env.set_task(task_obj):
-                state = self.collector.env.reset()
-                # 이건 env에 넣을까? 
-                # task = state_processor.get_goals(state)
-                # print("TASK : ",  state_processor.state_goal_checker(state, env, mode = "goal") )
-                # print("TASK : ",  GOAL_CHECKERS[args.env_name](   GOAL_TRANSFORM[args.env_name](state)  ))
+                self.collector.env.reset()
 
                 ewm_rwds = 0
                 early_stop = 0
@@ -128,7 +124,7 @@ class GC_Skill_RL_Trainer:
                     wandb.log(log)
                     # clear plot
                     plt.cla()
-                    
+
             torch.save({
                 "model" : self.sac,
                 # "collector" : collector if env_name != "carla" else None,
@@ -140,6 +136,8 @@ class GC_Skill_RL_Trainer:
     def train_policy(self, n_ep):
 
         log = {}
+
+    
 
         # ------------- Collect Data ------------- #
         with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():

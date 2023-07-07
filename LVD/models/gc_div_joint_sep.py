@@ -424,7 +424,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             elif self.env.name == "maze": 
                 ax = plt.gca()
                 
-                orig_goal = batch.G[batch.rollout][unseen_G_indices][0].detach().cpu().numpy()
+                orig_goal = batch.G[batch.rollout][0].detach().cpu().numpy()
                 generated_traj = self.loss_dict['states_novel'][0].detach().cpu().numpy()
                 generated_goal = generated_traj[-1][:2]
 
