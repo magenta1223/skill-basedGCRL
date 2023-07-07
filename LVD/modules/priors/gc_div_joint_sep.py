@@ -321,7 +321,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         
         skills = []
         # for f learning, execute 4 skill more
-        for i in range(90):
+        for i in range(self.cfg.plan_H):
             if i % 10 == 0:
                 skill = self.skill_prior.dist(ht_ppc).sample()
             next_ht, cache = self.forward_flatD(_ht, skill) 
