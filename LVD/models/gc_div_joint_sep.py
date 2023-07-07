@@ -382,19 +382,18 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         seq_indices = batch.seq_index[batch.rollout]
         start_indices = batch.start_idx[batch.rollout]
 
-        if self.only_unseen:
+        if self.only_unseen and self.seen_tasks is not None:
             # only for check whether unseen goal in the robotics env is generated. 
             # not used for performance measure. 
-            if self.seen_tasks is not None:
-                unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in states_novel]
-                unseen_G_indices = torch.tensor([ G not in self.seen_tasks and len(G) >= 4  for G in unseen_G_indices], dtype= torch.bool)
+            unseen_G_indices = [self.state_processor.state_goal_checker(state_seq[-1]) for state_seq in states_novel]
+            unseen_G_indices = torch.tensor([ G not in self.seen_tasks and len(G) >= 4  for G in unseen_G_indices], dtype= torch.bool)
 
-                if unseen_G_indices.sum():
-                    self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
-                    self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
-                    self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
-                    self.c = c
-                    self.loss_dict['c'] = start_indices[unseen_G_indices] + c
+            if unseen_G_indices.sum():
+                self.loss_dict['states_novel'] = states_novel[unseen_G_indices]
+                self.loss_dict['actions_novel'] = actions_novel[unseen_G_indices]
+                self.loss_dict['seq_indices'] = seq_indices[unseen_G_indices]
+                self.c = c
+                self.loss_dict['c'] = start_indices[unseen_G_indices] + c
 
         else:
             self.loss_dict['states_novel'] = states_novel
