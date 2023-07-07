@@ -446,7 +446,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 ax.set_ylim(0, self.env.maze_size+1)
 
                 # generated trajectory 
-                states = deepcopy(generated_traj).detach().cpu().numpy()
+                states = deepcopy(generated_traj)
                 ax.plot(*states[:, :2].T  , color='royalblue', alpha=0.5)
 
                 ax.set_xticks([])
