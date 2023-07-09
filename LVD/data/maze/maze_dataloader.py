@@ -264,9 +264,9 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
         
-        if self.normalize:
-            states[:, :2] = states[:, :2]/40
-            G[:2] = G[:2]/40
+        # if self.normalize:
+        #     states[:, :2] = states[:, :2]/40
+        #     G[:2] = G[:2]/40
 
         return edict(
             states = states,
