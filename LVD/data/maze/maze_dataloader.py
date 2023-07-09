@@ -261,7 +261,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
         assert start_idx < goal_idx, "Invalid"
 
         G = deepcopy(states[goal_idx][:2])
-        states = states[start_idx : start_idx + self.subseq_len]
+        states = states[start_idx : start_idx + self.subseq_len, :self.state_dim]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
         
         # if self.normalize:
