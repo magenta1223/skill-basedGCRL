@@ -423,8 +423,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             elif self.env.name == "maze": 
                 ax = plt.gca()
                 
-                orig_goal = batch.G[batch.rollout][0].detach().cpu().numpy()
-                generated_traj = self.loss_dict['states_novel'][0].detach().cpu().numpy()
+                orig_goal = (batch.G[batch.rollout][0].detach().cpu().numpy() + 0.5) * 40
+                generated_traj = (self.loss_dict['states_novel'][0].detach().cpu().numpy() + 0.5) * 40
                 generated_goal = generated_traj[-1][:2]
 
                 img = np.rot90(self.env.maze_arr != WALL)
@@ -436,18 +436,19 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 ax.imshow((1-img)/5, extent=extent, cmap='Reds', alpha=0.2)
 
                 # original goal  
-                ax.scatter(*orig_goal * 40, marker='x', c='red', s=200, zorder=5, linewidths=4)
+                orig_goal 
+                ax.scatter(*orig_goal, marker='x', c='red', s=200, zorder=5, linewidths=4)
                 # trajectory end 
-                ax.scatter(*generated_goal * 40, marker='x', c='blue', s=200, zorder=5, linewidths=4)
+                ax.scatter(*generated_goal, marker='x', c='blue', s=200, zorder=5, linewidths=4)
                 # rollout start 
-                ax.scatter(*generated_traj[0][:2] * 40, marker='o', c='green', s=200, zorder=5, linewidths=4)
+                ax.scatter(*generated_traj[0][:2], marker='o', c='green', s=200, zorder=5, linewidths=4)
 
                 ax.set_xlim(0, self.env.maze_size+1)
                 ax.set_ylim(0, self.env.maze_size+1)
 
                 # generated trajectory 
                 states = deepcopy(generated_traj)
-                ax.plot(*states[:, :2].T * 40  , color='royalblue', alpha=1, linewidth = 4)
+                ax.plot(*states[:, :2].T  , color='royalblue', alpha=1, linewidth = 4)
 
                 ax.set_xticks([])
                 ax.set_yticks([])
