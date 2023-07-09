@@ -25,6 +25,7 @@ hydra:
           - env.invD_lr
           - env.D_lr
           - env.f_lr
+          - env.q_warmup
           - model.consistency_update 
           - model.q_function.norm_cls
           - model.with_gcsl

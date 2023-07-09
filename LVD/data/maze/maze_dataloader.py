@@ -15,8 +15,26 @@ class Maze_Dataset(Base_Dataset):
         super().__init__(cfg, phase)
 
 
+        # with open("./LVD/data/maze/maze_states_skild.pkl", mode ="rb") as f:
+        #     self.seqs = pickle.load(f)
+
         with open("./LVD/data/maze/maze_states_skild.pkl", mode ="rb") as f:
-            self.seqs = pickle.load(f)
+            seqs = pickle.load(f)
+        
+        
+        if self.normalize:
+            for i in range(len(seqs)):
+                seq = seqs[i]
+                obs = deepcopy(seq['obs'])
+                obs[:, :2] = obs[:, :2] / 40 - 0.5
+                obs[:, 2:] = obs[:, 2:] / 10 
+                seq['obs'] = obs
+            
+            self.seqs = seqs 
+        else:
+            self.seqs = seqs 
+
+
 
         self.n_seqs = len(self.seqs)
         self.shuffle = self.phase == "train"
@@ -132,9 +150,9 @@ class Maze_Dataset_Div(Maze_Dataset):
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
         
-        if self.normalize:
-            states[:, :2] = states[:, :2]/40
-            G[:2] = G[:2]/40
+        # if self.normalize:
+        #     states[:, :2] = states[:, :2]/40
+        #     G[:2] = G[:2]/40
 
         return edict(
             states = states,
