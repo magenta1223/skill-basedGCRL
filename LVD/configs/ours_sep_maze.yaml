@@ -50,7 +50,7 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    in_feature : ${get_indim:${model.decode_only_ppc}, ${env.state_dim}, ${env.n_obj}, ${env.skill_dim}} 
+    in_feature : ${add:${env.state_dim}, ${env.skill_dim}}
     out_dim : ${env.action_dim} 
     state_dim : ${get_statedim:${model.decode_only_ppc}, ${env.state_dim}, ${env.n_obj}}
     z_dim  : ${env.skill_dim}
