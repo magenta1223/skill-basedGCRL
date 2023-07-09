@@ -436,18 +436,18 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 ax.imshow((1-img)/5, extent=extent, cmap='Reds', alpha=0.2)
 
                 # original goal  
-                ax.scatter(*orig_goal, marker='x', c='red', s=200, zorder=10, linewidths=4)
+                ax.scatter(*orig_goal, marker='x', c='red', s=200, zorder=5, linewidths=4)
                 # trajectory end 
-                ax.scatter(*generated_goal, marker='x', c='blue', s=200, zorder=10, linewidths=4)
+                ax.scatter(*generated_goal, marker='x', c='blue', s=200, zorder=5, linewidths=4)
                 # rollout start 
-                ax.scatter(*generated_traj[0][:2], marker='o', c='green', s=200, zorder=10, linewidths=4)
+                ax.scatter(*generated_traj[0][:2], marker='o', c='green', s=200, zorder=5, linewidths=4)
 
                 ax.set_xlim(0, self.env.maze_size+1)
                 ax.set_ylim(0, self.env.maze_size+1)
 
                 # generated trajectory 
                 states = deepcopy(generated_traj)
-                ax.plot(*states[:, :2].T  , color='royalblue', alpha=1, linewidth = 10)
+                ax.plot(*states[:, :2].T  , color='royalblue', alpha=1, linewidth = 4)
 
                 ax.set_xticks([])
                 ax.set_yticks([])
