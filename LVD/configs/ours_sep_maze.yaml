@@ -14,14 +14,14 @@ model:
   state_encoder :
     in_feature : ${env.state_dim} 
     latent_state_dim : ${env.latent_state_dim}
-    ppc_state_dim : ${env.n_obj}
+    ppc_state_dim : ${env.state_dim}
     env_state_dim : ${env.n_env}
     out_dim : ${env.latent_state_dim}
   
   state_decoder :
     in_feature : ${env.latent_state_dim}
     latent_state_dim : ${env.latent_state_dim}
-    ppc_state_dim : ${env.n_obj}
+    ppc_state_dim : ${env.state_dim}
     env_state_dim : ${env.n_env}
     out_dim : ${env.state_dim}
 
