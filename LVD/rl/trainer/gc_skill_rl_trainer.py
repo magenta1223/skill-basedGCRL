@@ -54,7 +54,7 @@ class GC_Skill_RL_Trainer:
         skill_prior.requires_grad_(False) 
 
         qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh).to(high_policy.device)
+        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh, self.cfg.hindsight_relabel).to(high_policy.device)
         collector = GC_Hierarchical_Collector(
             self.env,
             low_actor,

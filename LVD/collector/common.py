@@ -72,7 +72,7 @@ class HierarchicalEpisode_RR(Episode_RR):
 
 
 class GC_Batch(Batch):
-    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False):
+    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False, hindsight_relabeling = False):
         # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
         super().__init__(states, actions, rewards, dones, next_states, transitions)
 
@@ -81,6 +81,7 @@ class GC_Batch(Batch):
         self.data['relabeled_rewards'] = relabeled_rewards
 
         self.tanh = tanh
+        self.hindsight_relabeling = hindsight_relabeling
 
     @property
     def goals(self):
@@ -96,19 +97,12 @@ class GC_Batch(Batch):
 
     def parse(self):
         
-        relabel = random.random() > 0.8 
+        if self.hindsight_relabeling:
+            # sample별로 해야 함. 
+            indices = torch.rand(len(self.states), 1).cuda()
 
-        # sample별로 해야 함. 
-        batch_size = len(self.states)
-        # indices = np.random.rand(batch_size)
-        indices = torch.rand(len(self.states), 1).cuda()
-
-
-        # print(indices.shape, self.rewards.shape, self.relabeled_rewards.shape)
-        # print(indices.shape, self.goals.shape, self.relabeled_goals.shape)
-        # rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards  )
-        # G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals  )
-
+        else:
+            indices = torch.zeros(len(self.states), 1).cuda()
 
         batch_dict = edict(
             states = self.states,
@@ -123,6 +117,7 @@ class GC_Batch(Batch):
             # GCQ
             rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
             G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
+            relabeled_G = self.relabeled_goals,
             dones = self.dones,
         )
         if self.tanh:
@@ -135,7 +130,7 @@ class GC_Batch(Batch):
 class GC_Buffer(Buffer):
     """
     """
-    def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False):
+    def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
 
         self.state_processor = StateProcessor(env_name)
         self.env_name = env_name
@@ -144,6 +139,8 @@ class GC_Buffer(Buffer):
         self.tanh = tanh
         if self.tanh:
             action_dim *= 2
+        self.hindsight_relabeling = hindsight_relabeling
+
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.max_size = max_size
@@ -226,7 +223,7 @@ class GC_Buffer(Buffer):
     def sample(self, n):
         indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
-        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh).to(self.device)
+        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabeling).to(self.device)
         return batch.parse()
     
 class Offline_Buffer:

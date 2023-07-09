@@ -432,7 +432,9 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         Finetune inverse dynamics and dynamics with the data collected in online.
         """
         # BC를 하려면 반드시 relabeled G여야 함. 
-        states, G, next_states = batch.states, batch.G, batch.next_states
+        # states, G, next_states = batch.states, batch.G, batch.next_states
+        states, G, next_states = batch.states, batch.relabeled_G, batch.next_states
+
         # self.state_encoder.eval()
 
         ht, _, _ = self.state_encoder(states)
@@ -442,13 +444,12 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         # inverse dynamics 
         # if self.grad_pass_invD:
-        if self.cfg.grad_pass.invD:
-            # invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.tanh)
-            invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.cfg.tanh)
+        # if self.cfg.grad_pass.invD:
+        #     invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.cfg.tanh)
+        # else:
+        #      invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.cfg.tanh)
 
-        else:
-            # invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.tanh)
-             invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.cfg.tanh)
+        invD, invD_detach = self.forward_invD(ht, htH)
 
         D = self.forward_D(ht, batch.actions)
 
@@ -460,7 +461,6 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             batch.actions_normal,
             # tanh = self.tanh
             tanh = self.cfg.tanh
-
         ).mean()
         
         # GCSL
@@ -468,7 +468,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
 
-        GCSL_loss = F.mse_loss(subgoal_f, htH_target) + nll_dist(
+        GCSL_loss = F.mse_loss(subgoal_f, htH_target) + F.mse_loss(subgoal_D, htH_target) + nll_dist(
             batch.actions,
             invD_sub,
             batch.actions_normal,

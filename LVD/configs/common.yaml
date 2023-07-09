@@ -5,14 +5,19 @@ hydra:
     config:
       override_dirname:
         exclude_keys:
+          # common 
           - phase
           - rl_batch_size
+          - zeroshot 
+          - hindsight_relabel
+          # rl 
           - rl.q_warmup
           - rl.discount
           - rl.tau
           - rl.qf_lr
           - rl.alpha_lr
           - rl.precollect
+          # env 
           - env.policy_lr
           - env.consistency_lr
           - env.init_alpha
@@ -26,6 +31,7 @@ hydra:
           - env.D_lr
           - env.f_lr
           - env.q_warmup
+          # model 
           - model.consistency_update 
           - model.q_function.norm_cls
           - model.with_gcsl
@@ -35,7 +41,7 @@ hydra:
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 zeroshot : false
-
+hindsight_relabel : true
 
 save_ckpt : 20
 early_stop_rounds : 100
@@ -78,5 +84,6 @@ rl_cfgs : [
   consistency_update, model_update, init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
   tanh, # distribution   
   gc,
-  with_gcsl
+  with_gcsl,
+  hindsight_relabel
   ]
