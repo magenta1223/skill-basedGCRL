@@ -203,7 +203,6 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         # subgoal by flat dynamics rollout
         states = self.outputs['states']
         reconstructed_subgoal, _, _ = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
-
         states_hat = self.outputs['states_hat']
         subgoal_recon_f = self.outputs['subgoal_recon_f']
         subgoal_recon_D = self.outputs['subgoal_recon_D']
@@ -215,20 +214,24 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             subgoal_recon_f = self.denormalize(subgoal_recon_f)
             subgoal_recon_D = self.denormalize(subgoal_recon_D)
 
-            # states = (states + 0.5) * 40
-            # reconstructed_subgoal = (reconstructed_subgoal + 0.5) * 40
-            # states_hat = (states_hat + 0.5) * 40
-            # subgoal_recon_f = (subgoal_recon_f + 0.5) * 40
-            # subgoal_recon_D = (subgoal_recon_D + 0.5) * 40
+        # self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, states[:, -1, :], weights).item()
+        # self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, subgoal_recon_D, weights).item()
+        # self.loss_dict['recon_state'] = self.loss_fn('recon')(states_hat, states, weights) # ? 
+        # self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f, states[:,-1], weights) # ? 
+        # self.loss_dict['recon_state_orig'] = self.loss_fn('recon_orig')(states_hat, states) # ? 
 
+        if self.env_name == "maze":
+            self.loss_dict['Rec_flatD_pos'] = self.loss_fn('recon')(reconstructed_subgoal[:, :self.n_pos], states[:, -1, :self.n_pos], weights).item()
+            self.loss_dict['Rec_flatD_nonpos'] = self.loss_fn('recon')(reconstructed_subgoal[:, self.n_pos:], states[:, -1, self.n_pos:], weights).item()
+            self.loss_dict['Rec_D_pos'] = self.loss_fn('recon')(subgoal_recon_D[:, :self.n_pos], states[:, -1, :self.n_pos], weights).item()
+            self.loss_dict['Rec_D_nonpos'] = self.loss_fn('recon')(subgoal_recon_D[:, self.n_pos:], states[:, -1, self.n_pos:], weights).item()
 
-        self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, states[:, -1, :], weights).item()
-        self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, subgoal_recon_D, weights).item()
+        else:
+            self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, states[:, -1, :], weights).item()
+            self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, subgoal_recon_D, weights).item()
 
-        # state reconstruction 
         self.loss_dict['recon_state'] = self.loss_fn('recon')(states_hat, states, weights) # ? 
         self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f, states[:,-1], weights) # ? 
-
         self.loss_dict['recon_state_orig'] = self.loss_fn('recon_orig')(states_hat, states) # ? 
 
 
@@ -275,6 +278,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
         else:
             decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
+            # decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
+
 
         N, T = decode_inputs.shape[:2]
         skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)

@@ -54,6 +54,7 @@ model:
 
   skill_decoder:
     in_feature : ${add:${env.state_dim}, ${env.skill_dim}}
+    # in_feature : ${add:${env.n_pos}, ${env.skill_dim}}
     out_dim : ${env.action_dim} 
     state_dim : ${get_statedim:${env.manipulation}, ${env.state_dim}, ${env.n_pos}}
     z_dim  : ${env.skill_dim}
