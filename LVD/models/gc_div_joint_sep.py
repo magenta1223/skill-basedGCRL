@@ -164,6 +164,20 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
 
         self.c = 0
+    
+    def denormalize(self, x):
+        """
+        Restore for maze and carla
+        """
+        
+        if self.env_name == "maze":
+            x[..., :2] = (x[..., :2] + 0.5) * 40
+            x[..., 2:] = x[..., 2:]  * 10
+        else:
+            pass
+    
+        return x
+
 
     @torch.no_grad()
     def get_metrics(self, batch):
@@ -187,17 +201,38 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         self.loss_dict['metric'] = self.loss_dict['Prior_GC']
         
         # subgoal by flat dynamics rollout
+        states = self.outputs['states']
         reconstructed_subgoal, _, _ = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
-        self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['states'][:, -1, :], weights).item()
-        self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, self.outputs['subgoal_recon_D'], weights).item()
+
+        states_hat = self.outputs['states_hat']
+        subgoal_recon_f = self.outputs['subgoal_recon_f']
+        subgoal_recon_D = self.outputs['subgoal_recon_D']
+
+        if self.normalize:
+            states = self.denormalize(states)
+            reconstructed_subgoal = self.denormalize(reconstructed_subgoal)
+            states_hat = self.denormalize(states_hat)
+            subgoal_recon_f = self.denormalize(subgoal_recon_f)
+            subgoal_recon_D = self.denormalize(subgoal_recon_D)
+
+            # states = (states + 0.5) * 40
+            # reconstructed_subgoal = (reconstructed_subgoal + 0.5) * 40
+            # states_hat = (states_hat + 0.5) * 40
+            # subgoal_recon_f = (subgoal_recon_f + 0.5) * 40
+            # subgoal_recon_D = (subgoal_recon_D + 0.5) * 40
+
+
+        self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, states[:, -1, :], weights).item()
+        self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, subgoal_recon_D, weights).item()
 
         # state reconstruction 
-        self.loss_dict['recon_state'] = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
-        self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(self.outputs['subgoal_recon_f'], self.outputs['states'][:,-1], weights) # ? 
+        self.loss_dict['recon_state'] = self.loss_fn('recon')(states_hat, states, weights) # ? 
+        self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f, states[:,-1], weights) # ? 
 
-        self.loss_dict['recon_state_orig'] = self.loss_fn('recon_orig')(self.outputs['states_hat'], self.outputs['states']) # ? 
+        self.loss_dict['recon_state_orig'] = self.loss_fn('recon_orig')(states_hat, states) # ? 
 
 
+    
 
 
     def forward(self, batch):
@@ -417,6 +452,12 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             self.loss_dict['seq_indices'] = seq_indices
             self.c = c
             self.loss_dict['c'] = start_indices + c
+
+        if self.normalize:
+            # 여기서 다르게 해야함. 
+            self.loss_dict['states_novel'] = self.denormalize(self.loss_dict['states_novel'])
+
+            # states_novel[:, :2] = (states_novel[:, :2] + 0.5) * 40
 
 
 
