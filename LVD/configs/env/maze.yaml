@@ -1,11 +1,13 @@
 env_name : maze
-robotics : false
+manipulation : false
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 
 
 state_dim : 4
-n_obj : 4
-n_env : 0
+# n_obj : 4
+# n_env : 0
+n_pos : 2
+n_nonPos : 2
 n_goal : 2
 action_dim : 2
 normalize : false

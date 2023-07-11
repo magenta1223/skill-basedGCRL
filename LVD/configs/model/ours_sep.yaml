@@ -15,7 +15,6 @@ grad_pass:
 diff : true
 mmd : false
 distributional : true
-decode_only_ppc : true
 only_unseen : true
 
 state_encoder :

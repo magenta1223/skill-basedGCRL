@@ -34,11 +34,11 @@ def get_cycle(batch_size):
 def get_outdim(latent_state_dim, distributional):
     return latent_state_dim * 2 if distributional else latent_state_dim
 
-def get_indim(decode_only_ppc, state_dim, n_obj, skill_dim):
-    return n_obj + skill_dim if decode_only_ppc else state_dim + skill_dim
+def get_indim(manipulation, state_dim, n_obj, skill_dim):
+    return n_obj + skill_dim if manipulation else state_dim + skill_dim
 
-def get_statedim(decode_only_ppc, state_dim, n_obj):
-    return n_obj if decode_only_ppc else state_dim 
+def get_statedim(manipulation, state_dim, n_obj):
+    return n_obj if manipulation else state_dim 
 
 OmegaConf.register_new_resolver("add", add)
 OmegaConf.register_new_resolver("multiply", multiply)

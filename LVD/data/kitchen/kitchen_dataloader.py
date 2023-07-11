@@ -414,8 +414,8 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
             g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
-        G[ : self.n_obj] = 0 # only env state
+        G = deepcopy(seq.states[g_index])[:self.n_pos + self.n_nonPos]
+        G[ : self.n_pos] = 0 # only env state
 
         output = dict(
             states=states,
@@ -446,8 +446,8 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             start_idx, goal_idx = self.sample_indices(states)
             
             goal_idx = -1
-            G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
-            G[ : self.n_obj] = 0 # only env state
+            G = deepcopy(states[goal_idx])[:self.n_pos + self.n_nonPos]
+            G[ : self.n_pos] = 0 # only env state
             
             # 
             # 만약 start_idx가 c보다 나중이면 -> discount..해야겠지? 

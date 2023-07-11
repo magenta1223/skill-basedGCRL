@@ -110,7 +110,8 @@ class BaseTrainer:
 
     def fit(self):
         print("optimizing")
-        print(f"weights save path : {self.model_id}")
+        print(f"log path : {self.run_path}/train.log")
+        print(f"weights path : {self.model_id}")
 
         for e in range(self.cfg.epochs):
             start = time.time()
@@ -248,6 +249,7 @@ class BaseTrainer:
 class Diversity_Trainer(BaseTrainer):
     def fit(self):
         print("optimizing")
+        print(f"log path : {self.run_path}/train.log")
         print(f"weights save path : {self.model_id}")
         rollout  = False
         for e in range(self.cfg.epochs):

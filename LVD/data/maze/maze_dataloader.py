@@ -172,7 +172,7 @@ class Maze_Dataset_Div(Maze_Dataset):
             # states_images[:, :2] -= states_images[0, :2]
             # G[ :2] -= states_images[0, :2]
             states = states[:self.subseq_len]
-            G = deepcopy(states[-1][:self.n_obj][:2])
+            G = deepcopy(states[-1][:self.n_pos][:2])
             G[2:] = 0
 
 
@@ -260,7 +260,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
 
-        G = deepcopy(states[goal_idx][:2])
+        G = deepcopy(states[goal_idx][:self.n_nonPos])
         states = states[start_idx : start_idx + self.subseq_len, :self.state_dim]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
         
@@ -288,7 +288,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             start_idx, goal_idx = self.sample_indices(states)
 
             goal_idx = -1
-            G = deepcopy(states[goal_idx][:self.n_obj][:2])
+            G = deepcopy(states[goal_idx][:self.n_pos][:self.n_nonPos])
 
             # # relative position 
             # states_images[:, :2] -= states_images[0, :2]

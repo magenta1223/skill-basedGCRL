@@ -49,34 +49,24 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     def forward(self, batch, *args, **kwargs):
         states, G = batch.states, batch.G
         N, T, _ = states.shape
-        skill_length = T - 1 
 
         # -------------- State Enc / Dec -------------- #
         # for state reconstruction and dynamics
-        states_repr, ht_ppc, ht_env = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
+        states_repr, ht_pos, ht_nonPos = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
         scales = 0
             
-        states_hat, ppc_hat, env_hat = self.state_decoder(states_repr)
+        states_hat, pos_hat, nonPos_hat = self.state_decoder(states_repr)
         states_hat = states_hat.view(N, T, -1) 
         hts = states_repr.view(N, T, -1).clone()
 
         with torch.no_grad():
-            # ppc_states = self.state_processor.to_ppc(states.clone())  # env states removed 
-            # ppc = self.state_encoder(ppc_states.view(N * T, -1)).view(N,T,-1) # forward 
-
-            # # for MMD loss of WAE
-            state_emb = states_repr.view(N, T, -1)[:, 0] # N, -1 
-            states_fixed = torch.randn(512, *state_emb.shape[1:]).cuda() # 512, -1 
-
             # target for dynamics & subgoal generator 
             hts_target, _, _ = self.target_state_encoder(states.view(N * T, -1))
-            states_hat_target = self.state_decoder(hts_target)[0].view(N, T, -1)
-            
             hts_target = hts_target.view(N, T, -1)
             subgoal_target = hts_target[:, -1]
 
         # -------------- State-Conditioned Prior -------------- #
-        prior, prior_detach = self.skill_prior.dist(ht_ppc.view(N, T, -1)[:, 0].clone().detach(), detached = True)
+        prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
 
         # # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
@@ -87,14 +77,17 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         D = self.forward_D(hts[:, 0], skill)
         
         # only env diff만 
-        # diff_flat = flat_D - hts[:, :-1]
-        if self.cfg.robotics:
-            diff_env_latent = cache[-1].view(N, T-1, -1)
-            diff = self.diff_decoder(diff_env_latent.clone().detach())
-            diff_target = states[:, 1:, self.cfg.n_obj:] - states[:, :-1, self.cfg.n_obj:]
+        if self.cfg.manipulation:
+            diff_nonPos_latent = cache[-1].view(N, T-1, -1)
+            diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
+            diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
         else:
-            diff = 0
-            diff_target = 0
+            # diff = 0
+            # diff_target = 0
+            diff_nonPos_latent = cache[-1].view(N, T-1, -1)
+            diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
+            diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
+
 
         # # -------------- Subgoal Generator -------------- #
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
@@ -104,144 +97,118 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         subgoals = self.check_subgoals(check_subgoals_input)
 
         result = edict(
-            # states VAE
+            # State Auto-Encoder
             states = states,
             states_hat = states_hat,
             states_repr = states_repr,
 
-            # hts = hts,
-            # states_hat_target = states_hat_target,
-            # full state to proprioceptive state 
-    
+            # Skills 
             prior = prior,
             prior_detach = prior_detach,
             invD = inverse_dynamics,
             invD_detach = inverse_dynamics_detach,
-            # Ds
+
+            # Dynamics modules
             D = D,
             flat_D = flat_D,
-            # D_target =  hts[:,-1].clone().detach(), 
-            # flat_D_target = hts[:, 1:].clone().detach(),
-
             D_target =  subgoal_target, 
             flat_D_target = hts_target[:, 1:],
 
-            # f
+            # Subgoal generator 
             subgoal_D =  subgoal_D,
             subgoal_f = subgoal_f,
-            # "subgoal_target" : subgoal,
             subgoal_target =  subgoal_target,
 
-
+            # Difference Decoder for manipulation task 
             diff = diff,
             diff_target = diff_target,
-
-
             invD_sub = invD_sub,
-            # "invD_sub2" : invD_sub2,
             scales = scales
-            
         )
-
+        
+        # metrics 
         result.update(subgoals)
         return result
     
     # def forward_invD(self, hts):
     def forward_invD(self, start, subgoal):
-        # if not self.grad_pass_invD:
         if not self.cfg.grad_pass.invD:
             start = start.clone().detach()
             subgoal = subgoal.clone().detach()
 
-        # inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.tanh)
         inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.cfg.tanh)
 
         return inverse_dynamics, inverse_dynamics_detach
     
     def forward_flatD(self, start, skill):
-        # start = start.clone().detach()
+
         # rollout / check 
-        if self.cfg.robotics:
-            ppc, env = start.chunk(2, -1)
-        else:
-            ppc, env = start, None
-        if len(ppc.shape) < 3:
-            # flat_dynamics_input = torch.cat((start, skill), dim=-1)
-            # 직접 변환을 하지말고 실제 값을 받아오면 됨. 
-            flat_dynamics_input = torch.cat((ppc, skill), dim=-1)
+        # if self.cfg.manipulation:
+        #     pos, nonPos = start.chunk(2, -1)
+        # else:
+        #     pos, nonPos = start, None
+        pos, nonPos = start.chunk(2, -1)
+
+        if len(pos.shape) < 3:
+            flat_dynamics_input = torch.cat((pos, skill), dim=-1)
             flat_D = self.flat_dynamics(flat_dynamics_input)
+            pos_now, nonPos_now = flat_D.chunk(2, -1)
 
-            ppc_now, env_now = flat_D.chunk(2, -1)
-            # if self.grad_pass_D:
             if self.cfg.grad_pass.D:
-
                 flat_D = start + flat_D
             else:
                 flat_D = start.clone().detach() + flat_D
 
         else:
-            N, T = ppc.shape[:2]
+            N, T = pos.shape[:2]
             skill_length = T- 1
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-            flat_dynamics_input = torch.cat((ppc[:, :-1], skill), dim=-1)
-
-            # start 대신 state_to_ppc(start) 를 넣어서 학습. 
+            flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
-            if self.cfg.robotics:
-                ppc_now, env_now = flat_D.chunk(2, -1)
+            
+            if self.cfg.manipulation:
+                pos_now, nonPos_now = flat_D.chunk(2, -1)
             else:
-                ppc_now, env_now = flat_D, None
-            # if self.grad_pass_D:
-            if self.cfg.grad_pass.D:
-                # flat_D += start[:,:-1]
-                flat_D = start[:,:-1] + flat_D
+                # pos_now, nonPos_now = flat_D, None
+                pos_now, nonPos_now = flat_D.chunk(2, -1)
 
+            if self.cfg.grad_pass.D:
+                flat_D = start[:,:-1] + flat_D
             else:
-                # flat_D += start[:,:-1].clone().detach()
                 flat_D = start[:,:-1].clone().detach() + flat_D
 
-        cache = ppc, env, ppc_now, env_now
+        cache = pos, nonPos, pos_now, nonPos_now
 
         return flat_D, cache
 
     def forward_D(self, start, skill, use_target = False):
-        # start = start.clone().detach()
 
-        # dynamics_input = torch.cat((start, skill), dim = -1) 
-        # with torch.no_grad():
-        #     ppc_start = self.state_to_ppc(start)
-        # start = torch.cat((ppc, env), dim = -1)
-        if self.cfg.robotics:
-            ppc, env = start.chunk(2, -1)
-        else:
-            ppc, env = start, None
+        # if self.cfg.manipulation:
+        #     pos, nonPos = start.chunk(2, -1)
+        # else:
+        #     pos, nonPos = start, None
+        pos, nonPos = start.chunk(2, -1)
 
-        dynamics_input = torch.cat((ppc, skill), dim=-1)
 
-        # start 대신 state_to_ppc(start) 를 넣어서 학습. 
+        dynamics_input = torch.cat((pos, skill), dim=-1)
+
         if use_target:
             D = self.target_dynamics(dynamics_input)
         else:
             D = self.dynamics(dynamics_input)
 
-        # if self.grad_pass_D:
         if self.cfg.grad_pass.D:
-            # D += start
             D = start + D
         else:
-            # D += start.clone().detach()
             D = start.clone().detach() + D
 
         return D
 
     def forward_subgoal_G(self, start, G):
         start = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
-        
         sg_input = torch.cat((start,  G), dim = -1)
         subgoal_f = self.subgoal_generator(sg_input)
         subgoal_f = subgoal_f + start
-
-        # invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.tanh)
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.cfg.tanh)
         skill_sub = invD_sub.rsample()
         subgoal_D = self.forward_D(start, skill_sub, use_target= True)
@@ -255,9 +222,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         start, subgoal = hts[:,0], hts[:-1]
         _ht = start.clone()
         skill = inverse_dynamics.sample()
+
         for _ in range(skill_length):
             _ht, _ = self.forward_flatD(_ht, skill)
-        # invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.tanh)
+
         invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.cfg.tanh)
 
 
@@ -280,69 +248,80 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         states = batch.states
         N, T, _ = states.shape
         skill_length = T - 1
-
-
-        hts, _, ht_env = self.state_encoder(states.view(N * T, -1))
+        hts, _, _ = self.state_encoder(states.view(N * T, -1))
         hts = hts.view(N, T, -1)  
-        if self.cfg.robotics:
-            ht_ppc = hts[:, 0].chunk(2, -1)[0]
-        else:
-            ht_ppc = hts[:, 0]
 
         c = random.sample(range(1, skill_length - 1), 1)[0]
         _ht = hts[:, c].clone()
-        skill_sampled = self.skill_prior.dist(ht_ppc).sample()
+        ht_pos, ht_nonPos = _ht.chunk(2, -1)
+        # skill_sampled = self.skill_prior.dist(ht_pos).sample()
+        skill_sampled = self.skill_prior.dist(ht_pos).sample()
 
         states_rollout = []
         _state = states[:, c]
-        env_raw_state = states[:, c, self.cfg.n_obj:]
+        nonPos_raw_state = states[:, c, self.cfg.n_pos:]
 
         # 1 skill
         for _ in range(c, skill_length):
             # execute skill on latent space and append to the original sub-trajectory 
             # flat_D로 rollout -> diff in latent space -> diff in raw state space 
             next_ht, cache = self.forward_flatD(_ht, skill_sampled) 
-            if self.cfg.robotics:
-                _, _, _, diff_env_latent = cache
-                diff_env = self.diff_decoder(diff_env_latent)
-                _, ppc_raw_state, _ = self.state_decoder(next_ht)
-                env_raw_state = env_raw_state + diff_env
-                _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
-            else:
-                _, ppc_raw_state, _ = self.state_decoder(next_ht)
-                _state = ppc_raw_state
+
+            # if self.cfg.manipulation:
+            #     _, _, _, diff_nonPos_latent = cache
+            #     diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            #     _, pos_raw_state, _ = self.state_decoder(next_ht)
+            #     nonPos_raw_state = nonPos_raw_state + diff_nonPos
+            #     _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            # else:
+            #     # 여기서는 next_ht가 unseen일까? 아뇨?  
+            #     _state, pos_raw_state, _ = self.state_decoder(next_ht)
+            #     # _state = pos_raw_state
+
+
+            _, _, _, diff_nonPos_latent = cache
+            diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            _, pos_raw_state, _ = self.state_decoder(next_ht)
+            nonPos_raw_state = nonPos_raw_state + diff_nonPos
+            _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+
+
 
             states_rollout.append(_state)
             _ht = next_ht
-            if self.cfg.robotics:
-                ht_ppc, ht_env = next_ht.chunk(2, -1)
-            else:
-                ht_ppc = next_ht
+            ht_pos, ht_nonPos = _ht.chunk(2, -1)
         
         skills = []
         # for f learning, execute 4 skill more
         for i in range(self.cfg.plan_H):
             if i % 10 == 0:
-                skill = self.skill_prior.dist(ht_ppc).sample()
+                skill = self.skill_prior.dist(ht_pos).sample()
             next_ht, cache = self.forward_flatD(_ht, skill) 
-            if self.cfg.robotics:
-                _, _, _, diff_env_latent = cache
-                diff_env = self.diff_decoder(diff_env_latent)
-                _, ppc_raw_state, _ = self.state_decoder(next_ht)
-                env_raw_state = env_raw_state + diff_env
+            # if self.cfg.manipulation:
+            #     _, _, _, diff_nonPos_latent = cache
+            #     diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            #     _, pos_raw_state, _ = self.state_decoder(next_ht)
+            #     nonPos_raw_state = nonPos_raw_state + diff_nonPos
 
-                _state = torch.cat((ppc_raw_state, env_raw_state), dim = -1)
-            else:
-                _, ppc_raw_state, _ = self.state_decoder(next_ht)
-                _state = ppc_raw_state
+            #     _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            # else:
+            #     # _, pos_raw_state, _ = self.state_decoder(next_ht)
+            #     # _state = pos_raw_state
+            #     _state, pos_raw_state, _ = self.state_decoder(next_ht)
+            _, _, _, diff_nonPos_latent = cache
+            diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            _, pos_raw_state, _ = self.state_decoder(next_ht)
+            nonPos_raw_state = nonPos_raw_state + diff_nonPos
+
+            _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+    
+
 
             # back to ppc 
             states_rollout.append(_state)
             _ht = next_ht
-            if self.cfg.robotics:
-                ht_ppc, ht_env = next_ht.chunk(2, -1)
-            else:
-                ht_ppc = next_ht
+            ht_pos, ht_nonPos = _ht.chunk(2, -1)
+
             skills.append(skill)
             
         states_rollout = torch.stack(states_rollout, dim = 1)
@@ -353,7 +332,6 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             states_rollout = states_rollout,
             skill_sampled = skill_sampled,
             skills = skills,
-            # hts_rollout = hts_rollout
         )
 
 
@@ -362,16 +340,16 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     def encode(self, states, keep_grad = False, prior = False):
         if keep_grad:
             if prior:
-                ht, ht_ppc, ht_env = self.state_encoder(states)
-                ht = ht_ppc
+                ht, ht_pos, ht_nonPos = self.state_encoder(states)
+                ht = ht_pos
             else:
                 ht, _, _ = self.state_encoder(states)
 
         else:
             with torch.no_grad():
                 if prior:
-                    ht, ht_ppc, ht_env = self.state_encoder(states)
-                    ht = ht_ppc
+                    ht, ht_pos, ht_nonPos = self.state_encoder(states)
+                    ht = ht_pos
                 else:
                     ht, _, _ = self.state_encoder(states)
 
@@ -385,7 +363,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # policy or act
             state, G = batch.states, batch.G 
             with torch.no_grad():
-                ht, ht_ppc, ht_env = self.state_encoder(state)
+                ht, ht_pos, ht_nonPos = self.state_encoder(state)
 
             # subgoal 
             _, _, subgoal_f = self.forward_subgoal_G(ht, G)

@@ -1,13 +1,15 @@
 env_name : kitchen
 env_name_offline : kitchen-mixed-v0
-robotics : true
+manipulation : true
 
 envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
 
 
 state_dim : 30
-n_obj : 9
-n_env : 21
+# n_obj : 9
+# n_env : 21
+n_pos : 9
+n_nonPos : 21
 n_goal : 30
 action_dim : 9
 normalize : false

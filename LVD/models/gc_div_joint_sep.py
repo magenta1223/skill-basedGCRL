@@ -47,11 +47,14 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         flat_dynamics = SequentialBuilder(cfg.dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
-        if cfg.robotics:
-            diff_decoder = SequentialBuilder(cfg.diff_decoder)
+        # if cfg.manipulation:
+        #     diff_decoder = SequentialBuilder(cfg.diff_decoder)
 
-        else:
-            diff_decoder = torch.nn.Identity()
+        # else:
+        #     diff_decoder = torch.nn.Identity()
+
+        diff_decoder = SequentialBuilder(cfg.diff_decoder)
+
 
         # if self.robotics:
         #     prior_proprioceptive = SequentialBuilder(cfg.ppc)
@@ -79,6 +82,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         )
 
         ### ----------------- Skill Enc / Dec Modules ----------------- ###
+        if not self.manipulation:
+            cfg.skill_encoder.in_feature = self.n_pos + self.action_dim 
         self.skill_encoder = SequentialBuilder(cfg.skill_encoder)
         self.skill_decoder = DecoderNetwork(cfg.skill_decoder)
 
@@ -203,8 +208,13 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         skill_states = states.clone()
 
         # skill Encoder 
-        enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
-        q = self.skill_encoder(enc_inputs)[:, -1]
+        if self.manipulation:
+            enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
+            q = self.skill_encoder(enc_inputs)[:, -1]
+        else:
+            enc_inputs = torch.cat( (skill_states.clone()[:,:-1, :self.n_pos], actions), dim = -1)
+            q = self.skill_encoder(enc_inputs)[:, -1]
+
         q_clone = q.clone().detach()
         q_clone.requires_grad = False
         
@@ -226,8 +236,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             z = skill.clone().detach()
         
         # 
-        if self.decode_only_ppc:
-            decode_inputs = self.dec_input(skill_states[:, :, :self.n_obj].clone(), skill, self.Hsteps)
+        if self.manipulation:
+            decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
         else:
             decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
 
@@ -306,14 +316,20 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
-        if self.robotics:
+        if self.manipulation:
             diff_loss = self.loss_fn("recon")(
                 self.outputs['diff'], 
                 self.outputs['diff_target'], 
                 weights
             )
         else:
-            diff_loss = torch.tensor([0]).cuda()
+            # diff_loss = torch.tensor([0]).cuda()
+            diff_loss = self.loss_fn("recon")(
+                self.outputs['diff'], 
+                self.outputs['diff_target'], 
+                weights
+            )
+
 
         loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss
         
@@ -366,8 +382,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         skills = torch.cat(( skill_sampled.unsqueeze(1).repeat(1,T-c-1, 1), skills ), dim = 1)
 
 
-        if self.decode_only_ppc:
-            dec_inputs = torch.cat((states_rollout[:,:, :self.n_obj], skills), dim = -1)
+        if self.manipulation:
+            dec_inputs = torch.cat((states_rollout[:,:, :self.n_pos], skills), dim = -1)
         else:
             dec_inputs = torch.cat((states_rollout, skills), dim = -1)
 
@@ -423,8 +439,12 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             elif self.env.name == "maze": 
                 ax = plt.gca()
                 
-                orig_goal = (batch.G[batch.rollout][0].detach().cpu().numpy() + 0.5) * 40
-                generated_traj = (self.loss_dict['states_novel'][0].detach().cpu().numpy() + 0.5) * 40
+                orig_goal = batch.G[batch.rollout][0].detach().cpu().numpy() 
+                generated_traj = self.loss_dict['states_novel'][0].detach().cpu().numpy()
+                if self.normalize:
+                    orig_goal = (orig_goal + 0.5) * 40
+                    generated_traj = (generated_traj + 0.5) * 40
+
                 generated_goal = generated_traj[-1][:2]
 
                 img = np.rot90(self.env.maze_arr != WALL)
