@@ -25,8 +25,8 @@ model:
     out_dim : ${env.state_dim}
 
   dynamics :
-    # in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
-    in_feature : ${add:${divide:${env.latent_state_dim}, 2}, ${env.skill_dim}}
+    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
+    # in_feature : ${add:${divide:${env.latent_state_dim}, 2}, ${env.skill_dim}}
     out_dim : ${env.latent_state_dim} 
   
   # not used in non-manipulation env 
@@ -43,8 +43,8 @@ model:
     out_dim : ${env.latent_state_dim}
 
   prior:
-    # in_feature : ${env.latent_state_dim}
-    in_feature : ${divide:${env.latent_state_dim},2}
+    in_feature : ${env.latent_state_dim}
+    # in_feature : ${divide:${env.latent_state_dim},2}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
 

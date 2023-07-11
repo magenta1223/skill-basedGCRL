@@ -66,7 +66,10 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             subgoal_target = hts_target[:, -1]
 
         # -------------- State-Conditioned Prior -------------- #
-        prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
+        if self.cfg.manipulation:
+            prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
+        else:
+            prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
 
         # # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
@@ -143,11 +146,11 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     def forward_flatD(self, start, skill):
 
         # rollout / check 
-        # if self.cfg.manipulation:
-        #     pos, nonPos = start.chunk(2, -1)
-        # else:
-        #     pos, nonPos = start, None
-        pos, nonPos = start.chunk(2, -1)
+        if self.cfg.manipulation:
+            pos, nonPos = start.chunk(2, -1)
+        else:
+            pos, nonPos = start, None
+        # pos, nonPos = start.chunk(2, -1)
 
         if len(pos.shape) < 3:
             flat_dynamics_input = torch.cat((pos, skill), dim=-1)
@@ -183,11 +186,11 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
     def forward_D(self, start, skill, use_target = False):
 
-        # if self.cfg.manipulation:
-        #     pos, nonPos = start.chunk(2, -1)
-        # else:
-        #     pos, nonPos = start, None
-        pos, nonPos = start.chunk(2, -1)
+        if self.cfg.manipulation:
+            pos, nonPos = start.chunk(2, -1)
+        else:
+            pos, nonPos = start, None
+        # pos, nonPos = start.chunk(2, -1)
 
 
         dynamics_input = torch.cat((pos, skill), dim=-1)

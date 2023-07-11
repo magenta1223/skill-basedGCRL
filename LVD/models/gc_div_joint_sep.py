@@ -82,8 +82,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         )
 
         ### ----------------- Skill Enc / Dec Modules ----------------- ###
-        if not self.manipulation:
-            cfg.skill_encoder.in_feature = self.n_pos + self.action_dim 
+        # if not self.manipulation:
+        #     cfg.skill_encoder.in_feature = self.n_pos + self.action_dim 
         self.skill_encoder = SequentialBuilder(cfg.skill_encoder)
         self.skill_decoder = DecoderNetwork(cfg.skill_decoder)
 
@@ -246,12 +246,15 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         skill_states = states.clone()
 
         # skill Encoder 
-        if self.manipulation:
-            enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
-            q = self.skill_encoder(enc_inputs)[:, -1]
-        else:
-            enc_inputs = torch.cat( (skill_states.clone()[:,:-1, :self.n_pos], actions), dim = -1)
-            q = self.skill_encoder(enc_inputs)[:, -1]
+        # if self.manipulation:
+        #     enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
+        #     q = self.skill_encoder(enc_inputs)[:, -1]
+        # else:
+        #     enc_inputs = torch.cat( (skill_states.clone()[:,:-1, :self.n_pos], actions), dim = -1)
+        #     q = self.skill_encoder(enc_inputs)[:, -1]
+
+        enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
+        q = self.skill_encoder(enc_inputs)[:, -1]
 
         q_clone = q.clone().detach()
         q_clone.requires_grad = False
