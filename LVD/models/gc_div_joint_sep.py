@@ -246,15 +246,15 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         skill_states = states.clone()
 
         # skill Encoder 
-        # if self.manipulation:
-        #     enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
-        #     q = self.skill_encoder(enc_inputs)[:, -1]
-        # else:
-        #     enc_inputs = torch.cat( (skill_states.clone()[:,:-1, :self.n_pos], actions), dim = -1)
-        #     q = self.skill_encoder(enc_inputs)[:, -1]
+        if self.manipulation:
+            enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
+            q = self.skill_encoder(enc_inputs)[:, -1]
+        else:
+            enc_inputs = torch.cat( (skill_states.clone()[:,:-1, self.n_pos:], actions), dim = -1)
+            q = self.skill_encoder(enc_inputs)[:, -1]
 
-        enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
-        q = self.skill_encoder(enc_inputs)[:, -1]
+        # enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
+        # q = self.skill_encoder(enc_inputs)[:, -1]
 
         q_clone = q.clone().detach()
         q_clone.requires_grad = False
@@ -280,7 +280,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         if self.manipulation:
             decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
         else:
-            decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
+            decode_inputs = self.dec_input(skill_states[:, :, self.n_pos:].clone(), skill, self.Hsteps)
             # decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
 
 
@@ -293,8 +293,9 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         #     G = G,
         #     skill = z
         # )
-
-        batch['skill'] = z
+        
+        if not self.manipulation:
+            batch['skill'] = z
 
         # skill prior
         self.outputs =  self.prior_policy(batch)

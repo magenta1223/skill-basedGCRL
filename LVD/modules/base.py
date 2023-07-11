@@ -56,8 +56,8 @@ class SequentialBuilder(BaseModule):
     def get_build(self):
         if self.module_type == "rnn":
             build = self.layerbuild(["linear_cls", "in_feature", "hidden_dim", None, "act_cls", "bias"])
-            build += self.layerbuild(["rnn_cls", "hidden_dim", "hidden_dim", "n_blocks", "bias", "batch_first", "dropout"])
-            # build += self.layerbuild(["linear_cls", "hidden_dim", "out_dim", None, None, "bias"])
+            # build += self.layerbuild(["rnn_cls", "hidden_dim", "hidden_dim", "n_blocks", "bias", "batch_first", "dropout"])
+            build += self.layerbuild(["rnn_cls", "hidden_dim", "hidden_dim", "n_blocks", "bias", "batch_first", "dropout"], self.get("n_blocks"))
             build += self.layerbuild(["linear_cls", "hidden_dim", "out_dim", None, None, "proj_bias"])
 
 

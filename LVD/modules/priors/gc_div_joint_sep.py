@@ -258,7 +258,14 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         _ht = hts[:, c].clone()
         ht_pos, ht_nonPos = _ht.chunk(2, -1)
         # skill_sampled = self.skill_prior.dist(ht_pos).sample()
-        skill_sampled = self.skill_prior.dist(ht_pos).sample()
+        
+        if self.cfg.manipulation:
+            skill_sampled = self.skill_prior.dist(ht_pos).sample()
+        else:
+            skill_sampled = self.skill_prior.dist(_ht).sample()
+
+        if "skill" in batch:
+            skill_sampled = batch.skill 
 
         states_rollout = []
         _state = states[:, c]
@@ -298,7 +305,12 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         # for f learning, execute 4 skill more
         for i in range(self.cfg.plan_H):
             if i % 10 == 0:
-                skill = self.skill_prior.dist(ht_pos).sample()
+                # skill = self.skill_prior.dist(ht_pos).sample()
+                if self.cfg.manipulation:
+                    skill = self.skill_prior.dist(ht_pos).sample()
+                else:
+                    skill = self.skill_prior.dist(_ht).sample()
+
             next_ht, cache = self.forward_flatD(_ht, skill) 
             # if self.cfg.manipulation:
             #     _, _, _, diff_nonPos_latent = cache
