@@ -340,7 +340,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             self.outputs['flat_D'],
             self.outputs['flat_D_target'],
             weights
-        ) #* 0.1 # 1/skill horizon  
+        ) * 10 #* 0.1 # 1/skill horizon  
 
         D_loss = self.loss_fn('recon')(
             self.outputs['D'],
@@ -429,7 +429,9 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         if self.manipulation:
             dec_inputs = torch.cat((states_rollout[:,:, :self.n_pos], skills), dim = -1)
         else:
-            dec_inputs = torch.cat((states_rollout, skills), dim = -1)
+            # dec_inputs = torch.cat((states_rollout, skills), dim = -1)
+            dec_inputs = torch.cat((states_rollout[:, :, self.n_pos:].clone(), skills), dim = -1)
+
 
 
         N, T, _ = dec_inputs.shape
