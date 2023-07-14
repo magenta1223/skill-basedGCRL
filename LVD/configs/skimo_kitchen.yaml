@@ -3,18 +3,29 @@ defaults:
   - model: skimo
   - env : kitchen
 
-dataset_cls : LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset
+dataset_cls : LVD.data..Kitchen_Dataset
 structure : skimo
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+
+scheduler_params:
+  min_lr: 1e-5
 
 model:
   state_encoder :
-    in_feature : ${env.state_dim}
+    in_feature : ${env.state_dim} 
+    latent_state_dim : ${env.latent_state_dim}
+    env_state_dim : ${env.n_env}
+    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    pos_state_dim : ${env.n_pos}
+    nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.latent_state_dim}
   
   state_decoder :
     in_feature : ${env.latent_state_dim}
+    latent_state_dim : ${env.latent_state_dim}
+    env_state_dim : ${env.n_env}
+    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    pos_state_dim : ${env.n_pos}
+    nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.state_dim}
 
   dynamics: 
@@ -22,7 +33,7 @@ model:
     out_dim : ${env.latent_state_dim}
 
   reward_function:
-    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
+    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}, ${env.n_goal}}
     out_dim : 1
 
   prior:

@@ -6,6 +6,7 @@ from LVD.utils import *
 from LVD.models import *
 import warnings
 import cv2
+from copy import deepcopy
 
 warnings.filterwarnings("ignore")
 
@@ -49,7 +50,7 @@ class BaseTrainer:
         """
         Prepare for fitting
         """
-        print(f"--------------------------------{self.model.structure}--------------------------------")
+        # print(f"--------------------------------{self.model.structure}--------------------------------")
         self.schedulers = {
             k : self.cfg.schedulerClass(v['optimizer'], **self.cfg.scheduler_params, module_name = k) for k, v in self.model.optimizers.items()
         }
@@ -58,9 +59,9 @@ class BaseTrainer:
             k : v['metric'] for k, v in self.model.optimizers.items()
         }
 
-        print(self.schedulers)
-        print(self.schedulers_metric)
-
+        # print(self.schedulers)
+        # print(self.schedulers_metric)
+        self.e = 0
         self.early_stop = 0
         self.best_summary_loss = 10**5
 
@@ -114,6 +115,7 @@ class BaseTrainer:
         print(f"weights path : {self.model_id}")
 
         for e in range(self.cfg.epochs):
+            self.e = e 
             start = time.time()
 
             train_loss_dict  = self.train_one_epoch(self.train_loader, e)
@@ -200,7 +202,8 @@ class BaseTrainer:
             'optimizers' : { module_name : optim['optimizer'].state_dict()  for module_name, optim in self.model.optimizers.items()},
             'schedulers' : { module_name : scheduler.state_dict()  for module_name, scheduler in self.schedulers.items()},
             'configuration' : self.cfg,
-            'best_summary_loss': self.best_summary_loss
+            'best_summary_loss': self.best_summary_loss,
+            'epoch' : self.e
         }
     
 
@@ -214,14 +217,20 @@ class BaseTrainer:
     def load(path, cfg = None):
         checkpoint = torch.load(path)
         if cfg is not None:
-            self = BaseTrainer(cfg)
+            self = checkpoint['cls'](cfg)            
+            # self = BaseTrainer(cfg)
         else:
-            self = BaseTrainer(checkpoint['configuration'])
-    
+            self = checkpoint['cls'](checkpoint['configuration'])            
+            # self = BaseTrainer(checkpoint['configuration'])
+
+
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
         [ scheduler.load_state_dict(checkpoint['schedulers'][module_name] )  for module_name, scheduler in self.schedulers.items()]
         self.best_summary_loss = checkpoint['best_summary_loss']
+
+        self.e = checkpoint['epoch']
+
         self.model.eval()
 
         return self
@@ -252,10 +261,64 @@ class Diversity_Trainer(BaseTrainer):
         print(f"log path : {self.run_path}/train.log")
         print(f"weights save path : {self.model_id}")
         rollout  = False
-        for e in range(self.cfg.epochs):
-            start = time.time()
 
-            if e == self.cfg.mixin_start - 1:
+        
+        # resume=true and weight가 존재하면 가장 최근 것으로 불러오고, 아래 for loop의 range 조정
+        # 없다면 새로 시작한다고 띄우고 ㄱㄱ
+        resumed = False
+
+        if self.cfg.resume:
+            # resume ckpt weights exists?
+            if self.cfg.resume_ckpt == "latest":
+                ckpts = sorted(glob(f"{self.model_id}/"))
+                if len(ckpts) == 0:
+                    self.logger.log("No checkpoints")
+                else:
+                    try:
+                        path = ckpts[-1]
+                        self.logger.log(f"Loading latest checkpoints {ckpts[-1]}")
+                        self = self.load(path = ckpts[-1])    
+                        resumed = True
+                    except:
+                        self.logger.log(f"Loading failed. Default configuration or algorithm may be altered")
+
+            elif os.path.exists(f"{self.model_id}/{self.cfg.resume_ckpt}.bin"):
+                try:
+                    path = f"{self.model_id}/{self.cfg.resume_ckpt}.bin"
+                    self.logger.log(f"Loading {path}")
+                    self = self.load(path = path)    
+                    resumed = True
+                except:
+                    self.logger.log(f"Loading failed. Default configuration or algorithm may be altered")
+
+            else:
+                self.logger.log("Checkpoint does not exist")
+
+
+        # load point가 rollout point보다 클 경우 한번 버퍼 채워야 함. 
+        
+        if resumed:
+            self.logger.log(f"Resumed from {path}")
+
+        if resumed and self.e >= self.cfg.mixin_start - 1:
+            # buffer 한번 채워줍시다 
+            self.logger.log(f"Filling offline buffer")
+            rollout = True 
+            self.train_one_epoch(self.train_loader, e, rollout)
+            start = deepcopy(self.e) 
+        else:
+            start = 0
+
+
+
+
+        # for e in range(self.cfg.epochs):
+        for e in range(start, self.cfg.epochs):
+
+            start = time.time()
+            self.e = e 
+
+            if e >= self.cfg.mixin_start - 1:
                 rollout = True
 
 

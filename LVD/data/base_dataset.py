@@ -65,7 +65,7 @@ class Base_Dataset(Dataset):
         return NotImplementedError
 
     def get_data_loader(self, batch_size, num_workers):
-        print('len {} dataset {}'.format(self.phase, len(self)))
+        # print('len {} dataset {}'.format(self.phase, len(self)))
         
 
         return RepeatedDataLoader(

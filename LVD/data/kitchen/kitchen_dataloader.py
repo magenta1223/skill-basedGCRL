@@ -414,7 +414,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
             g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.n_pos + self.n_nonPos]
+        G = deepcopy(seq.states[g_index])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
 
         output = dict(
@@ -446,7 +446,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             start_idx, goal_idx = self.sample_indices(states)
             
             goal_idx = -1
-            G = deepcopy(states[goal_idx])[:self.n_pos + self.n_nonPos]
+            G = deepcopy(states[goal_idx])[:self.state_dim]
             G[ : self.n_pos] = 0 # only env state
             
             # 

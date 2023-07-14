@@ -8,6 +8,7 @@ state_dim : 4
 # n_env : 0
 n_pos : 2
 n_nonPos : 2
+n_env : 0
 n_goal : 2
 action_dim : 2
 normalize : false

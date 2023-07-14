@@ -13,6 +13,8 @@ model:
   state_encoder :
     in_feature : ${env.state_dim} 
     latent_state_dim : ${env.latent_state_dim}
+    env_state_dim : ${env.n_env}
+    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
     pos_state_dim : ${env.n_pos}
     nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.latent_state_dim}
@@ -20,6 +22,8 @@ model:
   state_decoder :
     in_feature : ${env.latent_state_dim}
     latent_state_dim : ${env.latent_state_dim}
+    env_state_dim : ${env.n_env}
+    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
     pos_state_dim : ${env.n_pos}
     nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.state_dim}
@@ -49,15 +53,16 @@ model:
 
 
   skill_encoder:
-    # in_feature: ${add:${env.state_dim}, ${env.action_dim}}
-    in_feature: ${add:${env.n_nonPos}, ${env.action_dim}}
+    in_feature: ${add:${env.state_dim}, ${env.action_dim}}
+    # in_feature: ${add:${env.n_nonPos}, ${env.action_dim}}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    # in_feature : ${add:${env.state_dim}, ${env.skill_dim}}
-    in_feature : ${add:${env.n_nonPos}, ${env.skill_dim}}
+    in_feature : ${add:${env.state_dim}, ${env.skill_dim}}
+    # in_feature : ${add:${env.n_nonPos}, ${env.skill_dim}}
     out_dim : ${env.action_dim} 
-    state_dim : ${get_statedim:${env.manipulation}, ${env.state_dim}, ${env.n_pos}}
+    state_dim : ${env.state_dim}
+    # state_dim : ${get_statedim:${env.manipulation}, ${env.state_dim}, ${env.n_pos}}
     z_dim  : ${env.skill_dim}
 
   q_function:

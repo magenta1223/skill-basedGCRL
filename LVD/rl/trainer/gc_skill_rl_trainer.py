@@ -70,12 +70,13 @@ class GC_Skill_RL_Trainer:
         }        
 
         # See rl_cfgs in LVD/configs/common.yaml 
-        sac_config = {**self.rl_cfgs}
+        rl_config = {**self.rl_cfgs}
+        rl_config.update(sac_modules)
 
-        sac_config.update(sac_modules)
-        sac = SAC(sac_config).cuda()
+        agent = self.cfg.rlAgentCls(rl_config).cuda()
+        # sac = SAC(rl_config).cuda()
 
-        self.collector, self.sac = collector, sac
+        self.collector, self.agent = collector, agent
 
     def fit(self):
         # for task_obj in self.tasks:
@@ -84,7 +85,7 @@ class GC_Skill_RL_Trainer:
             self.prep()
 
             torch.save({
-                "model" : self.sac,
+                "model" : self.agent,
                 # "collector" : collector if env_name != "carla" else None,
                 # "task" : task_obj if env_name != "carla" else np.array(task_obj),
                 # "env" : env if env_name != "carla" else None,
@@ -126,7 +127,7 @@ class GC_Skill_RL_Trainer:
                     plt.cla()
 
             torch.save({
-                "model" : self.sac,
+                "model" : self.agent,
                 # "collector" : collector if env_name != "carla" else None,
                 # "task" : task_obj if env_name != "carla" else np.array(task_obj),
                 # "env" : env if env_name != "carla" else None,
@@ -140,18 +141,18 @@ class GC_Skill_RL_Trainer:
     
 
         # ------------- Collect Data ------------- #
-        with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
-            episode, G = self.collector.collect_episode(self.sac.policy, verbose = True)
+        with self.agent.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
+            episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
 
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
             print("success")
 
         high_ep = episode.as_high_episode()
-        self.sac.buffer.enqueue(high_ep) 
+        self.agent.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
 
     
-        if self.sac.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
+        if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
 
         if n_ep == self.cfg.precollect:
@@ -161,7 +162,7 @@ class GC_Skill_RL_Trainer:
             )
             # Q-warmup
             print("Warmup Value function")
-            self.sac.warmup_Q(step_inputs)
+            self.agent.warmup_Q(step_inputs)
         
 
         n_step = self.n_step(high_ep)
@@ -172,7 +173,7 @@ class GC_Skill_RL_Trainer:
                 episode = n_ep,
                 G = G
             )
-            stat = self.sac.update(step_inputs)
+            stat = self.agent.update(step_inputs)
 
         log.update(itemize(stat))
 
@@ -181,10 +182,10 @@ class GC_Skill_RL_Trainer:
     def visualize(self):
         print("visulaize!")
         if self.env.name == "maze":
-            return draw_maze(plt.gca(), self.env, list(self.sac.buffer.episodes)[-20:])
+            return draw_maze(plt.gca(), self.env, list(self.agent.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":
-            with self.sac.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
-                imgs = self.collector.collect_episode(self.sac.policy, vis = True)
+            with self.agent.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
+                imgs = self.collector.collect_episode(self.agent.policy, vis = True)
             imgs = np.array(imgs).transpose(0, 3, 1, 2)
             return wandb.Video(imgs, fps=50, format = "mp4")
         else:

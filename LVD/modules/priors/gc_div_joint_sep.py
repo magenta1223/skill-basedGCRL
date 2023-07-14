@@ -277,23 +277,23 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # flat_D로 rollout -> diff in latent space -> diff in raw state space 
             next_ht, cache = self.forward_flatD(_ht, skill_sampled) 
 
-            # if self.cfg.manipulation:
-            #     _, _, _, diff_nonPos_latent = cache
-            #     diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-            #     _, pos_raw_state, _ = self.state_decoder(next_ht)
-            #     nonPos_raw_state = nonPos_raw_state + diff_nonPos
-            #     _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-            # else:
-            #     # 여기서는 next_ht가 unseen일까? 아뇨?  
-            #     _state, pos_raw_state, _ = self.state_decoder(next_ht)
-            #     # _state = pos_raw_state
+            if self.cfg.manipulation:
+                _, _, _, diff_nonPos_latent = cache
+                diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+                _, pos_raw_state, _ = self.state_decoder(next_ht)
+                nonPos_raw_state = nonPos_raw_state + diff_nonPos
+                _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            else:
+                # 여기서는 next_ht가 unseen일까? 아뇨?  
+                _state, pos_raw_state, _ = self.state_decoder(next_ht)
+                # _state = pos_raw_state
 
 
-            _, _, _, diff_nonPos_latent = cache
-            diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-            _, pos_raw_state, _ = self.state_decoder(next_ht)
-            nonPos_raw_state = nonPos_raw_state + diff_nonPos
-            _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            # _, _, _, diff_nonPos_latent = cache
+            # diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            # _, pos_raw_state, _ = self.state_decoder(next_ht)
+            # nonPos_raw_state = nonPos_raw_state + diff_nonPos
+            # _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
 
 
 
@@ -312,23 +312,23 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
                     skill = self.skill_prior.dist(_ht).sample()
 
             next_ht, cache = self.forward_flatD(_ht, skill) 
-            # if self.cfg.manipulation:
-            #     _, _, _, diff_nonPos_latent = cache
-            #     diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-            #     _, pos_raw_state, _ = self.state_decoder(next_ht)
-            #     nonPos_raw_state = nonPos_raw_state + diff_nonPos
+            if self.cfg.manipulation:
+                _, _, _, diff_nonPos_latent = cache
+                diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+                _, pos_raw_state, _ = self.state_decoder(next_ht)
+                nonPos_raw_state = nonPos_raw_state + diff_nonPos
 
-            #     _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-            # else:
-            #     # _, pos_raw_state, _ = self.state_decoder(next_ht)
-            #     # _state = pos_raw_state
-            #     _state, pos_raw_state, _ = self.state_decoder(next_ht)
-            _, _, _, diff_nonPos_latent = cache
-            diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-            _, pos_raw_state, _ = self.state_decoder(next_ht)
-            nonPos_raw_state = nonPos_raw_state + diff_nonPos
+                _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            else:
+                # _, pos_raw_state, _ = self.state_decoder(next_ht)
+                # _state = pos_raw_state
+                _state, pos_raw_state, _ = self.state_decoder(next_ht)
+            # _, _, _, diff_nonPos_latent = cache
+            # diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            # _, pos_raw_state, _ = self.state_decoder(next_ht)
+            # nonPos_raw_state = nonPos_raw_state + diff_nonPos
 
-            _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            # _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
     
 
 

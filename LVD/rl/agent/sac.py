@@ -201,14 +201,14 @@ class SAC(BaseModel):
         target_qs = rwd_term + ent_term
 
         qf_losses = []  
+        if self.gc:
+            q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+        else:
+            q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
+
         for qf, qf_optim in zip(self.qfs, self.qf_optims):
             # qs = qf(self.q_inputs(batch)).squeeze(-1)
             # q_input = torch.cat((batch.states, batch.G, batch.actions), dim = -1)
-            if self.gc:
-                q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
-            else:
-                q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
-
             qs = qf(q_input).squeeze(-1)
             qf_loss = (qs - target_qs).pow(2).mean()
             qf_optim.zero_grad()

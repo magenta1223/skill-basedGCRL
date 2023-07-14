@@ -28,3 +28,5 @@ lidar:
 visual:
   draw_path: True
   draw_velocity: True
+
+max_total_steps : 1_000_000

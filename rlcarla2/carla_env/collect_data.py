@@ -21,6 +21,8 @@ from .utils.config import ExperimentConfigs
 from .utils.logger import Logging
 from .utils.roaming_agent import RoamingAgent
 
+
+
 logger = Logging.get_logger(__name__)
 Params = flax.core.FrozenDict[str, Any]
 
@@ -39,6 +41,7 @@ def collect_data(config: ExperimentConfigs):
         return
 
     env = Simulator(config)
+
     env.reset()
 
     record_dir = create_record_dirpath(env, config.data_path)
@@ -133,6 +136,9 @@ def create_record_dirpath(sim: Simulator, base_dir: Optional[Path] = None):
     """
     if base_dir is None:
         base_dir = Path.cwd() / "carla_data"
+    elif isinstance(base_dir, str):
+        base_dir = Path(base_dir) / "carla_data"
+
     now = datetime.datetime.now()
 
     params = (

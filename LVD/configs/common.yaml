@@ -10,6 +10,8 @@ hydra:
           - rl_batch_size
           - zeroshot 
           - hindsight_relabel
+          - resume
+          - resume_ckpt 
           # rl 
           - rl.q_warmup
           - rl.discount
@@ -40,6 +42,9 @@ hydra:
 
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
+
+resume : false 
+resume_ckpt : 0
 zeroshot : false
 hindsight_relabel : true
 
