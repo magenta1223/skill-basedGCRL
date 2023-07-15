@@ -220,7 +220,13 @@ class CQL(BaseModel):
         # 일단 skill prior로 해볼까..  ? 
         _, prior_dist = self.entropy(batch.states, policy_skill_dist)
         repeatedObs = batch.states.repeat(10, dim = 0)
-        random_skill = prior_dist.sample().repeat(10, dim = 0)
+
+        # 
+        # random_skill = prior_dist.sample().repeat(10, dim = 0)
+        
+        random_skill_dist = get_fixed_dist(policy_skill.repeat(10, dim = 0), tanh = self.tanh)
+        random_skill = random_skill_dist.sample()
+        
         random_density = torch.log(0.5 ** self.cfg.skill_dim)
 
 

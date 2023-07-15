@@ -504,7 +504,10 @@ class Diversity_Trainer2(Diversity_Trainer):
             elif self.cfg.env_name == "maze":
                 path = f"{self.run_path}/imgs/{e}.png"
                 print(f"Rendered : {path}")
-                cv2.imwrite(path, imgs)
+                # cv2.imwrite(path, imgs)
+                # plt.Figure 
+                imgs.savefig(path, bbox_inches="tight", pad_inches = 0)
+
 
         return { k : v.avg for k, v in self.meters.items() }
 

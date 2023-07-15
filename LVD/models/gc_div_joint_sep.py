@@ -481,8 +481,16 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 self.loss_dict['render'] = imgs
 
             elif self.env.name == "maze": 
-                ax = plt.gca()
                 
+                plt.cla() 
+                fig = plt.figure(frameon=False)
+                ax = fig.add_axes([0, 0, 1, 1])
+                # axis options
+                ax.axis('off')        
+                ax.axes.get_xaxis().set_visible(False)
+                ax.axes.get_yaxis().set_visible(False)
+
+
                 orig_goal = batch.finalG[batch.rollout][0].detach().cpu().numpy() 
                 generated_traj = self.loss_dict['states_novel'][0].detach().cpu().numpy()
                 if self.normalize:
@@ -490,17 +498,16 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                     generated_traj = (generated_traj + 0.5) * 40
 
                 generated_goal = generated_traj[-1][:2]
-
+                
+                # maps
                 img = np.rot90(self.env.maze_arr != WALL)
                 extent = [
                     -0.5, self.env.maze_arr.shape[0]-0.5,
                     -0.5, self.env.maze_arr.shape[1]-0.5
                 ]
-                
                 ax.imshow((1-img)/5, extent=extent, cmap='Reds', alpha=0.2)
 
                 # original goal  
-                orig_goal 
                 ax.scatter(*orig_goal, marker='x', c='red', s=200, zorder=5, linewidths=4)
                 # trajectory end 
                 ax.scatter(*generated_goal, marker='x', c='blue', s=200, zorder=5, linewidths=4)
@@ -517,15 +524,14 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 ax.set_xticks([])
                 ax.set_yticks([])
 
-                canvas = ax.get_figure().canvas
-                canvas.draw()
-                
-                img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
+                # canvas = ax.get_figure().canvas
+                # canvas.draw()
+                # img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
+                # self.render = True
+                # self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)    
 
                 self.render = True
-                self.loss_dict['render'] = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)    
-
-                plt.cla() 
+                self.loss_dict['render'] = fig   
 
 
 

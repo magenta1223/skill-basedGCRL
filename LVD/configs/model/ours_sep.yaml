@@ -5,8 +5,10 @@ with_gcsl: false
 
 skill_trainer : LVD.runner.Diversity_Trainer2
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
+rlAgentCls : LVD.rl.agent.sac # LVD.rl.agent.cql
 consistency_update : true
 model_update : true
+
 
 grad_pass:
   invD: false
