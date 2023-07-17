@@ -76,10 +76,11 @@ class GC_Skill_RL_Trainer:
         }        
 
         # See rl_cfgs in LVD/configs/common.yaml 
-        rl_config = {**self.rl_cfgs}
-        rl_config.update(sac_modules)
+        # rl_config = {**self.rl_cfgs}
+        rl_agent_config = edict({**self.cfg})
+        rl_agent_config.update(sac_modules)
 
-        agent = self.cfg.rlAgentCls(rl_config).cuda()
+        agent = self.cfg.rlAgentCls(rl_agent_config).cuda()
         # sac = SAC(rl_config).cuda()
 
         self.collector, self.agent = collector, agent
