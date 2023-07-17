@@ -8,7 +8,8 @@ structure : skimo
 
 scheduler_params:
   min_lr: 1e-6
-
+env:
+  reg_beta : 1e-4
 model:
   state_encoder :
     in_feature : ${env.state_dim} 
