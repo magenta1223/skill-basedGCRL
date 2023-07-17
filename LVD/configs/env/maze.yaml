@@ -15,19 +15,23 @@ normalize : false
 
 subseq_len : 11
 max_seq_len : 2000
-epoch_cycles_train : 80
+# epoch_cycles_train : 80
+epoch_cycles_train : 320
 
 step_per_ep : 400
 batch_size : 1024
 mixin_start : 100
 mixin_ratio : 0.05
-plan_H : 100
-epochs : 150
+# plan_H : 100
+plan_H : 1000
+# epochs : 150
+epochs : 140
 warmup_steps : 50
 
 skill_dim : 10
 latent_state_dim : 256
-reg_beta : 0.01
+# reg_beta : 0.01
+reg_beta : 5e-4
 prior_state_dim : 4
 wae_coef : 1
 val_data_size : 5000

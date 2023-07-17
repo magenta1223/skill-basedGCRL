@@ -130,7 +130,6 @@ meta_train_tasks = np.array([
 ])
 
 
-all_tasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
 
 
 tasks = np.array([
