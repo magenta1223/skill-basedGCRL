@@ -163,6 +163,7 @@ class GC_Skill_RL_Trainer:
 
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
             success = True
+            print(len(episode.states))
             print("success")
 
         high_ep = episode.as_high_episode()

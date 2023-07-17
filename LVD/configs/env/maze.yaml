@@ -36,7 +36,7 @@ prior_state_dim : 4
 wae_coef : 1
 val_data_size : 5000
 
-time_limit : 4000
+time_limit : 3000
 target_kl_start : 5
 target_kl_end : 5
 # init_alpha : 0.05
