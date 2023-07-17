@@ -31,5 +31,5 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   q_function:
-    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 
+    in_feature: ${add:${env.n_pos}, ${env.n_goal}, ${env.skill_dim}} 
       # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 
