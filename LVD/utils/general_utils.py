@@ -26,7 +26,7 @@ class ConfigParser:
         if isinstance(v, DictConfig):
             result = "dict"
         # string, module, not path, not default relative path, and not overrided param 
-        elif v == "None":
+        elif v == "None" or v == "":
             result = "None"
         # 시부레 처음알았네.. 
         elif self.isClass(v):

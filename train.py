@@ -13,8 +13,6 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
     seed_everything(cfg.seeds[0])
-    # print(OmegaConf.to_yaml(cfg))
-
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
     # overrides에서 rl_cfgs에 포함된 것만 따로 걸러내야 함. 
@@ -25,10 +23,8 @@ def main(cfg):
     overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl']
     all_overrides = [override.replace(".", "_")  for override in deepcopy(list(hydra_config.overrides.task))]
     for override in overrides_to_remove:
-        try:
+        if override in all_overrides:
             all_overrides.remove(override)
-        except:
-            print(f"{override} 없는데요 ? ")
     rl_overrides = ",".join(all_overrides) # .으로 되어있어서 class로 parser가 class로 인식함.
 
     with open_dict(cfg):
@@ -37,7 +33,6 @@ def main(cfg):
         cfg.job_name = config_path(hydra_config.job.name)
         cfg.run_id = get_time()
         cfg.rl_overrides = rl_overrides
-
 
         # PATHS  
         # pretrain weights 
