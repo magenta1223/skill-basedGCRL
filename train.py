@@ -25,7 +25,10 @@ def main(cfg):
     overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl']
     all_overrides = deepcopy(list(hydra_config.overrides.task))
     for override in overrides_to_remove:
-        all_overrides.remove(override)
+        try:
+            all_overrides.remove(override)
+        except:
+            print(f"{override} 없는데요 ? ")
     rl_overrides = ",".join(all_overrides)
 
     with open_dict(cfg):
