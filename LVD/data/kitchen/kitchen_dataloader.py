@@ -29,12 +29,6 @@ class Kitchen_Dataset(Base_Dataset):
             if end_idx+1 - start < self.subseq_len:
                 continue    # skip too short demos
 
-            # self.seqs.append(edict(
-            #     states=self.dataset['observations'][start:end_idx+1],
-            #     actions=self.dataset['actions'][start:end_idx+1],
-            # ))
-
-
             states=self.dataset['observations'][start:end_idx+1]
             actions=self.dataset['actions'][start:end_idx+1]
             _states = deepcopy(states)
@@ -45,12 +39,10 @@ class Kitchen_Dataset(Base_Dataset):
             goals = []
 
             n=3
-        
             for i, state in enumerate(_states):
                 # goal 확인
                 g = self.sp.state_goal_checker(state)
                 # 달성된게 없으면 다음으로 
-                
                 if not g:
                     goals.append("".join(unique_subtasks))
                     subtasks.append("")
@@ -59,22 +51,15 @@ class Kitchen_Dataset(Base_Dataset):
                 subtask = g[-1]   
                 subtasks.append(subtask)
 
-
                 if len(set(subtasks[-n:] + [subtask])) == 1 and subtask not in unique_subtasks:
                     unique_subtasks.append(subtask)
                     points.append(i) # 
-
 
             self.seqs.append(edict(
                 states=states,
                 actions=actions,
                 points = points,
-                # subtasks = subtasks,
-                # goals = goals,
-                # unique_subtasks = unique_subtasks
             ))
-
-
 
             start = end_idx+1
 
@@ -104,8 +89,7 @@ class Kitchen_Dataset(Base_Dataset):
         seq = self._sample_seq()
         start_idx, goal_idx = self.sample_indices(seq.states)
 
-        # G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
-        # G[ : self.n_obj] = 0 # only env state
+
 
         seg_points = deepcopy(seq.points)
         seg_points = sorted( seg_points + [start_idx])
@@ -118,13 +102,13 @@ class Kitchen_Dataset(Base_Dataset):
             # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
             g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
-        G[ : self.n_obj] = 0 # only env state
+        G = deepcopy(seq.states[g_index])[:self.n_pos + self.n_env]
+        G[ : self.n_pos] = 0 # only env state
 
 
 
         output = edict(
-            states = seq.states[start_idx:start_idx+self.subseq_len, :self.n_obj + self.n_env],
+            states = seq.states[start_idx:start_idx+self.subseq_len, :self.n_pos + self.n_env],
             actions = seq.actions[start_idx:start_idx+self.subseq_len-1],
             G = G
         )
@@ -193,8 +177,6 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
 
         # hindsight relabeling 
-        # G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
-        # G[ : self.n_obj] = 0 # only env state
 
         seg_points = seq.points
         seg_points = sorted( seg_points + [start_idx])
@@ -207,8 +189,8 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
             g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.n_obj + self.n_env]
-        G[ : self.n_obj] = 0 # only env state
+        G = deepcopy(seq.states[g_index])[:self.n_pos + self.n_env]
+        G[ : self.n_pos] = 0 # only env state
 
         output = dict(
             states=states,
@@ -223,24 +205,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
     def __skill_learning_with_buffer__(self):
 
         if np.random.rand() < self.mixin_ratio and self.buffer_now.size > 0:
-            # T, state_dim + action_dim
-            # states, actions = self.buffer_prev.sample()
-            # states, actions = self.buffer_now.sample()
 
-            # # hindsight relabeling 
-            # goal_idx = -1
-            # # G = deepcopy(states[goal_idx])[self.n_obj:self.n_obj + self.n_goal]
-            # G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
-            # G[ : self.n_obj] = 0 # only env state
-            # output = dict(
-            #     states=states[:self.subseq_len],
-            #     actions=actions[:self.subseq_len-1],
-            #     G=G,
-            #     rollout = False,
-            #     weights = discount_start * discount_G
-            #     # start_idx = 999 #self.novel
-            # )
-            
             states, actions, c = self.buffer_now.sample()
             start_idx, goal_idx = self.sample_indices(states)
 
@@ -264,8 +229,8 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             #     goal_idx = np.random.randint(goal_idx, len(states) -1)
             
             goal_idx = -1
-            G = deepcopy(states[goal_idx])[:self.n_obj + self.n_env]
-            G[ : self.n_obj] = 0 # only env state
+            G = deepcopy(states[goal_idx])[:self.n_pos + self.n_env]
+            G[ : self.n_pos] = 0 # only env state
 
             discount_start = np.exp(self.discount_lambda * (start_idx - c))
             # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
@@ -301,12 +266,12 @@ class Kitchen_Dataset_Flat(Kitchen_Dataset):
         seq = self._sample_seq()
         start_idx, goal_idx = self.sample_indices(seq.states)
 
-        G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
-        G[ : self.n_obj] = 0 # only env state
+        G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
+        G[ : self.n_pos] = 0 # only env state
         
         # 
         output = edict(
-            states = seq.states[start_idx, :self.n_obj + self.n_env],
+            states = seq.states[start_idx, :self.n_pos + self.n_env],
             actions = seq.actions[start_idx],
             G = G
         )
@@ -400,8 +365,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
         actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
 
         # hindsight relabeling 
-        # G = deepcopy(seq.states[goal_idx])[:self.n_obj + self.n_env]
-        # G[ : self.n_obj] = 0 # only env state
+
 
         seg_points = deepcopy(seq.points)
         seg_points = sorted( seg_points + [start_idx])
