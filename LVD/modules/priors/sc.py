@@ -115,7 +115,7 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
         states, G = batch.states, batch.G
 
         with torch.no_grad():
-            prior = self.skill_prior.dist(states)
+            prior = self.skill_prior.dist(states[:, :self.cfg.n_pos])
             if self.tanh:
                 prior_dist = prior._normal.base_dist
             else:
