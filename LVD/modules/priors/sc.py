@@ -59,43 +59,33 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
     def dist(self, batch, mode = "policy"): # 이제 이게 필요가 없음. 
         """
         """
+        assert mode in ['policy', 'consistency', 'act'], "Invalid mode"
+
         # if mode == "consistency":
         #     states, G = batch.states, batch.relabeled_goals
         # else:
         #     states, G = batch.states, batch.G
-
-        states, G = batch.states, batch.G
-
-        # states = prep_state(states, self.device)
-        # G = prep_state(G, self.device)
-        with torch.no_grad():
-            prior = self.skill_prior.dist(states)
-            if self.tanh:
-                prior_dist = prior._normal.base_dist
-            else:
-                prior_dist = prior.base_dist
-            prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
-            prior_pre_scales = inverse_softplus(prior_scales)
-            
-        res_locs, res_pre_scales = self.highlevel_policy(torch.cat((states, G), dim = -1)).chunk(2, dim=-1)
-
-        # 혼합
-        locs = res_locs + prior_locs
-        scales = F.softplus(res_pre_scales + prior_pre_scales)
-        policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
-
         if mode == "consistency":
-            skill_consistency = nll_dist(
-                batch.actions,
-                policy_skill,
-                batch.actions_normal,
-                tanh = self.tanh
-            ).mean() # gcsl loss 
-
-            return edict(
-                skill_consistency = skill_consistency
-            )
+            return self.consistency(batch)
         else:
+            states, G = batch.states, batch.G
+
+            with torch.no_grad():
+                prior = self.skill_prior.dist(states)
+                if self.tanh:
+                    prior_dist = prior._normal.base_dist
+                else:
+                    prior_dist = prior.base_dist
+                prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
+                prior_pre_scales = inverse_softplus(prior_scales)
+                
+            res_locs, res_pre_scales = self.highlevel_policy(torch.cat((states, G), dim = -1)).chunk(2, dim=-1)
+
+            # 혼합
+            locs = res_locs + prior_locs
+            scales = F.softplus(res_pre_scales + prior_pre_scales)
+            policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
+
             return edict(
                 prior = prior,
                 policy_skill = policy_skill,
@@ -120,6 +110,38 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
         else:
             return to_skill_embedding(z)
 
+    def consistency(self, batch):
+
+        states, G = batch.states, batch.G
+
+        with torch.no_grad():
+            prior = self.skill_prior.dist(states)
+            if self.tanh:
+                prior_dist = prior._normal.base_dist
+            else:
+                prior_dist = prior.base_dist
+            prior_locs, prior_scales = prior_dist.loc.clone().detach(), prior_dist.scale.clone().detach()
+            prior_pre_scales = inverse_softplus(prior_scales)
+            
+        res_locs, res_pre_scales = self.highlevel_policy(torch.cat((states, G), dim = -1)).chunk(2, dim=-1)
+
+        # 혼합
+        locs = res_locs + prior_locs
+        scales = F.softplus(res_pre_scales + prior_pre_scales)
+        policy_skill = get_dist(locs, scale = scales, tanh = self.tanh)
+
+        skill_consistency = nll_dist(
+            batch.actions,
+            policy_skill,
+            batch.actions_normal,
+            tanh = self.tanh
+        ).mean() # gcsl loss 
+
+        return edict(
+            skill_consistency = skill_consistency
+        )
+
+
     def get_rl_params(self):
         
 
@@ -128,6 +150,6 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
                 {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.policy_lr}
             ],
             consistency = {
-                "highpolicy" : {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.consistency_lr, "metric" : "skill_consistency"},
+                "highpolicy" : {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.consistency_lr, "metric" : None},
             }
         )

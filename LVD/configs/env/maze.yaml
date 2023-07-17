@@ -62,4 +62,4 @@ kl_decay : 0.99
 
 invD_lr : 1e-6
 D_lr : 1e-5
-f_lr : 1e-8
+f_lr : 1e-6

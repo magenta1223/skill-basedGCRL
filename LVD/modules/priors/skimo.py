@@ -34,7 +34,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         - State Encoder / Decoder
         - Inverse Dynamcis
         - Dynamics
-        - Subgoal Generator
+        - High Policy
         - Skill Encoder / Decoder (at upper level)
         """
         if self.training:
@@ -47,9 +47,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         # -------------- State Enc / Dec -------------- #
         # jointly learn
         states_repr = self.state_encoder(states.view(N * T, -1))
-
-        state_emb = states_repr.view(N, T, -1)[:, 0]
-        states_fixed = torch.randn(512, *state_emb.shape[1:]).cuda()
         states_hat = self.state_decoder(states_repr).view(N, T, -1)
 
             # G = self.state_encoder(G)
