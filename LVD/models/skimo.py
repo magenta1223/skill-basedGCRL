@@ -129,7 +129,9 @@ class Skimo_Model(BaseModel):
         batch['skill'] = skill
 
         # skill prior
-        self.outputs =  self.prior_policy(batch)
+        prior_outputs =  self.prior_policy(batch)
+        
+        self.outputs.update(prior_outputs)
 
 
         # Outputs
