@@ -9,14 +9,11 @@ rlAgentCls : LVD.rl.agent.sac.SAC # LVD.rl.agent.cql
 consistency_update : true
 model_update : true
 
-
 grad_pass:
   invD: false
   D : true
 
-diff : true
-mmd : false
-distributional : true
+
 only_unseen : true
 
 state_encoder :

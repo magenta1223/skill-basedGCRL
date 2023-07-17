@@ -1,19 +1,31 @@
 defaults:
   - common
-  - model: skimo
+  - model: gc_skimo
   - env : maze
 
 dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
 structure : skimo
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+
+scheduler_params:
+  min_lr: 1e-6
+
 model:
   state_encoder :
-    in_feature : ${env.state_dim}
+    in_feature : ${env.state_dim} 
+    latent_state_dim : ${env.latent_state_dim}
+    env_state_dim : ${env.n_env}
+    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    pos_state_dim : ${env.n_pos}
+    nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.latent_state_dim}
   
   state_decoder :
     in_feature : ${env.latent_state_dim}
+    latent_state_dim : ${env.latent_state_dim}
+    env_state_dim : ${env.n_env}
+    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    pos_state_dim : ${env.n_pos}
+    nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.state_dim}
 
   dynamics: 
@@ -33,7 +45,7 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
+    in_feature : ${add:${env.state_dim}, ${env.skill_dim}}
     out_dim : ${env.action_dim} 
     state_dim : ${env.state_dim}
     z_dim  : ${env.skill_dim}

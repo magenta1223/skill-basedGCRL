@@ -3,12 +3,12 @@ defaults:
   - model: gc_spirl
   - env : kitchen
 
-structure : sc
 dataset_cls : LVD.data.Kitchen_Dataset
+structure : sc
 
 
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+scheduler_params:
+  min_lr: 1e-6
 
 model:
   prior:
@@ -20,9 +20,9 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
+    in_feature : ${add:${env.n_pos}, ${env.skill_dim}} 
     out_dim : ${env.action_dim} 
-    state_dim : ${env.state_dim}
+    state_dim : ${env.n_pos}
     z_dim  : ${env.skill_dim}
 
 

@@ -1,13 +1,13 @@
 defaults:
   - common
-  - model: skimo
+  - model: gc_skimo
   - env : kitchen
 
-dataset_cls : LVD.data..Kitchen_Dataset
+dataset_cls : LVD.data.Kitchen_Dataset
 structure : skimo
 
 scheduler_params:
-  min_lr: 1e-5
+  min_lr: 1e-6
 
 model:
   state_encoder :
@@ -45,9 +45,9 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
+    in_feature : ${add:${env.n_pos}, ${env.skill_dim}} 
     out_dim : ${env.action_dim} 
-    state_dim : ${env.state_dim}
+    state_dim : ${env.n_pos}
     z_dim  : ${env.skill_dim}
 
 

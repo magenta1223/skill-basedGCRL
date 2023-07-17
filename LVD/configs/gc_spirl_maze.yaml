@@ -3,12 +3,11 @@ defaults:
   - model: gc_spirl
   - env : maze
 
-dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
+dataset_cls : LVD.data.Maze_Dataset
 structure : sc
 
-
-env:
-  epoch_cycles_train: ${get_cycle:${env.batch_size}}
+scheduler_params:
+  min_lr: 1e-6
   
 model:
   prior:
