@@ -23,13 +23,13 @@ def main(cfg):
     # rl_overrides = ["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"]
 
     overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl']
-    all_overrides = deepcopy(list(hydra_config.overrides.task))
+    all_overrides = [override.replace(".", "_")  for override in deepcopy(list(hydra_config.overrides.task))]
     for override in overrides_to_remove:
         try:
             all_overrides.remove(override)
         except:
             print(f"{override} 없는데요 ? ")
-    rl_overrides = ",".join(all_overrides)
+    rl_overrides = ",".join(all_overrides) # .으로 되어있어서 class로 parser가 class로 인식함.
 
     with open_dict(cfg):
         # COMMON LOGGING PARAMETERS
