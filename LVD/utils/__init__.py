@@ -4,6 +4,7 @@ from .helper import *
 from .torch_utils import *
 # from . import omegaconf_utils
 from .omegaconf_utils import *
+from .vis import *
 
 __all__ = [
     # env
@@ -12,6 +13,7 @@ __all__ = [
     # general 
     'seed_everything',
     'ConfigParser',
+    'get_time',
     # helper
     'AverageMeter',
     'Scheduler_Helper',
@@ -26,8 +28,9 @@ __all__ = [
     'compute_mmd',
     'to_skill_embedding',
     # omegaconf_utils
-    # 'omegaconf_utils'
     'config_path',
-    'get_trainer'
-    
+    'get_trainer',
+    # vis
+    'save_video',
+    'render_from_env',
 ]

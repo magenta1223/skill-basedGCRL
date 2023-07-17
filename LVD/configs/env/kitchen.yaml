@@ -24,7 +24,7 @@ batch_size : 1024
 mixin_start : 60
 mixin_ratio : 0.05
 plan_H : 100
-epochs : 100
+epochs : 80
 # epochs : 40
 warmup_steps : 20
 

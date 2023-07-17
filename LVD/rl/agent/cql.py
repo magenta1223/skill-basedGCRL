@@ -219,12 +219,12 @@ class CQL(BaseModel):
         # 후보 : random skills, skill prior
         # 일단 skill prior로 해볼까..  ? 
         _, prior_dist = self.entropy(batch.states, policy_skill_dist)
-        repeatedObs = batch.states.repeat(10, dim = 0)
+        repeatedObs = batch.states.repeat((10, 1))
 
         # 
         # random_skill = prior_dist.sample().repeat(10, dim = 0)
         
-        random_skill_dist = get_fixed_dist(policy_skill.repeat(10, dim = 0), tanh = self.tanh)
+        random_skill_dist = get_fixed_dist(policy_skill.repeat((10, 1)), tanh = self.tanh)
         random_skill = random_skill_dist.sample()
         
         random_density = torch.log(0.5 ** self.cfg.skill_dim)
@@ -233,12 +233,12 @@ class CQL(BaseModel):
         if self.gc:
             q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
             q_input_cql = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
-            q_input_random = torch.cat((self.policy.encode(repeatedObs), batch.G.repeat(10, dim = 0), random_skill), dim = -1)
+            q_input_random = torch.cat((self.policy.encode(repeatedObs), batch.G.repeat((10, 1)), random_skill), dim = -1)
 
         else:
             q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
             q_input_cql = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
-            q_input_random = torch.cat((self.policy.encode(batch.states), batch.G.repeat(10, dim = 0), random_skill), dim = -1)
+            q_input_random = torch.cat((self.policy.encode(batch.states), batch.G.repeat((10, 1)), random_skill), dim = -1)
 
         for qf, qf_optim in zip(self.qfs, self.qf_optims):
             # qs = qf(self.q_inputs(batch)).squeeze(-1)
@@ -248,7 +248,7 @@ class CQL(BaseModel):
             random_q = qf(q_input_random).squeeze(-1)
 
             
-            cq = cql_q.repeat(10, dim = 0) - cql_log_prob
+            cq = cql_q.repeat((10, 1)) - cql_log_prob
             rq = random_q - random_density
 
             conservative_loss = torch.logsumexp(torch.cat((cq, rq), dim = -1)).mean() - current_q.mean()

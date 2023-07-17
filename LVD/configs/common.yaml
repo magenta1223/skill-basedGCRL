@@ -6,6 +6,7 @@ hydra:
       override_dirname:
         exclude_keys:
           # common 
+          - seed 
           - phase
           - rl_batch_size
           - zeroshot 
@@ -39,6 +40,12 @@ hydra:
           - model.with_gcsl
 
 
+seeds :
+  - 0
+  - 222
+  - 444
+  - 666
+  - 888
 
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}

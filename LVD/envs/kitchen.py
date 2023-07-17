@@ -12,7 +12,7 @@ all_tasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hi
 
 class KitchenTask_GC(KitchenTask):
     def __repr__(self):
-        return "-".join([ t[0].upper() for t in self.subtasks])
+        return "".join([ t[0].upper() for t in self.subtasks])
 
 class KitchenEnv_GC(KitchenEnv):
     """
@@ -180,9 +180,15 @@ kitchen_known_tasks = ['KBTS','MKBS','MKLH','KTLS',
 
 
 
-
-
-
-
-
-kitchen_unseen_tasks = ['']
+kitchen_unseen_tasks = [
+    'MKBT',
+    'MKBL',
+    'KTLH',
+    'MTSH',
+    'BLSH',
+    'BTLH',
+    'KTSH',
+    'MBLH',
+    'MKTS',
+    'MTLS'
+    ]

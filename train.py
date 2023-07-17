@@ -12,19 +12,39 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
-    seed_everything(666)
+    seed_everything(cfg.seeds[0])
     # print(OmegaConf.to_yaml(cfg))
 
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
+    # overrides에서 rl_cfgs에 포함된 것만 따로 걸러내야 함. 
+    # exclude
+    # rl_overrides = "_".join(["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"])
+    # rl_overrides = ["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"]
 
-    rl_overrides = "_".join(["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"])
+    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl']
+    all_overrides = deepcopy(list(hydra_config.overrides.task))
+    for override in overrides_to_remove:
+        all_overrides.remove(override)
+    rl_overrides = ",".join(all_overrides)
 
     with open_dict(cfg):
+        # COMMON LOGGING PARAMETERS
         cfg.run_name = config_path(hydra_config.job.override_dirname)
         cfg.job_name = config_path(hydra_config.job.name)
-        cfg.skill_weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"
-        cfg.weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{rl_overrides}"
+        cfg.run_id = get_time()
+        cfg.rl_overrides = rl_overrides
+
+
+        # PATHS  
+        # pretrain weights 
+        cfg.skill_weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"\
+        # rl weights 
+        cfg.weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{cfg.rl_overrides}"
+        # rl results 
+        cfg.result_path = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/{cfg.rl_overrides}"
+
+        # wandb 
         cfg.project_name = cfg.structure
         cfg.wandb_run_name = f"{cfg.env.env_name}_{cfg.run_name}_{rl_overrides}"
 

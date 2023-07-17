@@ -27,6 +27,10 @@ def main(cfg):
         cfg.run_name = config_path(hydra_config.job.override_dirname)
         cfg.job_name = config_path(hydra_config.job.name)
         cfg.rl_overrides = rl_overrides
+
+        cfg.eval_data_prefix = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/{cfg.rl_overrides}/"
+        cfg.eval_rawdata_path = f"{cfg.eval_data_prefix}/rawdata.csv"
+
         # zeroshot
         cfg.zeroshot_weight = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"
         # finetune 

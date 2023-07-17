@@ -14,6 +14,7 @@ from ...contrib.simpl.torch_utils import itemize
 from ...utils import *
 from ...collector import GC_Hierarchical_Collector, GC_Buffer
 
+import pandas as pd
 from simpl_reproduce.maze.maze_vis import draw_maze
 
 
@@ -27,16 +28,21 @@ class GC_Skill_RL_Trainer:
         wandb.init(
             project = self.cfg.project_name,
             name = self.cfg.wandb_run_name,
-
-            # name = f"LEVEL {str(args.level)}", 
             config = self.rl_cfgs,
         )
-    
+
+        self.data = []
+        # result 생성시각 구분용도 
+        self.run_id = cfg.run_id #get_time()
+        
+        # eval_data path :  logs/[ENV_NAME]/[STRUCTURE_NAME]/[PRETRAIN_OVERRIDES]/[RL_OVERRIDES]/[TASK]
+        self.result_path = self.cfg.result_path
+        os.makedirs(self.result_path, exist_ok= True)
+
+
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
-
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
 
     def prep(self):
@@ -79,16 +85,20 @@ class GC_Skill_RL_Trainer:
         self.collector, self.agent = collector, agent
 
     def fit(self):
+        for seed in self.cfg.seeds:
+            self.__fit__(seed)
+
+
+    def __fit__(self, seed):
+        seed_everything(seed)
+
         # for task_obj in self.tasks:
         for task_obj in self.tasks:
-            task_name = str(task_obj)
+            task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
 
             torch.save({
                 "model" : self.agent,
-                # "collector" : collector if env_name != "carla" else None,
-                # "task" : task_obj if env_name != "carla" else np.array(task_obj),
-                # "env" : env if env_name != "carla" else None,
             }, f"{self.cfg.weights_path}/{task_name}.bin")   
             
             # TODO : collector.env로 통일. ㅈㄴ헷갈림. 
@@ -99,76 +109,98 @@ class GC_Skill_RL_Trainer:
                 ewm_rwds = 0
                 early_stop = 0
                 for n_ep in range(self.cfg.n_episode+1):                    
-                    log = self.train_policy(n_ep)
-                    log['n_ep'] = n_ep
-                    log[f'{task_name}_return'] = log['tr_return']
-                    if 'GCSL_loss' in log.keys():
-                        # 반대가 좋긴한데 zero-division error나옴. 
-                        log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
-                    del log['tr_return']
+                    log = self.train_policy(n_ep, seed)
+                    # log['n_ep'] = n_ep
+                    # log[f'{task_name}_return'] = log['tr_return']
+                    # if 'GCSL_loss' in log.keys():
+                    #     log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
+                    # del log['tr_return']
 
-                    if (n_ep + 1) % self.cfg.render_period == 0:
-                        
-                        log['policy_vis'] = self.visualize()
+                    # if (n_ep + 1) % self.cfg.render_period == 0:
+                    #     log['policy_vis'] = self.visualize()
 
-                    ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
-                    if ewm_rwds > self.cfg.early_stop_threshold:
-                        early_stop += 1
-                    else:
-                        early_stop = 0
+                    # ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+                    # if ewm_rwds > self.cfg.early_stop_threshold:
+                    #     early_stop += 1
+                    # else:
+                    #     early_stop = 0
                     
-                    if early_stop == 10:
-                        print("Converged enough. Early Stop!")
-                        break
+                    # if early_stop == 10:
+                    #     print("Converged enough. Early Stop!")
+                    #     break
 
-                    log = {f"{task_name}/{k}": log[k] for k in log.keys()}
+                    # log = {f"{task_name}/{k}": log[k] for k in log.keys()}
+                    log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
                     wandb.log(log)
                     # clear plot
                     plt.cla()
+                    
+                    # 매 ep끝날 때 마다 저장. 
+                    if os.path.exists(f"{self.result_path}/rawdata.csv"):
+                        df = pd.read_csv(f"{self.result_path}/rawdata.csv")
+                        new_data = pd.DataFrame(self.data)
+                        df = pd.concat((df, new_data), axis = 0)
+                        
+                    else:
+                        df = pd.DataFrame(self.data)
+                    
+                    df.drop_duplicates(inplace = True)
+                    df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
+
 
             torch.save({
                 "model" : self.agent,
-                # "collector" : collector if env_name != "carla" else None,
-                # "task" : task_obj if env_name != "carla" else np.array(task_obj),
-                # "env" : env if env_name != "carla" else None,
             }, f"{self.cfg.weights_path}/{task_name}.bin")   
 
 
-    def train_policy(self, n_ep):
-
+    def train_policy(self, n_ep, seed):
         log = {}
-
-    
-
+        success = False
         # ------------- Collect Data ------------- #
-        with self.agent.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
+        with self.agent.policy.expl(), self.collector.low_actor.expl(): #, collector.env.step_render():
             episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
 
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
+            success = True
             print("success")
 
         high_ep = episode.as_high_episode()
         self.agent.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
 
-    
+        # ------------- Logging Data ------------- #
+        data = edict(
+            env = self.env.name, 
+            task = str(self.collector.env.task),
+            seed = seed, 
+            episode = n_ep,
+            reward  = sum(episode.rewards),
+            success = np.array(episode.dones).sum() != 0,
+            run_id = self.run_id
+        )
+        self.data.append(data)
+
+
+
+        # ------------- Precollect phase ------------- #
         if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
-
-        if n_ep == self.cfg.precollect:
+        
+        # ------------- Warming up phase ------------- #
+        elif n_ep == self.cfg.precollect:
             step_inputs = edict(
                 episode = n_ep,
                 G = G
             )
-            # Q-warmup
             print("Warmup Value function")
             self.agent.warmup_Q(step_inputs)
+        else:
+            pass 
         
-
+        # ------------- Policy learning phase ------------- #
         n_step = self.n_step(high_ep)
         print(f"Reuse!! : {n_step}")
         for _ in range(max(n_step, 1)):
-        # for _ in range(self.cfg.step_per_ep):
             step_inputs = edict(
                 episode = n_ep,
                 G = G
@@ -193,3 +225,20 @@ class GC_Skill_RL_Trainer:
 
     def n_step(self, episode):
         return int(self.cfg.reuse_rate * len(episode) / self.cfg.rl_batch_size)
+    
+    def postprocess_log(self, log, task_name, n_ep, ewm_rwds):
+
+        log['n_ep'] = n_ep
+        log[f'{task_name}_return'] = log['tr_return']
+        if 'GCSL_loss' in log.keys():
+            log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
+        del log['tr_return']
+
+        if (n_ep + 1) % self.cfg.render_period == 0:
+            log['policy_vis'] = self.visualize()
+
+        ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+        log = {f"{task_name}/{k}": log[k] for k in log.keys()}
+
+        return log, ewm_rwds
+    

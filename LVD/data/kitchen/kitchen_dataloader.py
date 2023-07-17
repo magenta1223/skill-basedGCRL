@@ -417,7 +417,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
         G = deepcopy(seq.states[g_index])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
 
-        output = dict(
+        output = edict(
             states=states,
             actions=actions,
             G = G,
@@ -463,7 +463,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             actions = actions[start_idx:start_idx+self.subseq_len-1]
 
             # trajectory
-            output = dict(
+            output = edict(
                 states=states,
                 actions=actions,
                 G=G,

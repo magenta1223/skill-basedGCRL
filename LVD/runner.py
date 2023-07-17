@@ -7,7 +7,10 @@ from LVD.models import *
 import warnings
 import cv2
 from copy import deepcopy
-
+import numpy as np
+from d4rl.pointmaze.maze_model import WALL
+from matplotlib import pyplot as plt 
+from easydict import EasyDict as edict   
 warnings.filterwarnings("ignore")
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
@@ -78,6 +81,8 @@ class BaseTrainer:
         os.makedirs(self.model_id, exist_ok = True)
 
         os.makedirs(f"{self.run_path}/imgs", exist_ok= True)
+        os.makedirs(f"{self.run_path}/data", exist_ok= True)
+
 
     def meter_initialize(self):
         self.meters = {}
@@ -228,8 +233,11 @@ class BaseTrainer:
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
         [ scheduler.load_state_dict(checkpoint['schedulers'][module_name] )  for module_name, scheduler in self.schedulers.items()]
         self.best_summary_loss = checkpoint['best_summary_loss']
-
-        self.e = checkpoint['epoch']
+        
+        try:
+            self.e = checkpoint['epoch']
+        except:
+            self.e = 0
 
         self.model.eval()
 
@@ -454,6 +462,204 @@ class Diversity_Trainer(BaseTrainer):
         save_dict = self.save_dict()
         save_dict['cls'] = Diversity_Trainer
         torch.save(save_dict, path)
+
+    def eval_rollout(self):
+        if self.cfg.env_name == "kitchen":
+            self.__eval_rollout_kitchen__()
+        elif self.cfg.env_name == "maze":
+            self.__eval_rollout_maze__()
+        else:
+            pass 
+    
+    @torch.no_grad()
+    def __eval_rollout_kitchen__(self):
+        os.makedirs(f"{self.run_path}/appendix_figure1/", exist_ok= True)
+        
+        self.model.eval() # ?
+        unseen_goals = self.model.envtask_cfg.unknown_tasks
+        seen_goals = set()
+        done = False
+        
+
+        loader = self.train_loader
+        dataset = loader.dataset
+        # self.model.render = True
+                
+        for i, batch in enumerate(self.train_loader):
+            # ----------------- Rollout ----------------- #
+            batch = edict({  k : v.cuda()  for k, v in batch.items()})
+            
+            
+            result = self.model.rollout(batch)
+            # ----------------- Make Trajectory ----------------- #
+            states_novel = result['states_novel']
+            actions_novel = result['actions_novel']
+            seq_indices =  result['seq_indices']
+            cs = result['c']
+
+            # unseen G를 달성한 sample을 전부 파악하고
+            Gs = [self.model.state_processor.state_goal_checker(state_seq[-1]) for state_seq in states_novel]
+
+            # unseen goals에 포함된 것만 남겨야겠지? 
+            # 그것도 유니크한 것만 
+            unseen_G_indices = []
+            
+            for i, G in enumerate(Gs):
+                if len(G) == 4 and G in unseen_goals and G not in seen_goals:
+                    unseen_G_indices.append(i)
+                    seen_goals.add(G)
+
+            # unseen_G_indices = torch.tensor(unseen_G_indices, dtype= torch.bool)
+            
+
+
+            # 각 unseen G에 해당하는 첫 번째 sample을 렌더링 
+            # batch 단위로 처리 후 렌더링하는 것으로 변경.. 해야 하지만 concatenated state / action의 길이가 제각각임. 
+            for idx in unseen_G_indices:
+                state_imgs = []
+
+
+                states_seq = states_novel[idx]
+                actions_seq = actions_novel[idx]
+                seq_idx = seq_indices[idx].item()
+                c = cs[idx].item()
+  
+                seq = deepcopy(dataset.seqs[seq_idx])
+
+                # start idx도 필요
+                concatenated_states = np.concatenate((seq.states[:c, :dataset.state_dim], states_seq), axis = 0)
+                concatenated_actions = np.concatenate((seq.actions[:c], actions_seq), axis = 0)
+                concatenated_actions = self.model.action_smoothing(concatenated_states, concatenated_actions)
+
+                G = self.model.state_processor.state_goal_checker(states_seq[-1])
+                print(f"Rendering : {G}")
+
+                # State imgs 
+                state_imgs = render_from_env(self.model.env, self.model.tasks[0], states = concatenated_states)
+                path = f"{self.run_path}/appendix_figure1/{G}_states.mp4"
+                save_video(path,  state_imgs)
+
+                # Action imgs 
+                action_imgs = render_from_env(self.model.env, self.model.tasks[0], states = concatenated_states, actions=  concatenated_actions, c= c)
+                path = f"{self.run_path}/appendix_figure1/{G}_actions.mp4"
+                save_video(path, action_imgs)
+
+                path = f"{self.run_path}/appendix_figure1/{G}_start.png"
+                cv2.imwrite(path, cv2.cvtColor(state_imgs[c], cv2.COLOR_BGR2RGB))
+
+                path = f"{self.run_path}/appendix_figure1/{G}_end_state.png"
+                cv2.imwrite(path, cv2.cvtColor(state_imgs[-1], cv2.COLOR_BGR2RGB))
+
+                path = f"{self.run_path}/appendix_figure1/{G}_end_action.png"
+                cv2.imwrite(path, cv2.cvtColor(action_imgs[-1], cv2.COLOR_BGR2RGB))
+
+                # 했으면 unseen_goals에서 배제
+                unseen_goals.remove(G)
+
+                # 만약 unseen goals가 비었다면 끗 
+                if len(unseen_goals) == 0:
+                    done = True
+                    break
+            if done:
+                break
+
+        print("Done")
+
+        
+    @torch.no_grad()
+    def __eval_rollout_maze__(self):
+
+        os.makedirs(f"{self.run_path}/appendix_figure2/", exist_ok= True)        
+        self.model.eval() # ?
+        loader = self.train_loader
+        dataset = loader.dataset
+
+        img = np.rot90(self.env.maze_arr != WALL)
+        extent = [
+            -0.5, self.env.maze_arr.shape[0]-0.5,
+            -0.5, self.env.maze_arr.shape[1]-0.5
+        ]
+
+        plt.cla() 
+        fig = plt.figure(frameon=False)
+        ax = fig.add_axes([0, 0, 1, 1])
+        # axis options
+        ax.axis('off')        
+        ax.axes.get_xaxis().set_visible(False)
+        ax.axes.get_yaxis().set_visible(False)
+
+
+        target = np.array([12, 20])
+
+        ax.imshow((1-img)/5, extent=extent, cmap='Reds', alpha=0.2)
+        ax.scatter(*target, marker='o', c='green', s=30, zorder=3, linewidths=4)
+        ax.set_xlim(0, self.model.env.maze_size+1)
+        ax.set_ylim(0, self.model.env.maze_size+1)
+
+        
+
+
+        rollout_candidates = []
+        
+        for seq in dataset.seqs:
+            dists = np.linalg.norm(seq['obs'][:, :2] - target, axis = 1)
+            if np.any(dists < 1):
+                goal_loc = seq['obs'][-1][:2]
+                ax.scatter(*goal_loc, marker='x', c='red', s=100, zorder=10, linewidths=2)
+                states = deepcopy(np.array(seq['obs']))
+                ax.plot(*states[:, :2].T  , color='royalblue', linewidth= 3)
+                # 해당 seq에서 target위치와 가장 가까운 지점의 index를 고르고
+                closest = dists.argmin()
+                # 그거만 10개 갖다 붙여서 rollout. 어차피 sequence 쓰지도 않음. 
+                rollout_candidates.append(deepcopy(seq['obs'][closest]))
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        path = f"{self.run_path}/appendix_figure2/maze_dataset.png"
+        fig.savefig(path, bbox_inches="tight", pad_inches = 0)
+
+        # ---------------------------------- # 
+        
+        # prepare plots 
+        plt.cla() 
+        fig = plt.figure(frameon=False)
+        ax = fig.add_axes([0, 0, 1, 1])
+        # axis options
+        ax.axis('off')        
+        ax.axes.get_xaxis().set_visible(False)
+        ax.axes.get_yaxis().set_visible(False)
+
+        # set maps 
+        ax.imshow((1-img)/5, extent=extent, cmap='Reds', alpha=0.2)
+        ax.scatter(*target, marker='o', c='green', s=30, zorder=3, linewidths=4)
+        ax.set_xlim(0, self.model.env.maze_size+1)
+        ax.set_ylim(0, self.model.env.maze_size+1)
+
+        # states 
+        states = torch.tensor(rollout_candidates).cuda()        
+        batch = edict(
+            states = torch.tensor(rollout_candidates).unsqueeze(1).repeat((1, 10, 1)).cuda()
+        )
+
+        result = self.model.prior_policy.rollout(batch)
+        states_rollout = result['states_rollout'].detach().cpu().numpy()
+        c = result['c']
+    
+    
+        for seq in states_rollout:
+            # 싸그리 모아서 batch로 만들고 rollout 
+            goal_loc = seq['obs'][-1][:2]
+            ax.scatter(*goal_loc, marker='x', c='red', s=100, zorder=10, linewidths=2)
+            states = deepcopy(np.array(seq['obs']))
+            ax.plot(*states[:, :2].T  , color='royalblue', linewidth= 3)
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+        path = f"{self.run_path}/appendix_figure2/maze_rollout.png"
+        fig.savefig(path, bbox_inches="tight", pad_inches = 0)
+
+
 
 
 

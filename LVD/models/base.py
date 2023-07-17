@@ -13,6 +13,15 @@ class BaseModel(BaseModule):
     def __init__(self, cfg):
         super().__init__(cfg)
 
+        self.Hsteps = self.subseq_len -1
+        envtask_cfg = self.envtask_cfg
+        self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+
+        self.state_processor = StateProcessor(cfg.env_name)
+        self.seen_tasks = envtask_cfg.known_tasks
+        self.unseen_tasks = envtask_cfg.unknown_tasks
+
         # Losses
         self.loss_fns = {
             'recon' : ['mse', nn.MSELoss()],
@@ -23,6 +32,15 @@ class BaseModel(BaseModule):
         self.outputs = {}
         self.loss_dict = {}
         self.step = 0
+    
+    @staticmethod
+    def weighted_mse(pred, target, weights):
+        agg_dims = list(range(1, len(pred.shape)))
+        mse = torch.pow(pred - target, 2).mean(dim = agg_dims)
+
+        weighted_error = mse * weights
+        weighted_mse_loss = torch.mean(weighted_error)
+        return weighted_mse_loss
 
 
     @staticmethod

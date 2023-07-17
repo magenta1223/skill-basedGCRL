@@ -5,6 +5,7 @@ import torch
 import hydra
 from omegaconf import DictConfig
 from easydict import EasyDict as edict
+import datetime
 
 
 def seed_everything(seed: int = 42):
@@ -77,3 +78,10 @@ class ConfigParser:
 
         return cfg
 
+def get_time():
+    now = datetime.datetime.now()
+    month = str(now.month).zfill(2)
+    day = str(now.day).zfill(2)
+    hour = str(now.hour).zfill(2)
+    minute = str(now.minute).zfill(2)
+    return f"{month}{day}-{hour}:{minute}"

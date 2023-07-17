@@ -30,7 +30,7 @@ class MazeTask_GC:
         self.goal_loc = np.array(goal_loc, dtype=np.float32)
 
     def __repr__(self):
-        return f'start:{self.init_loc} end:{self.goal_loc}'
+        return f'{self.goal_loc}'
 
 class Maze_GC(MazeEnv):
     name = "maze"
