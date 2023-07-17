@@ -16,20 +16,12 @@ class Skimo_Model(BaseModel):
     def __init__(self, cfg):
         super().__init__(cfg)
 
-        self.use_amp = True
-        self.Hsteps = self.subseq_len -1
-
-
-
         ## skill prior module
-
-
         state_encoder = SequentialBuilder(cfg.state_encoder)
         state_decoder = SequentialBuilder(cfg.state_decoder)
         prior = SequentialBuilder(cfg.prior)
         dynamics = SequentialBuilder(cfg.dynamics)
         highlevel_policy = SequentialBuilder(cfg.high_policy)
-
 
         self.prior_policy = PRIOR_WRAPPERS['skimo'](
             prior_policy = prior,
@@ -116,16 +108,20 @@ class Skimo_Model(BaseModel):
         fixed_dist = get_fixed_dist(q_clone, tanh = self.tanh)
 
         if self.tanh:
-            z_normal, z = post.rsample_with_pre_tanh_value()
-            # self.outputs['z'] = z.clone().detach()
-            # self.outputs['z_normal'] = z_normal.clone().detach()
+            skill_normal, skill = post.rsample_with_pre_tanh_value()
+            self.outputs['z'] = skill.clone().detach()
+            self.outputs['z_normal'] = skill_normal.clone().detach()
         else:
-            z = post.rsample()
-            z_normal = None
-            # self.outputs['z'] = z.clone().detach()
+            skill = post.rsample()
+            skill_normal = None
+            self.outputs['z'] = skill.clone().detach()
+            self.outputs['z_normal'] = skill_normal
         
         # Skill Decoder 
-        decode_inputs = self.dec_input(states.clone(), z, self.Hsteps)
+        if self.manipulation:
+            decode_inputs = self.dec_input(states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
+        else:
+            decode_inputs = self.dec_input(states.clone(), skill, self.Hsteps)
 
         N, T = decode_inputs.shape[:2]
         skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
@@ -137,12 +133,6 @@ class Skimo_Model(BaseModel):
 
 
         # Outputs
-        self.outputs['z'] = z.clone().detach()
-        if z_normal is not None:
-            self.outputs['z_normal'] = z_normal.clone().detach()
-        else:
-            self.outputs['z_normal'] = None
-
         self.outputs['post'] = post
         self.outputs['post_detach'] = post_detach
         self.outputs['fixed'] = fixed_dist
