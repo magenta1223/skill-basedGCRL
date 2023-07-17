@@ -126,7 +126,7 @@ class Skimo_Model(BaseModel):
         N, T = decode_inputs.shape[:2]
         skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
         
-
+        batch['skill'] = skill
 
         # skill prior
         self.outputs =  self.prior_policy(batch)
