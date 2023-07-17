@@ -20,6 +20,7 @@ hydra:
           - rl.qf_lr
           - rl.alpha_lr
           - rl.precollect
+          - rl.render_period
           # env 
           - env.policy_lr
           - env.consistency_lr
