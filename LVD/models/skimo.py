@@ -30,6 +30,7 @@ class Skimo_Model(BaseModel):
             dynamics = dynamics,
             highlevel_policy = highlevel_policy,
             tanh = self.tanh,
+            cfg = self.cfg
         )
 
         ## skill encoder

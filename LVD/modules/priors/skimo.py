@@ -57,7 +57,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             htH = self.target_state_encoder(states[:, -1])
 
         # -------------- State-Conditioned Prior -------------- #
-        prior, prior_detach = self.prior_policy.dist(states[:, 0], detached = True)
+        prior, prior_detach = self.prior_policy.dist(states[:, 0, :self.cfg.n_pos], detached = True)
 
         # ------------------ Skill Dynamics ------------------- #
         dynamics_input = torch.cat((ht, skill), dim = -1)

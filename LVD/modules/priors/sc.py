@@ -28,7 +28,7 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
         N, T, _ = states.shape
 
         # -------------- State Enc / Dec -------------- #
-        prior = self.skill_prior.dist(states[:, 0])
+        prior = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos])
         if self.tanh:
             prior_dist = prior._normal.base_dist
         else:

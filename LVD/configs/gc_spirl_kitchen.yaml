@@ -12,7 +12,7 @@ scheduler_params:
 
 model:
   prior:
-    in_feature : ${env.state_dim}
+    in_feature : ${env.n_pos}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_encoder:
