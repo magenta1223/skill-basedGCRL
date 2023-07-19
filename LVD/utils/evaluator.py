@@ -59,7 +59,7 @@ class Evaluator:
 
     def evaluate(self):
         assert self.cfg.eval_mode in self.eval_methods, f"Invalid evaluation methods. Valid choices are {self.eval_methods.keys()}"
-        self.eval_methods(self.cfg.eval_mode)
+        self.eval_methods[self.cfg.eval_mode]()
     
     def eval_zeroshot(self):
         for seed in self.seeds:
