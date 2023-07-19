@@ -43,6 +43,7 @@ hydra:
           - model.with_gcsl
           # eval
           - eval_mode
+          - n_eval 
 
 
 seeds :
@@ -53,6 +54,7 @@ seeds :
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 eval_mode : false
+n_eval : 19
 
 resume : false 
 resume_ckpt : 0
