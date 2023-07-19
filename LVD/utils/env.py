@@ -214,3 +214,32 @@ class StateProcessor:
             # get goals from state -> check 
             return self.goal_checker(self.get_goal(state)) 
         
+
+class Colors:
+    # ANSI 이스케이프 시퀀스로 색상 지정
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    RESET = '\033[0m'
+    
+
+
+def coloring(env_name, targetG, achievedG, done):
+    if env_name == "kitchen":
+        task_colors = ""
+        for subT in achievedG:
+            if subT not in targetG:
+                task_colors += Colors.RESET + subT + Colors.RESET
+            else:
+                all_done_untilNow = sum([subT_todo not in achievedG for subT_todo in targetG[:targetG.index(subT)]]) == 0
+                if all_done_untilNow:
+                    task_colors += '\033[94m' + subT + Colors.RESET
+                else:
+                    task_colors += '\033[91m' + subT + Colors.RESET
+        print(f"T : {targetG} A : {task_colors}")
+    else:
+        if done :
+            print(f"T : {targetG} A : \033[94m{achievedG}")
+        else:
+            print(f"T : {targetG} A : {achievedG}")

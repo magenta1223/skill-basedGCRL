@@ -11,11 +11,17 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
-    seed_everything(cfg.seeds[3])
+    seed_everything(cfg.seeds[2])
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
-    rl_overrides = "_".join(["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"])
+    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl']
+    all_overrides = [override  for override in deepcopy(list(hydra_config.overrides.task))]
 
+    for override in overrides_to_remove:
+        if override in all_overrides:
+            all_overrides.remove(override)
+    rl_overrides = ",".join(all_overrides) # .으로 되어있어서 class로 parser가 class로 인식함.
+    
     with open_dict(cfg):
         # COMMON LOGGING PARAMETERS
         cfg.run_name = config_path(hydra_config.job.override_dirname)

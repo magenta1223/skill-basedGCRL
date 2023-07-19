@@ -31,15 +31,6 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
         super().__init__(config)
         self.z = None
         self.log_sigma = nn.Parameter(-50*torch.ones(self.out_dim)) # for stochastic sampling
-    #     self.visual_encoder = None
-
-    # def set_visual_encoder(self, visual_encoder):
-    #     if visual_encoder is not None:
-    #         visual_encoder = deepcopy(visual_encoder)
-    #         visual_encoder.eval()
-    #         visual_encoder.requires_grad_(False)
-
-    #     self.visual_encoder = visual_encoder 
 
     # from simpl. for compatibility with simpl
     def dist(self, batch_state_z):
@@ -113,18 +104,6 @@ class Multisource_Encoder(SequentialBuilder):
             env_config['out_dim'] = config['latent_state_dim'] // 2
             self.env_encoder = SequentialBuilder(env_config)
 
-        # pos_config = {**config}
-        # pos_config['in_feature'] = config['pos_state_dim']
-        # pos_config['out_dim'] = config['latent_state_dim'] // 2
-        # self.pos_encoder = SequentialBuilder(pos_config)
-
-        # nonPos_config = {**config}
-        # nonPos_config['in_feature'] = config['nonPos_state_dim']
-        # nonPos_config['out_dim'] = config['latent_state_dim'] // 2
-        # self.nonPos_encoder = SequentialBuilder(nonPos_config)
-
-
-
     def forward(self, x):
         if self.env_state_dim == 0:
             ppc_embedding = self.ppc_encoder(x)
@@ -138,18 +117,6 @@ class Multisource_Encoder(SequentialBuilder):
             env_embedding = self.env_encoder(env_state)
         
             return torch.cat((ppc_embedding, env_embedding), dim = -1), ppc_embedding, env_embedding
-
-    
-        # pos_state = x[..., :self.pos_state_dim]
-        # nonPos_state = x[..., self.pos_state_dim :]
-
-        # pos_embedding = self.pos_encoder(pos_state)
-        # nonPos_embedding = self.nonPos_encoder(nonPos_state)
-    
-        # return torch.cat((pos_embedding, nonPos_embedding), dim = -1), pos_embedding, nonPos_embedding
-        
-
-
 
 class Multisource_Decoder(SequentialBuilder):
     def __init__(self, config: Dict[str, None]):
@@ -174,19 +141,6 @@ class Multisource_Decoder(SequentialBuilder):
             env_config['out_dim'] = config['env_state_dim']
             self.env_decoder = SequentialBuilder(env_config)
 
-        # # if config['env_state_dim'] == 0:
-        # pos_config = {**config}
-        # pos_config['in_feature'] = config['latent_state_dim'] // 2
-        # pos_config['out_dim'] = config['pos_state_dim']
-        # self.pos_decoder = SequentialBuilder(pos_config)
-
-        # nonPos_config = {**config}
-        # nonPos_config['in_feature'] = config['latent_state_dim'] // 2
-        # nonPos_config['out_dim'] = config['nonPos_state_dim']
-        # self.nonPos_decoder = SequentialBuilder(nonPos_config)
-
-
-
     def forward(self, state_embedding):
         if self.env_state_dim == 0:
             ppc_state_hat = self.ppc_decoder(state_embedding)
@@ -202,11 +156,18 @@ class Multisource_Decoder(SequentialBuilder):
             return torch.cat((ppc_state_hat, env_state_hat), dim = -1), ppc_state_hat,  env_state_hat
 
 
-        # pos_embedding = state_embedding[..., :self.latent_state_dim // 2]
-        # nonPos_embedding = state_embedding[..., self.latent_state_dim // 2:]
+class SubgoalGenerator(SequentialBuilder):
+    def __init__(self, config: Dict[str, None]):
+        super().__init__(config)
+        self.embed_state = nn.Linear(self.latent_state_dim, self.hidden_dim)
+        self.embed_goal = nn.Linear(self.n_goal, self.hidden_dim)
+        # self.attn_blocks = nn.ModuleList([ TransformerBlock() for _ in range(3)])
+        self.proj = nn.Linear(self.hidden_dim, self.latent_state_dim,  bias= False)
 
-        # pos_state_hat = self.pos_decoder(pos_embedding)
-        # nonPos_state_hat = self.nonPos_decoder(nonPos_embedding)
-    
-        # return torch.cat((pos_state_hat, nonPos_state_hat), dim = -1), pos_state_hat, nonPos_state_hat
+    def forward(self, state, goal):
+        state_embedding = self.embed_state(state) # N, D
+        goal_embedding = self.embed_goal(goal) # N, D
+        for layer in self.layers:
+            state_embedding = layer(state_embedding, goal_embedding, goal_embedding)
 
+        return self.proj(state_embedding)

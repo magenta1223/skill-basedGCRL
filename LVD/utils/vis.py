@@ -57,9 +57,9 @@ def render_kitchen(env, task, states = None, actions = None, c = 0, text = None,
 
         else:
             for i, action in enumerate(actions):
-                if i ==  c:
-                    qvel = env.data.qvel
-                    env.set_state(states[i], qvel)
+                # if i ==  c:
+                #     qvel = env.data.qvel
+                #     env.set_state(states[i], qvel)
                 env.step(action)
                 img = env.render(mode= "rgb_array")
                 img = img.copy()

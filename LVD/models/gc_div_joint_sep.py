@@ -24,6 +24,9 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         # prior policy submodules
         inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
         subgoal_generator = SequentialBuilder(cfg.subgoal_generator)
+        # subgoal_generator = SubgoalGenerator(cfg.subgoal_generator)
+
+
         prior = SequentialBuilder(cfg.prior)
         flat_dynamics = SequentialBuilder(cfg.dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
@@ -103,7 +106,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             }
         }
 
-        self.loss_fns['recon'] = ['mse', self.weighted_mse]
+        self.loss_fns['recon'] = ['mse', weighted_mse]
         self.loss_fns['recon_orig'] = ['mse', torch.nn.MSELoss()]
         self.c = 0
         self.render = False
@@ -359,7 +362,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             if self.env.name == "kitchen":
                 imgs = []
                 achieved_goal = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
-                imgs = render_from_env(self.env, self.tasks[0], states = self.loss_dict['states_novel'][0], text = achieved_goal)
+                imgs = render_from_env(env = self.env, task = self.tasks[0], states = self.loss_dict['states_novel'][0], text = achieved_goal)
                 self.render = True
                 self.loss_dict['render'] = imgs
 
@@ -406,7 +409,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
                 
                 episodes = [ edict(states = generated_stateSeq) ]
 
-                fig = render_from_env(self.env, episodes, markers)
+                fig = render_from_env(env = self.env, episodes = episodes, markers = markers)
 
                 self.render = True
                 self.loss_dict['render'] = fig   
@@ -459,6 +462,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
     def action_smoothing(self, concat_states, concat_actions):
         """
         Noise 때문에 action으로 state가 적절히 복구가 안되는 상황. skill을 통해 한번 스무딩해줍시다 
+        그래도 안되는데 (?)
         """        
         self.eval()
 
@@ -473,23 +477,29 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         for i in range((T // self.Hsteps) + 1):
             skill_states = concat_states[:, i * self.Hsteps : (i+1) * self.Hsteps] .clone()
             actions = concat_actions[:, i * self.Hsteps : (i+1) * self.Hsteps]
+            skill_len = actions.shape[1]
 
-            enc_inputs = torch.cat( (skill_states.clone()[:,:-1], actions), dim = -1)
+            if skill_len == 0:
+                continue
+
+            enc_inputs = torch.cat( (skill_states.clone()[:, :skill_len], actions), dim = -1)
             q = self.skill_encoder(enc_inputs)[:, -1]        
             post = get_dist(q, tanh = self.tanh)
 
             if self.tanh:
                 skill_normal, skill = post.rsample_with_pre_tanh_value()
+                skill = torch.tanh(q.chunk(2, -1)[0]) * 2
             else:
                 z_normal, skill = None, post.rsample()
+                skill = torch.tanh(q.chunk(2, -1)[0]) * 2
 
             if self.manipulation:
-                decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
+                decode_inputs = self.dec_input(skill_states[:, :skill_len, :self.n_pos].clone(), skill, skill_len)
             else:
-                decode_inputs = self.dec_input(skill_states.clone(), skill, self.Hsteps)
+                decode_inputs = self.dec_input(skill_states[:, :skill_len] .clone(), skill, skill_len)
 
             N, T = decode_inputs.shape[:2]
-            skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
+            skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1).squeeze(0)
             smooth_actions.append(skill_hat)
         
-        return torch.stack(smooth_actions, dim = 1).squeeze(0).detach().cpu().numpy()
+        return torch.cat(smooth_actions, dim = 0).detach().cpu().numpy()

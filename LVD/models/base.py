@@ -34,16 +34,6 @@ class BaseModel(BaseModule):
         self.step = 0
     
     @staticmethod
-    def weighted_mse(pred, target, weights):
-        agg_dims = list(range(1, len(pred.shape)))
-        mse = torch.pow(pred - target, 2).mean(dim = agg_dims)
-
-        weighted_error = mse * weights
-        weighted_mse_loss = torch.mean(weighted_error)
-        return weighted_mse_loss
-
-
-    @staticmethod
     def dec_input(states, z, steps, detach = False):
         if detach:
             z = z.clone().detach()

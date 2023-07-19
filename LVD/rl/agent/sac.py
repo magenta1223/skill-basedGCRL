@@ -10,7 +10,7 @@ from easydict import EasyDict as edict
 from ...utils import *
 from ...models import BaseModel
 from ...contrib import *
-
+from copy import deepcopy
 
 class SAC(BaseModel):
     def __init__(self, cfg):
@@ -153,8 +153,7 @@ class SAC(BaseModel):
         min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
         policy_loss = (- min_qs + self.alpha * entropy_term).mean()
         policy_loss += self.aggregate_values(dist_out.additional_losses)
-
-
+        
         self.policy_optim.zero_grad()
         policy_loss.backward()
         self.grad_clip(self.policy_optim)
@@ -256,28 +255,36 @@ class SAC(BaseModel):
 
         for _ in range(int(self.q_warmup)):
             batch = self.buffer.sample(self.rl_batch_size)
-            # print(batch.G[:10, :2])
-
-            # batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
-
-            if self.consistency_update:
-                self.update_consistency(batch)
             self.update_qs(batch)
-            # self.update_networks(batch)
+        
+        if self.consistency_update:
+            for _ in range(int(self.q_warmup)):
+                batch = self.buffer.sample(self.rl_batch_size)
+                self.update_consistency(batch)
         
         # # orig : 200 
-        # for _ in range(int(self.q_warmup)):
-        #     self.update(step_inputs)
-        #     # batch = self.buffer.sample(self.rl_batch_size)
-        #     # self.episode = step_inputs['episode']
-        #     # self.n_step += 1
-        #     # self.update_networks(batch)
-        #     # ------------------- Alpha ------------------- # 
+        for _ in range(int(self.q_warmup)):
+            self.update(step_inputs)
+            # batch = self.buffer.sample(self.rl_batch_size)
+            # self.episode = step_inputs['episode']
+            # self.n_step += 1
+            # self.update_networks(batch)
+            # ------------------- Alpha ------------------- # 
 
 
 
     
     def update_consistency(self, batch):
+
+        # 여기서 relabeled G에 대한 q-value를 계산해서
+        # BC 에 대한 가중치로
+        with torch.no_grad():
+            if self.gc:
+                q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+            else:
+                q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
+
+            batch['skill_values'] = torch.min(*[qf(q_input).squeeze(-1) for qf in self.qfs])
 
         consistency_losses = self.policy.dist(batch, mode = "consistency")
         consistency_loss = self.aggregate_values(consistency_losses)
@@ -291,7 +298,7 @@ class SAC(BaseModel):
             self.grad_clip(optimizer['optimizer'])
             optimizer['optimizer'].step()
 
-        # self.policy.soft_update() # 
+        self.policy.soft_update() # 
 
         
         for module_name, meter in self.consistency_meters.items():

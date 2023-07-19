@@ -21,6 +21,8 @@ hydra:
           - rl.alpha_lr
           - rl.precollect
           - rl.render_period
+          - rl.rl_batch_size
+          - rl.norm
           # env 
           - env.policy_lr
           - env.consistency_lr
@@ -39,6 +41,8 @@ hydra:
           - model.consistency_update 
           - model.q_function.norm_cls
           - model.with_gcsl
+          # eval
+          - eval_mode
 
 
 seeds :
@@ -48,13 +52,14 @@ seeds :
 
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
+eval_mode : false
 
 resume : false 
 resume_ckpt : 0
 zeroshot : false
 hindsight_relabel : true
 
-save_ckpt : 20
+save_ckpt : 9999
 early_stop_rounds : 100
 n_rollout_steps : 10
 workers : 16
@@ -84,7 +89,7 @@ rl :
   tau : 0.005
   qf_lr : 3e-4
   alpha_lr : 3e-4
-  precollect : 20
+  precollect : 1
   norm : false
   rl_batch_size : 256
 

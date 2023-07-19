@@ -535,12 +535,12 @@ class Diversity_Trainer(BaseTrainer):
                 print(f"Rendering : {G}")
 
                 # State imgs 
-                state_imgs = render_from_env(self.model.env, self.model.tasks[0], states = concatenated_states)
+                state_imgs = render_from_env(env = self.model.env, task = self.model.tasks[0], states = concatenated_states)
                 path = f"{self.run_path}/appendix_figure1/{G}_states.mp4"
                 save_video(path,  state_imgs)
 
                 # Action imgs 
-                action_imgs = render_from_env(self.model.env, self.model.tasks[0], states = concatenated_states, actions=  concatenated_actions, c= c)
+                action_imgs = render_from_env(env = self.model.env, task = self.model.tasks[0], states = concatenated_states, actions=  concatenated_actions, c= c)
                 path = f"{self.run_path}/appendix_figure1/{G}_actions.mp4"
                 save_video(path, action_imgs)
 
@@ -574,10 +574,10 @@ class Diversity_Trainer(BaseTrainer):
         loader = self.train_loader
         dataset = loader.dataset
 
-        img = np.rot90(self.env.maze_arr != WALL)
+        img = np.rot90(self.model.env.maze_arr != WALL)
         extent = [
-            -0.5, self.env.maze_arr.shape[0]-0.5,
-            -0.5, self.env.maze_arr.shape[1]-0.5
+            -0.5, self.model.env.maze_arr.shape[0]-0.5,
+            -0.5, self.model.env.maze_arr.shape[1]-0.5
         ]
 
         plt.cla() 
@@ -605,7 +605,7 @@ class Diversity_Trainer(BaseTrainer):
             dists = np.linalg.norm(seq['obs'][:, :2] - target, axis = 1)
             if np.any(dists < 1):
                 goal_loc = seq['obs'][-1][:2]
-                ax.scatter(*goal_loc, marker='x', c='red', s=100, zorder=10, linewidths=2)
+                # ax.scatter(*goal_loc, marker='x', c='red', s=100, zorder=10, linewidths=2)
                 states = deepcopy(np.array(seq['obs']))
                 ax.plot(*states[:, :2].T  , color='royalblue', linewidth= 3)
                 # 해당 seq에서 target위치와 가장 가까운 지점의 index를 고르고
@@ -649,15 +649,17 @@ class Diversity_Trainer(BaseTrainer):
     
         for seq in states_rollout:
             # 싸그리 모아서 batch로 만들고 rollout 
-            goal_loc = seq['obs'][-1][:2]
-            ax.scatter(*goal_loc, marker='x', c='red', s=100, zorder=10, linewidths=2)
-            states = deepcopy(np.array(seq['obs']))
-            ax.plot(*states[:, :2].T  , color='royalblue', linewidth= 3)
+            goal_loc = seq[-1][:2]
+            # ax.scatter(*goal_loc, marker='x', c='red', s=100, zorder=10, linewidths=2)
+            states = deepcopy(np.array(seq))
+            ax.plot(*states[:, :2].T  , color='royalblue', linewidth= 3, alpha= 0.1)
 
         ax.set_xticks([])
         ax.set_yticks([])
         path = f"{self.run_path}/appendix_figure2/maze_rollout.png"
         fig.savefig(path, bbox_inches="tight", pad_inches = 0)
+
+        print(path)
 
 
 

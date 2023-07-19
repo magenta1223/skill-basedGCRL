@@ -17,7 +17,7 @@ normalize : false
 
 subseq_len : 11
 max_seq_len : 280
-epoch_cycles_train : 50
+epoch_cycles_train : 100
 
 
 batch_size : 1024
@@ -51,12 +51,20 @@ early_stop_threshold : ${multiply:4, 0.8}
 max_reward : 4
 use_hidden : true
 consistency_lr : 3e-5
-policy_lr : 3e-5
+
+# min_lr * 0.05
+policy_lr : 5e-7
+# policy_lr : 3e-5
 buffer_size : 20000
 n_episode : 300
 kl_decay : 0.99
 
 
-invD_lr : 1e-6
-D_lr : 1e-5
-f_lr : 1e-6
+# invD_lr : 1e-6
+# D_lr : 1e-5
+# f_lr : 1e-6
+
+# min_lr * 0.05
+invD_lr : 5e-7
+D_lr : 5e-7
+f_lr : 5e-7

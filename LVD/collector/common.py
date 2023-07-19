@@ -14,10 +14,12 @@ class Episode_RR(Episode):
     """
     Episode for relabeled reward 
     """
-    def __init__(self, init_state):
+    def __init__(self, init_state, env_name = None):
         super().__init__(init_state)
         self.relabeled_rewards = []
         self.goals = []
+        if env_name is not None:
+            self.state_processor = StateProcessor(env_name)
 
     def add_step(self, action, next_state, goal, reward, relabeled_reward, done, info):
         super().add_step(action, next_state, reward, done, info)
@@ -42,6 +44,7 @@ class HierarchicalEpisode_RR(Episode_RR):
         """
 
         high_episode = Episode_RR(self.states[0])
+
         prev_t = 0
         for t in range(1, len(self)):
             if self.high_actions[t] is not None:
@@ -56,6 +59,7 @@ class HierarchicalEpisode_RR(Episode_RR):
                     self.dones[t],
                     self.infos[t]
                 )
+
                 prev_t = t
         
         high_episode.add_step(
@@ -67,8 +71,108 @@ class HierarchicalEpisode_RR(Episode_RR):
             self.dones[-1], 
             self.infos[-1]
         )
+
         high_episode.raw_episode = self
-        return high_episode
+
+        return high_episode 
+
+
+
+
+class HierarchicalEpisode_Relabel(Episode_RR):
+    def __init__(self, init_state, env_name = None):
+        super().__init__(init_state, env_name)
+        # self.low_actions = self.actions
+        self.high_actions = []
+    
+    def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):
+        # MDP transitions
+        super().add_step(low_action, next_state, goal, reward, relabeled_reward, done, info)
+        self.high_actions.append(high_action)
+
+    def as_high_episode(self):
+        """
+        high-action은 H-step마다 값이 None 이 아
+        """
+
+        high_episode = Episode_RR(self.states[0])
+        prev_t = 0
+
+        for t in range(1, len(self)):
+            if self.high_actions[t] is not None:
+                # high-action은 H-step마다 값이 None이 아니다.
+                # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
+                high_episode.add_step(
+                    self.high_actions[prev_t],
+                    self.states[t],
+                    self.goals[t],
+                    sum(self.rewards[prev_t:t]),
+                    sum(self.relabeled_rewards[prev_t:t]),
+                    self.dones[t],
+                    self.infos[t]
+                )
+
+                prev_t = t
+        
+        # 남은거 
+        high_episode.add_step(
+            self.high_actions[prev_t],
+            self.states[-1],
+            self.goals[t],
+            sum(self.rewards[prev_t:]), 
+            sum(self.relabeled_rewards[prev_t:]),
+            self.dones[-1], 
+            self.infos[-1]
+        )
+        high_episode.raw_episode = self
+
+        # ----------------------------------------------------------------------------------------------- #
+
+
+        prev_t = 0
+        relabeled_rewards = [ i  for i, r in enumerate(self.relabeled_rewards) if r != 0]
+        if len(relabeled_rewards):
+            maxlen_relabeled = max([ i  for i, r in enumerate(self.relabeled_rewards) if r != 0])
+        else:
+            maxlen_relabeled = None
+        
+        if maxlen_relabeled is not None:
+            high_episode_relabel = Episode_RR(self.states[0])
+            relabeled_goal = self.states[maxlen_relabeled]
+            relabeled_goal = self.state_processor.goal_transform(np.array(relabeled_goal))
+            relabeled_dones = [ False for _ in range(maxlen_relabeled)]
+            relabeled_dones[-1] = True
+
+            for t in range(1, maxlen_relabeled):
+                if self.high_actions[t] is not None:
+                    high_episode_relabel.add_step(
+                        self.high_actions[prev_t],
+                        self.states[t],
+                        relabeled_goal, # relabeled goal로 대체 
+                        sum(self.relabeled_rewards[prev_t:t]), 
+                        sum(self.rewards[prev_t:t]), # 마찬가지 
+                        relabeled_dones[t],
+                        self.infos[t]
+                    )
+
+                    prev_t = t
+
+            high_episode_relabel.add_step(
+                self.high_actions[prev_t],
+                self.states[-1],
+                relabeled_goal,
+                sum(self.relabeled_rewards[prev_t:]), 
+                sum(self.rewards[prev_t:]), # 마찬가지 
+                relabeled_dones[-1], 
+                self.infos[-1]
+            )
+            high_episode_relabel.raw_episode = self
+
+        else:
+            high_episode_relabel = None
+
+
+        return high_episode, high_episode_relabel
 
 
 class GC_Batch(Batch):
@@ -99,7 +203,9 @@ class GC_Batch(Batch):
         
         if self.hindsight_relabeling:
             # sample별로 해야 함. 
-            indices = torch.rand(len(self.states), 1).cuda()
+            # indices = torch.randn(len(self.states), 1).cuda()
+            # indices = torch.ones(len(self.states), 1).cuda() # 100% 
+            indices = torch.zeros(len(self.states), 1).cuda() # 0% 
 
         else:
             indices = torch.zeros(len(self.states), 1).cuda()

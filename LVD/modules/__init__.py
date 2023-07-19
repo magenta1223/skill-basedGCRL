@@ -16,6 +16,7 @@ __all__ = [
     'Normal_Distribution',
     'Multisource_Encoder',
     'Multisource_Decoder',
+    'SubgoalGenerator',
     # priors
     'PRIOR_WRAPPERS'
 ]

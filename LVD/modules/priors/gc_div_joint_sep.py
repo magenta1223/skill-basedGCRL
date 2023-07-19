@@ -34,7 +34,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         Exponentially moving averaging the parameters of state encoder 
         """
         # soft update
-        if self.n_soft_update % self.update_freq == 0:
+        if self.n_soft_update % self.update_freq == 0 and self.cfg.phase != "rl":
             # update_moving_average(self.target_state_encoder, self.state_encoder, self.cfg.tau)
             update_moving_average(self.target_state_encoder, self.state_encoder)
         
@@ -206,11 +206,18 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             D = start.clone().detach() + D
 
         return D
+    
+    @staticmethod
+    def sg_input(start, G):
+        return torch.cat((start, G.repeat(1, 5)), dim = -1)
 
     def forward_subgoal_G(self, start, G):
         start = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
-        sg_input = torch.cat((start,  G), dim = -1)
+        # sg_input = torch.cat((start,  G), dim = -1)
+        sg_input = self.sg_input(start, G)
         subgoal_f = self.subgoal_generator(sg_input)
+        # subgoal_f = self.subgoal_generator(start, G)
+        
         subgoal_f = subgoal_f + start
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.cfg.tanh)
         skill_sub = invD_sub.rsample()
@@ -374,31 +381,98 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         assert mode in ['policy', 'consistency', 'act'], "Invalid mode"
         if mode == "consistency":
             return self.consistency(batch)
-        else:
+        # else:
+            # # policy or act
+            # state, G = batch.states, batch.G 
+            # with torch.no_grad():
+            #     ht, ht_pos, ht_nonPos = self.state_encoder(state)
+
+            # # subgoal 
+            # _, _, subgoal_f = self.forward_subgoal_G(ht, G)
+
+            # # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
+            # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.cfg.tanh)
+            # # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
+            
+
+            # skill = inverse_dynamics_hat.rsample() 
+            # D = self.forward_D(ht, skill)
+
+            # result =  edict(
+            #     policy_skill = inverse_dynamics_hat,
+            #     additional_losses = dict(
+            #         # state_consistency_f = F.mse_loss(diff_subgoal_f, diff)
+            #         state_consistency_f = F.mse_loss(subgoal_f, D)
+
+            #     )
+            # )    
+
+        elif mode == "act":
             # policy or act
             state, G = batch.states, batch.G 
             with torch.no_grad():
                 ht, ht_pos, ht_nonPos = self.state_encoder(state)
 
             # subgoal 
-            _, _, subgoal_f = self.forward_subgoal_G(ht, G)
+            # sg_input = torch.cat((ht, G), dim = -1)
+            sg_input = self.sg_input(ht, G)
+            subgoal_f = self.subgoal_generator(sg_input)
+            subgoal_f = subgoal_f + ht
 
-            # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-            inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.cfg.tanh)
-            # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-            
-
-            skill = inverse_dynamics_hat.rsample() 
+            # invD
+            invD, _ = self.forward_invD(ht, subgoal_f)
+            skill = invD.rsample() 
             D = self.forward_D(ht, skill)
 
             result =  edict(
-                policy_skill = inverse_dynamics_hat,
+                policy_skill = invD
+            )    
+
+            return result 
+
+        else:
+            # policy or act
+            # states, G, next_states = batch.states, batch.G, batch.next_states
+            states, G = batch.states, batch.G
+            with torch.no_grad():
+                ht, ht_pos, ht_nonPos = self.state_encoder(states)
+                # htH_target,  _, _ = self.target_state_encoder(next_states)
+
+            # forward subgoal generator 
+            # sg_input = torch.cat((ht, G), dim = -1)
+            sg_input = self.sg_input(ht, G)
+
+            
+            subgoal_f = self.subgoal_generator(sg_input)
+            subgoal_f = subgoal_f + ht
+            
+            # skill inference 
+            invD, _ = self.forward_invD(ht, subgoal_f)
+            skill = invD.rsample() 
+            
+            # skill execution
+            D = self.forward_D(ht, skill)
+
+            # relabel이 된 상황에서는
+            # relabeled G에 대한 subgoal, skill 모든게 정답이기 때문에
+            # GCSL_loss = F.mse_loss(subgoal_f, htH_target) + F.mse_loss(D, htH_target) + nll_dist(
+            #     batch.actions,
+            #     invD,
+            #     batch.actions_normal,
+            #     tanh = self.cfg.tanh
+            # ).mean()
+
+
+            result =  edict(
+                policy_skill = invD,
                 additional_losses = dict(
+                    # GCSL_loss = GCSL_loss
                     # state_consistency_f = F.mse_loss(diff_subgoal_f, diff)
                     state_consistency_f = F.mse_loss(subgoal_f, D)
 
                 )
             )    
+
 
             return result
     
@@ -425,25 +499,14 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         Finetune inverse dynamics and dynamics with the data collected in online.
         """
         # BC를 하려면 반드시 relabeled G여야 함. 
-        # states, G, next_states = batch.states, batch.G, batch.next_states
         states, G, next_states = batch.states, batch.relabeled_G, batch.next_states
-
-        # self.state_encoder.eval()
 
         ht, _, _ = self.state_encoder(states)
         htH,  _, _ = self.state_encoder(next_states)
         htH_target,  _, _ = self.target_state_encoder(next_states)
 
-
         # inverse dynamics 
-        # if self.grad_pass_invD:
-        # if self.cfg.grad_pass.invD:
-        #     invD, invD_detach = self.inverse_dynamics.dist(state = ht, subgoal = htH, tanh = self.cfg.tanh)
-        # else:
-        #      invD, invD_detach = self.inverse_dynamics.dist(state = ht.clone().detach(), subgoal = htH.clone().detach(), tanh = self.cfg.tanh)
-
         invD, invD_detach = self.forward_invD(ht, htH)
-
         D = self.forward_D(ht, batch.actions)
 
         # state_consistency = F.mse_loss(ht.clone().detach() + diff, htH) + mmd_loss
@@ -455,29 +518,34 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # tanh = self.tanh
             tanh = self.cfg.tanh
         ).mean()
-        
-        # GCSL
-        # 똑같은 skill 뽑으면 됨./ 
 
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
+        
+        # 실제 subgoal이
+        # GCSL_loss = F.mse_loss(subgoal_f, htH_target) + F.mse_loss(subgoal_D, htH_target) + nll_dist(
+        #     batch.actions,
+        #     invD_sub,
+        #     batch.actions_normal,
+        #     tanh = self.cfg.tanh
+        # ).mean()
+        
+        weights = torch.softmax(batch.skill_values, dim = 0) * states.shape[0] 
 
-        GCSL_loss = F.mse_loss(subgoal_f, htH_target) + F.mse_loss(subgoal_D, htH_target) + nll_dist(
+        GCSL_loss_subgoal = weighted_mse(subgoal_f, htH_target, weights) + weighted_mse(subgoal_D, htH_target, weights)
+        GCSL_loss_skill = (nll_dist(
             batch.actions,
             invD_sub,
             batch.actions_normal,
             tanh = self.cfg.tanh
-        ).mean()
+        ) * weights).mean()
+
+        GCSL_loss = GCSL_loss_subgoal + GCSL_loss_subgoal
+
         
-        # GCSL_loss = F.mse_loss(diff_subgoal_f + ht, htH) + torch_dist.kl_divergence(invD_sub, invD_detach).mean()
-        # GCSL_loss = F.mse_loss(subgoal_f, htH_target) + torch_dist.kl_divergence(invD_sub, invD_detach).mean()
-
-
-
         return  edict(
             state_consistency = state_consistency,
             skill_consistency = skill_consistency,
-            GCSL_loss = GCSL_loss if self.cfg.with_gcsl else GCSL_loss.item()
-            # GCSL_loss = GCSL_loss
+            GCSL_loss = GCSL_loss
         )
 
 
@@ -499,6 +567,15 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
                     "metric" : None,
                     # "metric" : "state_consistency"
                     },
+                "f" : {
+                    "params" :  self.subgoal_generator.parameters(), 
+                    "lr" : self.cfg.f_lr, 
+                    # "metric" : "GCSL_loss"
+                    "metric" : None,
+                }
+
+
+
                 # "state_enc" : {
                 #     "params" :  self.state_encoder.parameters(), 
                 #     "lr" : 1e-6, # now best : 1e-6
@@ -510,12 +587,12 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
                 
         )
 
-        if self.cfg.with_gcsl:
-            rl_params["f"] = {
-                "params" :  self.subgoal_generator.parameters(), 
-                "lr" : self.cfg.f_lr, 
-                # "metric" : "GCSL_loss"
-                "metric" : None,
-            }
+        # if self.cfg.with_gcsl:
+        #     rl_params["f"] = {
+        #         "params" :  self.subgoal_generator.parameters(), 
+        #         "lr" : self.cfg.f_lr, 
+        #         # "metric" : "GCSL_loss"
+        #         "metric" : None,
+        #     }
 
         return rl_params

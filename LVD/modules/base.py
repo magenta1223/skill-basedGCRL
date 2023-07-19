@@ -5,6 +5,8 @@ from typing import Dict
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
 from ..utils import get_dist
 
 
@@ -65,6 +67,11 @@ class SequentialBuilder(BaseModule):
             build = self.layerbuild(["linear_cls", "in_feature", "hidden_dim", None, "act_cls", "bias", "dropout"])
             build += self.layerbuild(["linear_cls", "hidden_dim", "hidden_dim", "norm_cls", "act_cls"], self.get("n_blocks"))
             build += self.layerbuild(["linear_cls", "hidden_dim", "out_dim", None, None,  "bias", "dropout"])
+
+
+        elif self.module_type == "transformer":
+            build = self.layerbuild(["block_cls", "hidden_dim", "act_cls"], self.get("n_blocks")) 
+
         else:
             build = NotImplementedError
 
@@ -118,6 +125,47 @@ class LinearBlock(nn.Module):
 
     def forward(self, x):
         return self.layers(x)
+
+class SimpleAttention(nn.Module):
+    def __init__(self, hidden_dim):
+        # hidden dim만 있으면 됨. 
+        super(SimpleAttention, self).__init__()
+        self.q = nn.Linear(hidden_dim, hidden_dim)
+        self.k = nn.Linear(hidden_dim, hidden_dim)
+        self.v = nn.Linear(hidden_dim, hidden_dim)
+
+    def forward(self, query, key, value):
+        q, k, v = self.q(query), self.k(key), self.v(value)
+        q, k, v = q.unsqueeze(-1), k.unsqueeze(-1), v.unsqueeze(-1)
+
+        attn = q.matmul(k.permute(0,2,1)) 
+        attn_score = F.softmax(attn, dim=-1)
+        attn_out = torch.matmul(attn_score, v)
+        return  attn_out
+
+class FFN(nn.Module):
+    def __init__(self, hidden_dim, act_cls):
+        # hiddden_dim 
+        super(FFN, self).__init__()
+        self.fc1 = nn.Linear(hidden_dim, hidden_dim * 4)
+        self.act = act_cls()
+        self.fc2 = nn.Linear(hidden_dim * 4, hidden_dim)
+    
+    def forward(self, x):
+        return self.fc2(self.act(self.fc1(x)))
+
+
+class TransformerBlock(nn.Module):
+    def __init__(self, hidden_dim, act_cls) -> None:
+        super(TransformerBlock, self).__init__()
+
+        self.attn = SimpleAttention(hidden_dim)
+        self.ffn = FFN(hidden_dim, act_cls)
+
+    def forward(self, query, key, value):
+        attn_out = self.attn(query, key, value).squeeze(-1)
+        ffn_out = self.ffn(attn_out)
+        return ffn_out
 
 # from simpl
 class ContextPolicyMixin:

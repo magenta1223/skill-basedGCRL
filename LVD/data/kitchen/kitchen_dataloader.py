@@ -246,7 +246,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
                 actions=actions,
                 G=G,
                 rollout = False,
-                weights = discount_start * discount_G
+                weights = 1, #discount_start * discount_G
                 # start_idx = 999 #self.novel
             )
 
@@ -432,7 +432,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 actions=actions,
                 G=G,
                 rollout = False,
-                weights = discount_start * discount_G,
+                weights = 1, #discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx
                 # start_idx = 999 #self.novel

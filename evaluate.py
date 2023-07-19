@@ -21,14 +21,25 @@ def main(cfg):
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
 
-    rl_overrides = "_".join(["".join(override.split(".")[1:]) for override in hydra_config.overrides.task if override != "phase=rl"])
+    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=finetuned']
+    all_overrides = [override  for override in deepcopy(list(hydra_config.overrides.task))]
+
+    for override in overrides_to_remove:
+        if override in all_overrides:
+            all_overrides.remove(override)
+    rl_overrides = ",".join(all_overrides) # .으로 되어있어서 class로 parser가 class로 인식함.
 
     with open_dict(cfg):
         cfg.run_name = config_path(hydra_config.job.override_dirname)
         cfg.job_name = config_path(hydra_config.job.name)
         cfg.rl_overrides = rl_overrides
 
-        cfg.eval_data_prefix = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/{cfg.rl_overrides}/"
+        if rl_overrides:
+            cfg.eval_data_prefix = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/{cfg.rl_overrides}/"
+        else:
+            cfg.eval_data_prefix = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/default/"
+
+
         cfg.eval_rawdata_path = f"{cfg.eval_data_prefix}/rawdata.csv"
 
         # zeroshot

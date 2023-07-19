@@ -10,6 +10,7 @@ __all__ = [
     # env
     'prep_state',
     'StateProcessor',
+    'coloring',
     # general 
     'seed_everything',
     'ConfigParser',
@@ -27,6 +28,7 @@ __all__ = [
     'kl_annealing',
     'compute_mmd',
     'to_skill_embedding',
+    'weighted_mse',
     # omegaconf_utils
     'config_path',
     'get_trainer',

@@ -1,7 +1,7 @@
 # from ...contrib.simpl.collector.hierarchical import HierarchicalEpisode, Episode
 
 from ..common import *
-from ...utils import StateProcessor
+from ...utils import StateProcessor, coloring
 
 import numpy as np
 from copy import deepcopy
@@ -83,8 +83,9 @@ class GC_Hierarchical_Collector:
         state = self.state_processor.state_process(state)
 
         # episode = HierarchicalEpisode(state)
-        episode  =HierarchicalEpisode_RR(state)
-        episode.goal = G
+        # episode  =HierarchicalEpisode_RR(state)
+        episode = HierarchicalEpisode_Relabel(state, self.env_name)
+        # episode.goal = G
         self.low_actor.eval()
         high_actor.eval()
         imgs = []
@@ -121,7 +122,10 @@ class GC_Hierarchical_Collector:
 
             t += 1
         if verbose:
-            print( self.state_processor.state_goal_checker(state)  )
+            targetG = self.state_processor.state_goal_checker(G)
+            achievedG = self.state_processor.state_goal_checker(state)
+            coloring(self.env.name, targetG, achievedG, data_done) 
+            # print(f"T : {self.state_processor.state_goal_checker(G)}, A : {self.state_processor.state_goal_checker(state)}")
 
         if vis:
             return imgs

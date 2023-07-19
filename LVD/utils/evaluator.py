@@ -87,6 +87,7 @@ class Evaluator:
     def eval_learningGraph(self):
         # 학습과정에서 생성된 csv 파일 불러와서 
         # 슈루룩 
+        print(f"Loading : {self.cfg.eval_rawdata_path}")
         raw_data = pd.read_csv(self.eval_rawdata_path)
         # 여러번 수행할 경우 run_id가 쌓임. 원치 않음. run_id를 선택할 수 있게 input 추가 
         choices = raw_data['run_id'].unique()
@@ -96,13 +97,14 @@ class Evaluator:
         
         raw_data.drop(['run_id'], axis = 1, inplace= True)
 
-        aggregated = raw_data[['episode', 'task', 'rewards']].groupby(['task', 'episode'], as_index= False).agg(['mean', 'std'])
+        aggregated = raw_data[['episode', 'task', 'reward']].groupby(['task', 'episode'], as_index= False).agg(['mean', 'std'])
         aggregated = aggregated.reset_index().pipe(self.flat_cols)
 
         
         for task, group in aggregated.groupby('task'):
             group.drop(['task'], axis = 1, inplace = True)
             group.columns = ['x', 'y', 'err']
+            group['y'] = group['y'].ewm(alpha = 0.2).mean()
             group.to_csv(f"{self.eval_data_prefix}/{task}.csv", index = False)
         
     def eval_singleTask(self, seed, task):
