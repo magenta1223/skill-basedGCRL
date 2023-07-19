@@ -62,25 +62,25 @@ class Evaluator:
         self.eval_methods[self.cfg.eval_mode]()
     
     def eval_zeroshot(self):
-        for seed in self.seeds:
+        for seed in self.cfg.seeds:
             for task in self.tasks:
                 self.eval_singleTask(seed, task)
         
         df = pd.DataFrame(self.eval_data)
-        df.to_csv( self.eval_rawdata_path, index = False )
+        df.to_csv( self.cfg.eval_rawdata_path, index = False )
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(self.eval_data_path, index = False)
 
     def eval_finetuned(self):
-        for seed in self.seeds:
+        for seed in self.cfg.seeds:
             for task in self.tasks:
                 # load finetuned weight 
-                finetuned_model_path = f"{self.finetune_weight_prefix}/{str(task)}.bin"
+                finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}.bin"
                 self.high_policy = torch.load(finetuned_model_path).policy
                 self.eval_singleTask(seed, task)
         
         df = pd.DataFrame(self.eval_data)
-        df.to_csv( self.eval_rawdata_path, index = False )
+        df.to_csv( self.cfg.eval_rawdata_path, index = False )
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(self.eval_data_path, index = False)
 
@@ -88,7 +88,7 @@ class Evaluator:
         # 학습과정에서 생성된 csv 파일 불러와서 
         # 슈루룩 
         print(f"Loading : {self.cfg.eval_rawdata_path}")
-        raw_data = pd.read_csv(self.eval_rawdata_path)
+        raw_data = pd.read_csv(self.cfg.eval_rawdata_path)
         # 여러번 수행할 경우 run_id가 쌓임. 원치 않음. run_id를 선택할 수 있게 input 추가 
         choices = raw_data['run_id'].unique()
         if len(choices) > 1:
@@ -105,7 +105,7 @@ class Evaluator:
             group.drop(['task'], axis = 1, inplace = True)
             group.columns = ['x', 'y', 'err']
             group['y'] = group['y'].ewm(alpha = 0.2).mean()
-            group.to_csv(f"{self.eval_data_prefix}/{task}.csv", index = False)
+            group.to_csv(f"{self.cfg.eval_data_prefix}/{task}.csv", index = False)
         
     def eval_singleTask(self, seed, task):
         with self.collector.env.set_task(task):
