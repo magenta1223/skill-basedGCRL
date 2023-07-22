@@ -38,6 +38,8 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
         super().__init__(optimizer, mode, factor, patience, threshold, threshold_mode, cooldown, min_lr, eps, verbose)
         self.module_name = module_name
 
+        self.n_steps = 0
+
     def _reduce_lr(self, epoch):
         msgs = ""
 
@@ -58,6 +60,10 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
     
 
     def step(self, metrics, epoch=None):
+        # metric 개선 여부와 상관 없이 step 수 계산. 
+        # 이 값이 25이상이면 강제로 한번 내리고 초기화 
+        self.n_steps += 1
+
         # convert `metrics` to float, in case it's a zero-dim Tensor
         msgs = None
         current = float(metrics)
@@ -81,6 +87,11 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
             msgs = self._reduce_lr(epoch)
             self.cooldown_counter = self.cooldown
             self.num_bad_epochs = 0
+            self.n_steps = 0
+
+        if self.n_steps > 25:
+            msgs = self._reduce_lr(epoch)
+            self.n_steps = 0 
 
         self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
 

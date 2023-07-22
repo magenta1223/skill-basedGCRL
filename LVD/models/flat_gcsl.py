@@ -25,7 +25,7 @@ class Flat_GCSL(BaseModel):
         self.prior_policy = PRIOR_WRAPPERS['flat_gcsl'](
             # skill_prior = prior,
             policy = policy,
-            tanh = self.tanh,
+            tanh = False,
             cfg = cfg,
         )
 
@@ -46,10 +46,13 @@ class Flat_GCSL(BaseModel):
         self.step = 0
 
     @torch.no_grad()
-    def get_metrics(self):
+    def get_metrics(self, batch):
         """
         Metrics
         """
+        self.loss_dict['recon'] = self.loss_fn('recon')(self.outputs['policy_action'], batch.actions)
+        
+
         self.loss_dict['metric'] = self.loss_dict['Rec_skill']
 
         
@@ -61,13 +64,21 @@ class Flat_GCSL(BaseModel):
         self.outputs =  self.prior_policy(batch)
 
         # Outputs
-        self.outputs['skill'] = actions
+        self.outputs['actions'] = actions
 
 
     def compute_loss(self, batch):
         # ----------- SPiRL -------------- # 
 
-        recon = self.loss_fn('recon')(self.outputs['policy_skill'], batch.actions)
+        # recon = self.loss_fn('recon')(self.outputs['policy_skill'], batch.actions)
+        
+        recon = self.loss_fn('prior')(
+            batch.actions,
+            self.outputs.policy_action_dist,
+            tanh = False
+        ).mean()
+        
+
         loss = recon
         self.loss_dict = {           
             "loss" : loss.item(), #+ prior_loss.item(),
@@ -96,7 +107,7 @@ class Flat_GCSL(BaseModel):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
         self.__main_network__(batch)
-        self.get_metrics()
+        self.get_metrics(batch)
 
         return self.loss_dict
 
@@ -107,6 +118,6 @@ class Flat_GCSL(BaseModel):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
         self.__main_network__(batch, validate= True)
-        self.get_metrics()
+        self.get_metrics(batch)
 
         return self.loss_dict

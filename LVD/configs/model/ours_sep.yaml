@@ -10,6 +10,8 @@ rlAgentCls : LVD.rl.agent.sac.SAC # LVD.rl.agent.cql
 consistency_update : true
 model_update : true
 
+goal_factor : 5
+
 grad_pass:
   invD: false
   D : true

@@ -141,9 +141,10 @@ class BaseTrainer:
             
             # skill enc, dec를 제외한 모듈은 skill에 dependent함
             # 따라서 skill이 충분히 학습된 이후에 step down을 적용해야 함. 
-            skill_scheduler = self.schedulers['skill_enc_dec']
-            msgs = skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
-            self.logger.log(msgs)
+            if 'skill_enc_dec' in self.schedulers:
+                skill_scheduler = self.schedulers['skill_enc_dec']
+                msgs = skill_scheduler.step(valid_loss_dict[self.schedulers_metric['skill_enc_dec']])
+                self.logger.log(msgs)
 
             if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers.items():

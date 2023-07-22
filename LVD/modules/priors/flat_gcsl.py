@@ -34,13 +34,20 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         # policy_skill = self.policy(policy_input).view(N, T, -1)
         # policy_skill = torch.tanh(policy_skill)
 
-        policy_skill = self.policy(torch.cat((states, G), dim = -1))
-        policy_skill = torch.tanh(policy_skill)
+        # policy_skill = self.policy(torch.cat((states, G), dim = -1))
+        # policy_skill = torch.tanh(policy_skill)
         # tanh normal로 ? 
         # 혼합
+        
+        policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
+        z = policy_action_dist.rsample()
+
+        
+
         return edict(
             states = states,
-            policy_skill = policy_skill,
+            policy_action_dist = policy_action_dist,
+            policy_action = z,
         )
 
     def soft_update(self):

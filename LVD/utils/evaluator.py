@@ -67,22 +67,34 @@ class Evaluator:
                 self.eval_singleTask(seed, task)
         
         df = pd.DataFrame(self.eval_data)
-        df.to_csv( self.cfg.eval_rawdata_path, index = False )
+        df.to_csv( f"{self.cfg.eval_data_prefix}/zeroshot_rawdata.csv", index = False )
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
-        aggregated.to_csv(self.eval_data_path, index = False)
+        aggregated.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot.csv", index = False)
 
     def eval_finetuned(self):
-        for seed in self.cfg.seeds:
+        try:
+            for seed in self.cfg.seeds:
+                for task in self.tasks:
+                    # load finetuned weight 
+                    # seed 
+                    finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}.bin"
+                    # ckpt = torch.load(finetuned_model_path)
+                    self.high_policy = torch.load(finetuned_model_path)['model'].policy
+                    self.eval_singleTask(seed, task)
+        except:
             for task in self.tasks:
                 # load finetuned weight 
+                # seed 
                 finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}.bin"
-                self.high_policy = torch.load(finetuned_model_path).policy
-                self.eval_singleTask(seed, task)
-        
+                # ckpt = torch.load(finetuned_model_path) # weight를 불러왔는데 이게 구버전이라 호환이 안됨. -> 
+                _weight = torch.load(finetuned_model_path)['model'].policy.state_dict()
+                self.high_policy.load_state_dict(_weight)
+                self.eval_singleTask(seed, task)         
+                
         df = pd.DataFrame(self.eval_data)
-        df.to_csv( self.cfg.eval_rawdata_path, index = False )
+        df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
-        aggregated.to_csv(self.eval_data_path, index = False)
+        aggregated.to_csv(f"{self.cfg.eval_data_prefix}/finetuned.csv", index = False)
 
     def eval_learningGraph(self):
         # 학습과정에서 생성된 csv 파일 불러와서 

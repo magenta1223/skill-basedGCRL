@@ -204,8 +204,8 @@ class GC_Batch(Batch):
         if self.hindsight_relabeling:
             # sample별로 해야 함. 
             # indices = torch.randn(len(self.states), 1).cuda()
-            # indices = torch.ones(len(self.states), 1).cuda() # 100% 
-            indices = torch.zeros(len(self.states), 1).cuda() # 0% 
+            # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
+            indices = torch.zeros(len(self.states), 1).cuda() # relabeled 0% 
 
         else:
             indices = torch.zeros(len(self.states), 1).cuda()
@@ -221,8 +221,10 @@ class GC_Batch(Batch):
             # G = self.relabeled_goals if relabel else self.goals,
             
             # GCQ
-            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
-            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
+            # rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
+            # G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
+            rewards = self.rewards,
+            G = self.goals,
             relabeled_G = self.relabeled_goals,
             dones = self.dones,
         )

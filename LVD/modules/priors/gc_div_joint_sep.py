@@ -68,12 +68,17 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         # -------------- State-Conditioned Prior -------------- #
         if self.cfg.manipulation:
             prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
+            # prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0], detached = True)
+
         else:
             prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
+            # prior, prior_detach = self.skill_prior.dist(hts[:, 0], detached = True)
 
         # # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
+        # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts_target[:, -1])
         skill = inverse_dynamics.rsample()
+        # skill = batch.skill
 
         # # -------------- Dynamics Learning -------------- #                
         flat_D, cache = self.forward_flatD(hts, skill)
@@ -96,7 +101,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
 
         # -------------- Rollout for metric -------------- #
-        check_subgoals_input = (hts, inverse_dynamics, D, subgoal_D, subgoal_f)
+        check_subgoals_input = (hts, subgoal_target, inverse_dynamics, D, subgoal_D, subgoal_f)
         subgoals = self.check_subgoals(check_subgoals_input)
 
         result = edict(
@@ -120,7 +125,11 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
             # Subgoal generator 
             subgoal_D =  subgoal_D,
             subgoal_f = subgoal_f,
-            subgoal_target =  subgoal_target,
+            # subgoal_target =  subgoal_target,
+            subgoal_D_target =  subgoal_target,
+            # subgoal_f_target =  subgoal_target,
+            subgoal_f_target =  hts[:, -1].clone().detach(),
+
 
             # Difference Decoder for manipulation task 
             diff = diff,
@@ -135,6 +144,8 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
     
     # def forward_invD(self, hts):
     def forward_invD(self, start, subgoal):
+        # subgoal = subgoal.clone().detach()
+
         if not self.cfg.grad_pass.invD:
             start = start.clone().detach()
             subgoal = subgoal.clone().detach()
@@ -191,8 +202,6 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         else:
             pos, nonPos = start, None
         # pos, nonPos = start.chunk(2, -1)
-
-
         dynamics_input = torch.cat((pos, skill), dim=-1)
 
         if use_target:
@@ -207,9 +216,8 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         return D
     
-    @staticmethod
-    def sg_input(start, G):
-        return torch.cat((start, G.repeat(1, 5)), dim = -1)
+    def sg_input(self, start, G):
+        return torch.cat((start, G.repeat(1, self.cfg.goal_factor)), dim = -1)
 
     def forward_subgoal_G(self, start, G):
         start = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
@@ -227,7 +235,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
 
     @torch.no_grad()
     def check_subgoals(self, inputs):
-        hts, inverse_dynamics, D, subgoal_D, subgoal_f = inputs
+        hts, subgoal_target, inverse_dynamics, D, subgoal_D, subgoal_f = inputs
         skill_length = hts.shape[1] - 1
         start, subgoal = hts[:,0], hts[:-1]
         _ht = start.clone()
@@ -239,6 +247,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         invD_rollout_main, _ = self.target_inverse_dynamics.dist(state = start, subgoal = _ht, tanh = self.cfg.tanh)
 
 
+        subgoal_target_recon, _, _ = self.state_decoder(subgoal_target)
         subgoal_recon, _, _ = self.state_decoder(subgoal)
         subgoal_recon_D, _, _ = self.state_decoder(D)
         subgoal_recon_D_f, _, _ = self.state_decoder(subgoal_D)
@@ -247,6 +256,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         return edict(
             invD_rollout_main= invD_rollout_main,
             subgoal_rollout =  _ht,
+            subgoal_target_recon = subgoal_target_recon,
             subgoal_recon_D = subgoal_recon_D,
             subgoal_recon_f =  subgoal_recon_f,
             subgoal_recon_D_f =  subgoal_recon_D_f,

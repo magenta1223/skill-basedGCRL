@@ -149,6 +149,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         states_hat = self.outputs['states_hat']
         subgoal_recon_f = self.outputs['subgoal_recon_f']
         subgoal_recon_D = self.outputs['subgoal_recon_D']
+        subgoal_target_recon = self.outputs['subgoal_target_recon']
 
         if self.normalize:
             states = self.denormalize(states)
@@ -168,10 +169,12 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
         else:
             self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, states[:, -1, :], weights).item()
-            self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, subgoal_recon_D, weights).item()
+            self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(subgoal_recon_D, states[:, -1, :], weights).item()
             self.loss_dict['recon_state'] = self.loss_fn('recon')(states_hat, states, weights) # ? 
 
         self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f, states[:,-1], weights) # ? 
+        # self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f, subgoal_target_recon, weights) # ? 
+
         self.loss_dict['recon_state_orig'] = self.loss_fn('recon_orig')(states_hat, states) # ? 
 
     def forward(self, batch):
@@ -210,6 +213,8 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
 
         if not self.manipulation:
             batch['skill'] = z
+
+        batch['skill'] = z
 
         # skill prior
         self.outputs =  self.prior_policy(batch)
@@ -252,7 +257,7 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
             self.outputs['flat_D'],
             self.outputs['flat_D_target'],
             weights
-        ) #* 0.1 # 1/skill horizon  
+        ) #* self.Hsteps #* 0.1 # 1/skill horizon  
 
         D_loss = self.loss_fn('recon')(
             self.outputs['D'],
@@ -261,10 +266,12 @@ class GoalConditioned_Diversity_Joint_Sep_Model(BaseModel):
         )         
         
         # ----------- subgoal generator -------------- # 
-        r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_target'], weights)
-        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_target'], weights)
+        r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights)
         r_int = r_int_f + r_int_D
+        # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean()
         reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean()
+        # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['prior_detach']) * weights).mean()
 
         F_loss = r_int + reg_term 
 

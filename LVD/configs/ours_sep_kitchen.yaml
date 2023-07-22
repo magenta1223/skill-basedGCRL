@@ -46,7 +46,7 @@ model:
 
   subgoal_generator :
     # in_feature : ${add:${env.latent_state_dim}, ${env.n_goal}} 
-    in_feature : ${add:${env.latent_state_dim}, ${multiply:${env.n_goal}, 5}} 
+    in_feature : ${add:${env.latent_state_dim}, ${multiply:${env.n_goal}, ${model.goal_factor}}} 
 
     out_dim : ${env.latent_state_dim}
     # latent_state_dim : ${env.latent_state_dim}

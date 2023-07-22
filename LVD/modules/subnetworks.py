@@ -110,8 +110,8 @@ class Multisource_Encoder(SequentialBuilder):
             return ppc_embedding, ppc_embedding, None
     
         else:
-            ppc_state = x[..., :self.pos_state_dim]
-            env_state = x[..., self.pos_state_dim :]
+            ppc_state = x[..., :self.ppc_state_dim]
+            env_state = x[..., self.ppc_state_dim :]
 
             ppc_embedding = self.ppc_encoder(ppc_state)
             env_embedding = self.env_encoder(env_state)

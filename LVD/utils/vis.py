@@ -46,13 +46,17 @@ def render_kitchen(env, task, states = None, actions = None, c = 0, text = None,
         env.reset()
         init_qvel = env.init_qvel        
         if mode == "state":
-            for state in states:
+            for i, state in enumerate(states):
                 env.set_state(state, init_qvel)
                 img = env.render(mode= "rgb_array")
                 img = img.copy()
                 if text is not None:
                     x, y = size 
                     cv2.putText(img = img,  text = text, color = (255,0,0),  org = (x // 2, y // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+
+                if i > 280:
+                    cv2.putText(img = img,  text = "END", color = (255,0,0),  org = (x // 4, y // 4), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+
                 imgs.append(img)
 
         else:
@@ -66,6 +70,10 @@ def render_kitchen(env, task, states = None, actions = None, c = 0, text = None,
                 if text is not None:
                     x, y = size 
                     cv2.putText(img = img,  text = text, color = (255,0,0),  org = (x // 2, y // 2), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+                if i > 280:
+                    cv2.putText(img = img,  text = "END", color = (255,0,0),  org = (x // 4, y // 4), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale= 2, lineType= cv2.LINE_AA)
+
+                
                 imgs.append(img)
 
     return imgs
