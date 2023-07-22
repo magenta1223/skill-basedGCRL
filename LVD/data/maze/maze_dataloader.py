@@ -329,10 +329,12 @@ class Maze_Dataset_Flat(Maze_Dataset):
         # start_idx = np.random.randint(0, seq.states.shape[0] - 1)
         # goal_idx = -1
 
-        start_idx, goal_idx = self.sample_indices(seq.states)
-
         states = seq['obs']
         actions = seq['actions']
+
+        start_idx, goal_idx = self.sample_indices(states)
+
+
 
         G = deepcopy(states[goal_idx, :self.n_pos])
         finalG = deepcopy(states[-1, :self.n_pos])
