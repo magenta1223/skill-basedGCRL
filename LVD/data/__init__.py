@@ -10,7 +10,8 @@ __all__ = [
     'Kitchen_Dataset_Flat',
     'Maze_Dataset',
     'Maze_Dataset_Div',
-    'Maze_Dataset_Div_Sep'
+    'Maze_Dataset_Div_Sep',
+    'Maze_Dataset_Flat',
     'Carla_Dataset',
     'Carla_Dataset_Div',
 ]
