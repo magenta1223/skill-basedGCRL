@@ -321,3 +321,46 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             )
         else:
             return self.__skill_learning__(index)
+
+
+class Maze_Dataset_Flat(Maze_Dataset):
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        # start_idx = np.random.randint(0, seq.states.shape[0] - 1)
+        # goal_idx = -1
+
+        start_idx, goal_idx = self.sample_indices(seq.states)
+
+        states = seq['obs']
+        actions = seq['actions']
+
+        G = deepcopy(states[goal_idx, :self.n_pos])
+        finalG = deepcopy(states[-1, :self.n_pos])
+
+        states = states[start_idx, :self.state_dim]
+        actions = actions[start_idx ]
+
+        # 
+        
+
+        output = edict(
+            states = seq.states[start_idx, :self.n_pos + self.n_env],
+            actions = seq.actions[start_idx],
+            G = G
+        )
+
+        # print(output.states.shape)
+        # print(output.actions.shape)
+        # print(output.G.shape)
+
+
+        return edict(
+            states = states,
+            actions = actions, 
+            G = G,
+            finalG = finalG,
+            rollout = True,
+            weights = 1,
+            seq_index = index,
+            start_idx = start_idx
+        )

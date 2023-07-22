@@ -220,7 +220,7 @@ class GoalConditioned_Diversity_Joint_Sep_Prior(ContextPolicyMixin, BaseModule):
         return torch.cat((start, G.repeat(1, self.cfg.goal_factor)), dim = -1)
 
     def forward_subgoal_G(self, start, G):
-        start = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
+        # start = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
         # sg_input = torch.cat((start,  G), dim = -1)
         sg_input = self.sg_input(start, G)
         subgoal_f = self.subgoal_generator(sg_input)
