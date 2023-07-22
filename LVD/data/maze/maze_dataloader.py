@@ -343,12 +343,6 @@ class Maze_Dataset_Flat(Maze_Dataset):
         # 
         
 
-        output = edict(
-            states = seq.states[start_idx, :self.n_pos + self.n_env],
-            actions = seq.actions[start_idx],
-            G = G
-        )
-
         # print(output.states.shape)
         # print(output.actions.shape)
         # print(output.G.shape)
