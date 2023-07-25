@@ -1,12 +1,14 @@
 import numpy as np
 from contextlib import contextmanager
-from carla_env.simulator.simulator import *
 import carla
-from carla_env.simulator.vehicles.ego_vehicle import EgoVehicle
-from carla_env.utils.config import parse_config
-from carla_env.utils.config import ExperimentConfigs
+import gym
+# from rlcarla2.carla_env.simulator import Simulator
+# from rlcarla2.carla_env.simulator.vehicles.ego_vehicle import EgoVehicle
+# from rlcarla2.carla_env.utils.config import parse_config
+# from rlcarla2.carla_env.utils.config import ExperimentConfigs
 
-
+from rlcarla2 import Simulator, EgoVehicle, ExperimentConfigs, parse_config 
+from rlcarla2 import *
 
 # class Location(carla.Location):
 #     def __init__(self, position = None, transform = None, name = None, *args, **kwargs):
@@ -46,7 +48,6 @@ from carla_env.utils.config import ExperimentConfigs
 #             "velocity": to_array(self.velocity)[:2],
 #         }
 
-
 class CARLA_Task:
     def __init__(self, index):
         self.target_location = index
@@ -70,10 +71,10 @@ class CARLA_GC(Simulator):
         return ""
 
     def __init__(self, config: ExperimentConfigs):
-        from carla_env.simulator.client import Client
-        from carla_env.simulator.route_manager import RouteManager
-        from carla_env.simulator.vehicles.auto_vehicle import AutoVehicle
-        from carla_env.simulator.vehicles.ego_vehicle import EgoVehicle
+        from rlcarla2 import Client
+        from rlcarla2 import RouteManager
+        from rlcarla2 import AutoVehicle
+        from rlcarla2 import EgoVehicle
 
         # super().__init__(config)
 
@@ -90,8 +91,8 @@ class CARLA_GC(Simulator):
         self.__is_multi_agent = config.multiagent
         self.__num_auto_vehicles = config.num_vehicles
 
-        self.__auto_vehicles: Optional[List[AutoVehicle]] = None
-        self.__ego_vehicle: Optional[EgoVehicle] = None
+        self.__auto_vehicles = None
+        self.__ego_vehicle = None
 
         self.__visualizer = None
 
@@ -124,22 +125,16 @@ class CARLA_GC(Simulator):
             raise TypeError(f'task should be CARLA_Task but {type(task)} is given')
 
         prev_task = self.task
-        # prev_init_loc = self.init_transform
-
         self.task = task
-        # self.initial_loc =  carla.Transform()
-
         yield
-
-        # self.initial_loc = prev_init_loc
         self.task = prev_task
 
 
     def reset(self):
-        from carla_env.simulator.vehicles.auto_vehicle import AutoVehicle
-        from carla_env.simulator.vehicles.ego_vehicle import EgoVehicle
-        from carla_env.utils.carla_sync_mode import CarlaSyncMode
-        from carla_env.simulator.visualizer import Visualizer
+        from rlcarla2 import AutoVehicle
+        from rlcarla2 import EgoVehicle
+        from rlcarla2 import CarlaSyncMode
+        from rlcarla2 import Visualizer
 
         # Destroy the auto vehicles.
         if self.__auto_vehicles is not None:
@@ -189,7 +184,7 @@ class CARLA_GC(Simulator):
 
         return self.step()[0]
 
-    def step(self, action: Optional[np.ndarray] = None):
+    def step(self, action = None):
         # print(self.target_location)
         self.__steps += 1
 
@@ -218,8 +213,6 @@ class CARLA_GC(Simulator):
             throttle = 0
             brake = 0
             steer = 0
-
-
 
 
         self.ego_vehicle.apply_control(
@@ -373,8 +366,8 @@ class CARLA_GC(Simulator):
 
 
 
-carla_config = parse_config("./configs/learning.yaml")
-
+# carla_config = parse_config("./configs/learning.yaml")
+carla_cfg = None
 
 
 # for simpl

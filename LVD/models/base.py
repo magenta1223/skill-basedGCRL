@@ -15,8 +15,10 @@ class BaseModel(BaseModule):
 
         self.Hsteps = self.subseq_len -1
         envtask_cfg = self.envtask_cfg
-        self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+
+        if envtask_cfg.name != "carla":
+            self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
 
         self.state_processor = StateProcessor(cfg.env_name)
         self.seen_tasks = envtask_cfg.known_tasks
