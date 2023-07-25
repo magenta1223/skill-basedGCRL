@@ -2,6 +2,19 @@ subseq_len : 11
 tanh : true
 gc : true
 with_gcsl: false
+sg_dist : false
+negativeSamples : false
+noisy_subgoal : false
+
+
+weight :
+  f : 1
+  D : 1
+  invD : 1
+  # r_int : 1
+  # r_int_f : 1
+  # r_int_D : 1
+  # r_int_invD : 1
 
 skill_trainer : LVD.runner.Diversity_Trainer2
 # rl_trainer : LVD.rl.GC_Skill_RL_Trainer

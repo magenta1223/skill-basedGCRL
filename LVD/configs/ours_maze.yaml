@@ -4,7 +4,7 @@ defaults:
   - env : maze
 
 dataset_cls : LVD.data.Maze_Dataset_Div
-structure : gc_div_joint
+structure : ours_sep
 
 # env:
 #   epoch_cycles_train: ${get_cycle:${env.batch_size}}

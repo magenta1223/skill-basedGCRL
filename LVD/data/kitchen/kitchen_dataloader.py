@@ -351,7 +351,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             if len(self.generated_seqs) > self.max_generated_seqs:
                 self.generated_seqs = self.generated_seqs[1:]
 
-        np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
+        # np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
         # self.buffer_now.enqueue(states, actions, c)
 
 

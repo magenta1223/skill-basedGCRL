@@ -8,45 +8,18 @@ import math
 from ...collector import Offline_Buffer
 
 from glob import glob
-
-import h5py
-from torch.utils.data import Dataset
-from ...contrib.spirl.pytorch_utils import RepeatedDataLoader
-import pickle
-from torch.utils.data.dataloader import DataLoader, SequentialSampler
-import torch
 import pickle 
+from ..base_dataset import Base_Dataset
 
-def parse_pkl(file_path):
+def load_pkl(file_path):
     with open(file_path, 'rb') as f:
         data = pickle.load(f)
     return data
 
-class Carla_Dataset(Dataset):
-    SPLIT = edict(train=0.99, val=0.01, test=0.0)
-    def __init__(self, data_dir, data_conf, phase, resolution=None, shuffle=True, dataset_size=-1, *args, **kwargs):
-        
-        
-        mode = kwargs.get("mode")
-
-        # if mode is not None:
-        #     with open(f"./LVD/data/carla/carla_dataset{mode}.pkl", mode ="rb") as f:
-        #         self.seqs = pickle.load(f)
-        # else:
-        #     with open(f"./LVD/data/carla/carla_dataset_action_integrated.pkl", mode ="rb") as f:
-        #         self.seqs = pickle.load(f)           
-        
-        print(kwargs)
-
-        self.normalize = kwargs.get("normalize")
-
-        
-        if self.normalize:
-            with open(f"./LVD/data/carla/carla_dataset_normalized.pkl", mode ="rb") as f:
-                self.seqs = pickle.load(f)
-        else:
-            with open(f"./LVD/data/carla/carla_dataset.pkl", mode ="rb") as f:
-                self.seqs = pickle.load(f)        
+class Carla_Dataset(Base_Dataset):
+    def __init__(self, cfg, phase):
+        with open(f"./LVD/data/carla/carla_data.pkl", mode ="rb") as f:
+            self.seqs = pickle.load(f)        
 
         
         # with open(f"./LVD/data/carla/carla_dataset{mode}.pkl", mode ="rb") as f:
@@ -56,15 +29,14 @@ class Carla_Dataset(Dataset):
 
         self.n_seqs = len(self.seqs)
         self.phase = phase
-        self.dataset_size = dataset_size
-        self.shuffle = shuffle
+        self.shuffle = self.phase == "train"
         self.device = "cuda"
 
-        for k, v in data_conf.dataset_spec.items():
-            setattr(self, k, v) 
+        nObs = sum([seq.actions.shape[0] for seq in self.seqs])
+            
 
-        for k, v in kwargs.items():
-            setattr(self, k, v)    
+
+        random.shuffle(self.seqs)
 
         if self.phase == "train":
             self.start = 0
@@ -72,104 +44,66 @@ class Carla_Dataset(Dataset):
         elif self.phase == "val":
             self.start = int(self.SPLIT.train * self.n_seqs)
             self.end = int((self.SPLIT.train + self.SPLIT.val) * self.n_seqs)
+            self.n_repeat = 1
+            self.dataset_size = self.val_data_size 
         else:
             self.start = int((self.SPLIT.train + self.SPLIT.val) * self.n_seqs)
             self.end = self.n_seqs
+            self.n_repeat = 1
+            self.dataset_size = self.val_data_size 
+
 
         self.num = 0
-
-    def sample_indices(self, states, min_idx = 0): 
-        """
-        return :
-            - start index of sub-trajectory
-            - goal index for hindsight relabeling
-        """
-
-        goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
-        start_idx = np.random.randint(min_idx, states.shape[0] - self.subseq_len - 1)
-        
-        if self.last:
-            return start_idx, goal_max_index
-
-        # start + sub_seq_len 이후 중 아무거나 하나
-        goal_index = np.random.randint(start_idx + self.subseq_len, goal_max_index)
-
-        # 적절한 planning을 위해 relabeled 
-
-        return start_idx, goal_index
-
-    def __getitem__(self, idx):
+        self.nObs = nObs
+    
+    @staticmethod 
+    def parseObs(obs):
+        return obs['position'], np.concatenate(obs.values(), axis = -1) 
 
 
-        seq = self.seqs[idx]
-        states = seq['obs']
+    def __getitem__(self, index):
+
+        seq = self._sample_seq()
+        positions, states = self.parseObs(seq['obs'])
         actions = seq['actions']
 
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
 
-        G = states[goal_idx][12:14] # ? position이 어딘지 모름 
+        G = positions[goal_idx]
 
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
 
 
-        data = {
-            'states': states,
-            'actions': actions,
-            'G' : G,
-        }
-
+        data = edict(
+            states = states,
+            actions = actions,
+            G = G,
+        )
 
         return data
     
     def __len__(self):
-        if self.phase == "train":
-            # return 20000
-            return  int(self.SPLIT[self.phase] * self.n_seqs)
-        else:
-            return int(self.SPLIT[self.phase] * self.n_seqs)
+        return  int(self.SPLIT[self.phase] * self.nObs)
 
-    def get_data_loader(self, batch_size, n_repeat, num_workers = 8):
-        print('len {} dataset {}'.format(self.phase, len(self)))
-        assert self.device in ['cuda', 'cpu']  # Otherwise the logic below is wrong
-
-        dataloader= RepeatedDataLoader(
-            self,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            drop_last=False,
-            n_repeat=n_repeat,
-            pin_memory=True, # self.device == 'cuda'
-            # pin_memory= False, # self.device == 'cuda'
-            # collate_fn = self.collate_fn,
-            worker_init_fn=lambda x: np.random.seed(np.random.randint(65536) + x)
-            )        
-        return dataloader
 
 class Carla_Dataset_Div(Carla_Dataset):
-    def __init__(self, data_dir, data_conf, phase, resolution=None, shuffle=True, dataset_size=-1, *args, **kwargs):
-        super().__init__(data_dir, data_conf, phase, resolution, shuffle, dataset_size, *args, **kwargs)
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+
         self.__mode__ = "skill_learning"
 
         self.__getitem_methods__ = {
             "skill_learning" : self.__skill_learning__,
             "with_buffer" : self.__skill_learning_with_buffer__,
         }
+    
+        self.max_generated_seqs = 10000
+        self.generated_seqs = []
 
-        self.buffer_dim = self.state_dim
-
-
-        # 10 step 이후에 skill dynamics로 추론해 error 누적 최소화 
-        self.buffer_prev = Offline_Buffer(state_dim= self.buffer_dim, action_dim= self.action_dim, trajectory_length = 19, max_size= 1024)
-
+        self.discount_lambda = np.log(0.99)
         
-        # rollout method
-        skill_length = self.subseq_len - 1
-        rollout_length = skill_length + ((self.plan_H - skill_length) // skill_length)
-        self.buffer_now = Offline_Buffer(state_dim= self.buffer_dim, action_dim= self.action_dim, trajectory_length = rollout_length, max_size= 1024)
-
 
     def set_mode(self, mode):
         assert mode in ['skill_learning', 'with_buffer']
@@ -181,54 +115,104 @@ class Carla_Dataset_Div(Carla_Dataset):
         return self.__mode__
 
 
-    def enqueue(self, states, actions):
-        self.buffer_now.enqueue(states, actions)
+    def enqueue(self, states, actions, c = None, sequence_indices = None):
+        for i, seq_idx in enumerate(sequence_indices):
+            seq = deepcopy(self.seqs[seq_idx])
+            generated_states = states[i]
+            generated_actions = actions[i]
+            
+            # start idx도 필요
+            concatenated_states = np.concatenate((seq.states[:c[i], :self.state_dim], generated_states), axis = 0)
+            concatenated_actions = np.concatenate((seq.actions[:c[i]], generated_actions), axis = 0)
+            
+            # np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
+            # sequnece가 원래것과 매칭이 안되고 있음. 버그
+            # assert 1==0, "a"
+            
+
+            # g = \varphi(s) 인 \varphi는 알고 있음을 가정. (뭐가 열렸는지 돌아갔는지 정도는 알 수 있음.)
+            # 그러면 유의한 goal state가 뭔지 정도는 알 수 있음. 
+            # = 유의미한 goal 변화 없으면 거기서 컽
+            new_seq = edict(
+                states = concatenated_states,
+                actions = concatenated_actions,
+                c = c[i].item(),
+                seq_index = seq_idx.item()
+            )
+
+            self.generated_seqs.append(new_seq)
+
+            if len(self.generated_seqs) > self.max_generated_seqs:
+                self.generated_seqs = self.generated_seqs[1:]
+
+        # np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
 
     def update_buffer(self):
-        print("BUFFER RESET!!! ")        
-        self.buffer_prev.copy_from(self.buffer_now)
-        # self.buffer_now.reset()
+        pass 
 
     def __getitem__(self, index):
         # mode에 따라 다른 sampl 
-        return self.__getitem_methods__[self.mode](index)
+        return self.__getitem_methods__[self.mode]()
         
-    def __skill_learning__(self, index):
+    def __skill_learning__(self):
+        seq, index = self._sample_seq(return_index= True)
 
-        seq = self.seqs[index]
-        # states = deepcopy(seq['states'])
-        states = deepcopy(seq['obs'])
+        positions, states = self.parseObs(seq['obs'])
         actions = seq['actions']
         
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
 
-        G = states[goal_idx][12:14] # ? position이 어딘지 모름 
+        G = positions[goal_idx]
         states = states[start_idx : start_idx + self.subseq_len]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
 
-        data = {
-            'states': states,
-            'actions': actions,
-            'G' : G,
-            'rollout' : True
-        }
+        output = edict(
+            states=states,
+            actions=actions,
+            G = G,
+            rollout = True,
+            weights = 1,
+            seq_index = index,
+            start_idx = start_idx,
+        )
 
-        return data
+        return output
 
-    def __skill_learning_with_buffer__(self, index):
+    def __skill_learning_with_buffer__(self):
 
         if np.random.rand() < self.mixin_ratio:
-            states_images, actions = self.buffer_now.sample()
-            
+            _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
+            seq = deepcopy(self.generated_seqs[_seq_index])
+
+
+            states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
+            start_idx, goal_idx = self.sample_indices(states)
+
+            goal_idx = -1
+
+            G = states[goal_idx][12:14]
+            if start_idx > c :
+                discount_start = np.exp(self.discount_lambda * (start_idx - c))
+            else:
+                discount_start = 1
+            # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
+            discount_G = 1
+
+
+            states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
+            actions = actions[start_idx:start_idx+self.subseq_len-1]
             output = edict(
-                states = states_images[:self.subseq_len],
-                actions = actions[:self.subseq_len-1],
-                G = deepcopy(states_images[-1][:self.n_obj][12:14]),
-                rollout = False
-                # rollout = True if start_idx < 280 - self.plan_H else False
+                states=states,
+                actions=actions,
+                G=G,
+                rollout = False,
+                weights = 1, #discount_start * discount_G,
+                seq_index = seq_index,
+                start_idx = start_idx
+                # start_idx = 999 #self.novel
             )
 
             return output
         else:
-            return self.__skill_learning__(index)
+            return self.__skill_learning__()
