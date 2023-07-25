@@ -6,8 +6,6 @@ envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
 
 
 state_dim : 30
-# n_obj : 9
-# n_env : 21
 n_pos : 9
 n_nonPos : 0
 n_env : 21
