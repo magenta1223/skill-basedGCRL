@@ -3,7 +3,6 @@ from typing import Callable, Iterable, Optional, Tuple, Union
 import carla
 
 from .carla_wrapper import CarlaWrapper
-from .simulator import Simulator
 from ..utils.logger import Logging
 
 logger = Logging.get_logger(__name__)
@@ -17,7 +16,7 @@ class World(CarlaWrapper[carla.World]):
 
     """
 
-    def __init__(self, world: carla.World, simulator: Simulator):
+    def __init__(self, world: carla.World, simulator):
         super().__init__(world)
 
         self.__simulator = simulator

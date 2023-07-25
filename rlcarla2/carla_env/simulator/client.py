@@ -1,6 +1,5 @@
 import carla
 
-from .simulator import Simulator
 from .traffic_manager import TrafficManager
 from .world import World
 
@@ -15,7 +14,7 @@ class Client(carla.Client):
 
     """
 
-    def __init__(self, simulator: Simulator, host: str, port: int) -> None:
+    def __init__(self, simulator, host: str, port: int) -> None:
         super().__init__(host, port)
         self.__world = World(self.get_world(), simulator)
         self.set_timeout(10.0)

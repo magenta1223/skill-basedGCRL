@@ -2,12 +2,10 @@ from typing import Callable
 
 import carla
 
-from .simulator import Simulator
-from ..utils.config import ExperimentConfigs
 
 
 class Visualizer:
-    def __init__(self, simulator: Simulator, config: ExperimentConfigs):
+    def __init__(self, simulator, config):
         self.__simulator = simulator
         self.__config = config
 

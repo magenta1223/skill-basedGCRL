@@ -4,7 +4,6 @@ import carla
 from typing_extensions import TypeGuard, override
 
 from .carla_wrapper import CarlaWrapper
-from .simulator import Simulator
 from ..utils.logger import Logging
 
 logger = Logging.get_logger(__name__)
@@ -17,7 +16,7 @@ class ActorInitializeError(Exception):
 
 
 class Actor(Generic[T], CarlaWrapper[T]):
-    def __init__(self, simulator: Simulator, actor: T):
+    def __init__(self, simulator, actor: T):
         super().__init__(actor)
         self.__simulator = simulator
         self.__on_destroy_callbacks: List[Callable[[], None]] = []
@@ -31,7 +30,7 @@ class Actor(Generic[T], CarlaWrapper[T]):
     def spawn(
         cls,
         *args,
-        simulator: Simulator,
+        simulator,
         blueprint: carla.ActorBlueprint,
         transform: Optional[carla.Transform] = None,
         attach_to: Optional["Actor"] = None,
