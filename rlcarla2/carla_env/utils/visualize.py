@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 from typing_extensions import Literal, Required, TypedDict, override
 
-from carla_env.dataset import Dataset
+from ...carla_env.dataset import Dataset
 
 ROUTE_IMAGE = "route_image/Route_point.png"
 
