@@ -165,9 +165,9 @@ class Carla_Dataset_Div(Carla_Dataset):
         start_idx, goal_idx = self.sample_indices(states)
         assert start_idx < goal_idx, "Invalid"
 
-        G = positions[goal_idx]
-        states = states[start_idx : start_idx + self.subseq_len]
-        actions = actions[start_idx : start_idx + self.subseq_len -1]
+        G = positions[goal_idx].astype(np.float32)
+        states = states[start_idx : start_idx + self.subseq_len].astype(np.float32)
+        actions = actions[start_idx : start_idx + self.subseq_len -1].astype(np.float32)
 
         output = edict(
             states=states,

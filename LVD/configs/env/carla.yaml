@@ -9,7 +9,7 @@ n_pos : 2
 n_nonPos : 8
 n_env : 0
 n_goal : 2
-action_dim : 2
+action_dim : 3
 normalize : false
 
 subseq_len : 11

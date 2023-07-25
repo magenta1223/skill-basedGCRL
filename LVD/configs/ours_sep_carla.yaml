@@ -48,7 +48,7 @@ model:
     out_dim : ${env.latent_state_dim}
 
   prior:
-    in_feature : ${divide:${env.latent_state_dim},2}
+    in_feature : ${env.latent_state_dim}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_encoder:
