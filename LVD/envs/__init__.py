@@ -25,7 +25,7 @@ class Maze_EnvTaskConfig:
     known_tasks = None
     unknown_tasks = None
 
-class CARLA_EnvTaskConfig:
+class Carla_EnvTaskConfig:
     name = "carla"
     env_cls = CARLA_GC
     env_cfg = carla_cfg

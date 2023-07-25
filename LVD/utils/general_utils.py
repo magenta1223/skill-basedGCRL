@@ -41,6 +41,7 @@ class ConfigParser:
         # only string can be Class
         if not isinstance(value, str):
             return False
+        
         conds = [
             "." in value, # Is value contains path to Class?
             "/" not in value, # Is value not a path ?

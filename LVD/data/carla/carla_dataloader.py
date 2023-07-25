@@ -18,6 +18,8 @@ def load_pkl(file_path):
 
 class Carla_Dataset(Base_Dataset):
     def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+
         with open(f"./LVD/data/carla/carla_data.pkl", mode ="rb") as f:
             self.seqs = pickle.load(f)        
 
@@ -58,7 +60,7 @@ class Carla_Dataset(Base_Dataset):
     
     @staticmethod 
     def parseObs(obs):
-        return obs['position'], np.concatenate(obs.values(), axis = -1) 
+        return obs['position'], np.concatenate(list(obs.values()), axis = -1) 
 
 
     def __getitem__(self, index):

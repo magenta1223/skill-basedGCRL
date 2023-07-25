@@ -14,7 +14,7 @@ normalize : false
 
 subseq_len : 11
 max_seq_len : 3000
-data_dir : "."
+data_dir : none
 epoch_cycles_train : 50
 
 

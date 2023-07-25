@@ -12,7 +12,7 @@ import gym.spaces
 import numpy as np
 from typing_extensions import Literal
 import pygame
-from agents.tools.misc import is_within_distance_ahead
+from ..agents.tools.misc import is_within_distance_ahead
 from .dataset import Dataset, load_datasets
 from .simulator.actor import Actor
 from .simulator.simulator import Simulator
