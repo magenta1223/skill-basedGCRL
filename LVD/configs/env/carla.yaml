@@ -25,7 +25,7 @@ plan_H : 100
 epochs : 70
 warmup_steps : 30
 
-latent_dim : 10
+skill_dim : 10
 latent_state_dim : 32
 reg_beta : 1e-5
 val_data_size : 5000
