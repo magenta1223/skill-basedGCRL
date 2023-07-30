@@ -364,7 +364,7 @@ class GC_Temporal_Buffer(Buffer):
         self.episode_ptrs = deque()
         # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
 
-
+        print(cfg.state_dim, cfg.skill_dim, cfg.n_goal )
         self.transitions = torch.empty(cfg.buffer_size, cfg.n_skill, 2*cfg.state_dim + cfg.skill_dim + cfg.n_goal * 2 + 3) # rwd, relabeled rwd, dones
         # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
 

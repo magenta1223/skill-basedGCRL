@@ -112,13 +112,17 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         )
         
         if self.qfs is not None:
-            skill_normal, skill = self.cem_planning(batch)
-            return to_skill_embedding(skill_normal), to_skill_embedding(skill)
+            # skill_normal, skill = self.cem_planning(batch)
+            # return to_skill_embedding(skill_normal), to_skill_embedding(skill)
+
+            dist = self.dist(batch, mode = "act").policy_skill
+            if isinstance(dist, TanhNormal):
+                z_normal, z = dist.sample_with_pre_tanh_value()
+                return to_skill_embedding(z_normal), to_skill_embedding(z)
+            else:
+                return None, to_skill_embedding(dist.sample())
         else:
             dist = self.dist(batch, mode = "act").policy_skill
-        
-            # cem으로 뽑아야 함. 
-
             if isinstance(dist, TanhNormal):
                 z_normal, z = dist.sample_with_pre_tanh_value()
                 return to_skill_embedding(z_normal), to_skill_embedding(z)

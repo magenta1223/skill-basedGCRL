@@ -12,6 +12,8 @@ scheduler_params:
 
 env:
   reg_beta : 1e-4
+  # init_alpha : 0.5
+
 
 model:
   state_encoder :

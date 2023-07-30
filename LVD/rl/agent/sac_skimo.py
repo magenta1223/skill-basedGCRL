@@ -144,7 +144,7 @@ class SAC_Skimo(BaseModel):
 
         batch = self.buffer.sample(self.rl_batch_size)
         # batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
-        self.episode = step_inputs['episode']
+        # self.episode = step_inputs['episode']
         self.n_step += 1
 
         self.stat = edict()
@@ -365,11 +365,13 @@ class SAC_Skimo(BaseModel):
         self.episode = step_inputs['episode']
 
         for _ in range(self.q_warmup):
-            q_results = self.update_models(step_inputs)
+            batch = self.buffer.sample(self.rl_batch_size)
+            q_results = self.update_models(batch)
         
         # # orig : 200 
         for _ in range(int(self.q_warmup)):
-            self.update(step_inputs)
+            batch = self.buffer.sample(self.rl_batch_size)
+            self.update(batch)
             # batch = self.buffer.sample(self.rl_batch_size)
             # self.episode = step_inputs['episode']
             # self.n_step += 1

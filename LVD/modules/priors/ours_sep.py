@@ -503,7 +503,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                     state_consistency_f = F.mse_loss(subgoal_f, D)
                 )
             )    
-            
+
             return result
     
     @torch.no_grad()
@@ -562,6 +562,14 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         weights = torch.softmax(batch.skill_values, dim = 0) * states.shape[0] 
 
         GCSL_loss_subgoal = weighted_mse(subgoal_f, htH_target, weights) + weighted_mse(subgoal_D, htH_target, weights)
+        # GCSL_loss_skill = (nll_dist(
+        #     batch.actions,
+        #     invD_sub,
+        #     batch.actions_normal,
+        #     tanh = self.cfg.tanh
+        # ) * weights).mean()
+        
+        # 여기에 kl을 해야 함. 
         GCSL_loss_skill = (nll_dist(
             batch.actions,
             invD_sub,
@@ -569,7 +577,11 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             tanh = self.cfg.tanh
         ) * weights).mean()
 
-        GCSL_loss = GCSL_loss_subgoal + GCSL_loss_subgoal
+
+        # 이렇게하면 mode covering임.
+        # mode dropping ㄱ 
+
+        GCSL_loss = GCSL_loss_subgoal + GCSL_loss_skill
 
         
         return  edict(
