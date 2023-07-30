@@ -60,7 +60,10 @@ class GC_Skill_RL_Trainer:
         skill_prior.requires_grad_(False) 
 
         qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh, self.cfg.hindsight_relabel).to(high_policy.device)
+        # buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh, self.cfg.hindsight_relabel).to(high_policy.device)
+        
+        buffer = self.cfg.buffer_cls(self.cfg).to(high_policy.device)
+
         collector = GC_Hierarchical_Collector(
             self.env,
             low_actor,
@@ -166,8 +169,14 @@ class GC_Skill_RL_Trainer:
             print(len(episode.states))
             print("success")
 
-        high_ep = episode.as_high_episode()
+        high_ep, high_ep_relabeled = episode.as_high_episode()
         self.agent.buffer.enqueue(high_ep) 
+        if high_ep_relabeled is not None:
+            # nothing acheived
+            self.agent.buffer.enqueue(high_ep_relabeled) 
+
+        # high_ep = episode.as_high_episode()
+        # self.agent.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
 
         # ------------- Logging Data ------------- #
@@ -190,6 +199,7 @@ class GC_Skill_RL_Trainer:
         
         # ------------- Warming up phase ------------- #
         elif n_ep == self.cfg.precollect:
+            print("Here?")
             step_inputs = edict(
                 episode = n_ep,
                 G = G

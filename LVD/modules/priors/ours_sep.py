@@ -453,32 +453,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         assert mode in ['policy', 'consistency', 'act'], "Invalid mode"
         if mode == "consistency":
             return self.consistency(batch)
-        # else:
-            # # policy or act
-            # state, G = batch.states, batch.G 
-            # with torch.no_grad():
-            #     ht, ht_pos, ht_nonPos = self.state_encoder(state)
-
-            # # subgoal 
-            # _, _, subgoal_f = self.forward_subgoal_G(ht, G)
-
-            # # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-            # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.cfg.tanh)
-            # # inverse_dynamics_hat, _ = self.inverse_dynamics.dist(state = ht, subgoal = subgoal_f,  tanh = self.tanh)
-            
-
-            # skill = inverse_dynamics_hat.rsample() 
-            # D = self.forward_D(ht, skill)
-
-            # result =  edict(
-            #     policy_skill = inverse_dynamics_hat,
-            #     additional_losses = dict(
-            #         # state_consistency_f = F.mse_loss(diff_subgoal_f, diff)
-            #         state_consistency_f = F.mse_loss(subgoal_f, D)
-
-            #     )
-            # )    
-
+ 
         elif mode == "act":
             # policy or act
             state, G = batch.states, batch.G 
@@ -504,17 +479,12 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         else:
             # policy or act
-            # states, G, next_states = batch.states, batch.G, batch.next_states
             states, G = batch.states, batch.G
             with torch.no_grad():
                 ht, ht_pos, ht_nonPos = self.state_encoder(states)
-                # htH_target,  _, _ = self.target_state_encoder(next_states)
 
             # forward subgoal generator 
-            # sg_input = torch.cat((ht, G), dim = -1)
             sg_input = self.sg_input(ht, G)
-
-            
             subgoal_f = self.subgoal_generator(sg_input)
             subgoal_f = subgoal_f + ht
             
@@ -525,27 +495,15 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # skill execution
             D = self.forward_D(ht, skill)
 
-            # relabel이 된 상황에서는
-            # relabeled G에 대한 subgoal, skill 모든게 정답이기 때문에
-            # GCSL_loss = F.mse_loss(subgoal_f, htH_target) + F.mse_loss(D, htH_target) + nll_dist(
-            #     batch.actions,
-            #     invD,
-            #     batch.actions_normal,
-            #     tanh = self.cfg.tanh
-            # ).mean()
-
-
             result =  edict(
                 policy_skill = invD,
                 additional_losses = dict(
                     # GCSL_loss = GCSL_loss
                     # state_consistency_f = F.mse_loss(diff_subgoal_f, diff)
                     state_consistency_f = F.mse_loss(subgoal_f, D)
-
                 )
             )    
-
-
+            
             return result
     
     @torch.no_grad()

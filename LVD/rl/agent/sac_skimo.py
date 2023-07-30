@@ -20,10 +20,10 @@ from ...utils import *
 from ...models import BaseModel
 from ...contrib import *
 
-class SAC(BaseModel):
+class SAC_Skimo(BaseModel):
     def __init__(self, config):
         super().__init__(config)
-        
+        self.cfg=  config
         # Q-functions
         self.qfs = nn.ModuleList(self.qfs)
         self.target_qfs = nn.ModuleList([copy.deepcopy(qf) for qf in self.qfs])
@@ -46,22 +46,32 @@ class SAC(BaseModel):
             }   for name, args in rl_params['consistency'].items() }
 
 
-            scheduler_params = edict(
-                factor = 0.5,
-                patience = 10, # 4 epsisode
-                verbose= True,
-            )
+            # scheduler_params = edict(
+            #     factor = 0.5,
+            #     patience = 10, # 4 epsisode
+            #     verbose= True,
+            # )
 
 
-            self.consistency_schedulers = {
-                k : Scheduler_Helper(v['optimizer'], **scheduler_params, module_name = k) for k, v in self.consistency_optims.items()
-            }
+            # self.consistency_schedulers = {
+            #     k : Scheduler_Helper(v['optimizer'], **scheduler_params, module_name = k) for k, v in self.consistency_optims.items()
+            # }
 
-            self.schedulers_metric = {
-                k : v['metric'] for k, v in self.consistency_optims.items()
-            }
+            # self.schedulers_metric = {
+            #     k : v['metric'] for k, v in self.consistency_optims.items()
+            # }
 
-            self.consistency_meters = { k : AverageMeter() for k in self.consistency_optims.keys()}
+            # self.consistency_meters = { k : AverageMeter() for k in self.consistency_optims.keys()}
+
+
+        self.consistency_optims['Q'] = {
+            'optimizer' : Adam( [
+                {'params' : qf.parameters()} for qf in self.qfs
+            ], lr = self.qf_lr ),
+            'metric' : None     
+        }
+        
+        
 
 
 
@@ -98,29 +108,34 @@ class SAC(BaseModel):
         return F.softplus(self.pre_alpha)
         
     def entropy(self, states, policy_dists, kl_clip = None):
+        """
+        Monte-Carlo estimate of KL-divergence 
+        """
+        
         with torch.no_grad():
-            prior_dists = self.skill_prior.dist(self.policy.encode(states, prior = True))
+            if self.cfg.env_name == "kitchen":
+                prior_dists = self.skill_prior.dist(states[:, :self.cfg.n_pos])
+            else:
+                prior_dists = self.skill_prior.dist(states)
 
-        if kl_clip is not None:                
-            entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = kl_clip)
-        else:
-            entropy = torch_dist.kl_divergence(policy_dists, prior_dists)
 
-        return entropy, prior_dists 
+        skill_normal, skill = policy_dists.rsample_with_pre_tanh_value()
+        log_prob_p = policy_dists.log_prob(skill, skill_normal)
+        log_prob_q = prior_dists.log_prob(skill, skill_normal)
+        entropy = log_prob_p.mean(0) - log_prob_q.mean(0)
+        
+        return entropy, prior_dists
 
-    # def entropy(self, inputs, kl_clip = False):
-    #     inputs = {**inputs}
+        # with torch.no_grad():
+        #     prior_dists = self.skill_prior.dist(self.policy.encode(states, prior = True))
 
-    #     with torch.no_grad():
-    #         prior_dist = self.policy.prior_policy(inputs, "prior")['prior']
-    #     if kl_clip:                
-    #         entropy = clipped_kl(inputs['dist'], prior_dist, clip = self.kl_clip)
-    #     else:
-    #         entropy = torch_dist.kl_divergence(inputs['dist'], prior_dist)
-    #     return entropy, prior_dist 
-    
+        # if kl_clip is not None:                
+        #     entropy = simpl_math.clipped_kl(policy_dists, prior_dists, clip = kl_clip)
+        # else:
+        #     entropy = torch_dist.kl_divergence(policy_dists, prior_dists)
 
-    
+        # return entropy, prior_dists 
+
     def update(self, step_inputs):
         self.train()
 
@@ -136,29 +151,20 @@ class SAC(BaseModel):
 
         # ------------------- SAC ------------------- # 
         # ------------------- Q-functions ------------------- #
-        if self.consistency_update:
-            self.update_consistency(batch)
 
-        self.update_qs(batch)
+        self.update_models(batch)
+        self.update_policy(batch)
 
-        if self.model_update:
-            self.update_networks(batch)
         # ------------------- Alpha ------------------- # 
-        self.update_alpha()
-
-        if self.check_delta:
-            self.calc_update_ratio("subgoal_generator")
-            self.calc_update_ratio("inverse_dynamics")
-            self.calc_update_ratio("dynamics")
+        # self.update_alpha()
+        self.policy.qfs = copy.deepcopy(self.qfs)
 
         return self.stat
 
-
-
     @torch.no_grad()
-    def compute_target_q(self, batch_next):
-        # batch_next = edict({**batch})
-        # batch_next['states'] = batch['next_states'].clone()
+    def compute_target_q(self, batch):
+        batch_next = edict({**batch})
+        batch_next['states'] = batch['next_states'].clone()
 
         policy_skill_dist = self.policy.dist(batch_next, mode = "policy").policy_skill
         policy_skill = policy_skill_dist.sample()
@@ -173,8 +179,8 @@ class SAC(BaseModel):
         min_qs = torch.min(*[target_qf(q_input).squeeze(-1) for target_qf in self.target_qfs])
         soft_qs = min_qs - self.alpha*entropy_term
 
-        rwd_term = batch.rewards
-        ent_term = (1 - batch.dones) * self.discount * soft_qs
+        rwd_term = batch_next.rewards
+        ent_term = (1 - batch_next.dones) * self.discount * soft_qs
 
         return rwd_term, ent_term, entropy_term
 
@@ -197,128 +203,147 @@ class SAC(BaseModel):
 
         return results
     
-    def update_Q_models(self, batch):
 
 
-        N, T = batch.states.shape[:2]
-
-        # high_states = self.policy.prior_policy.state_encoder(states.view(N * T, -1)).view(N, T, -1)
-        # high_next_states = self.policy.prior_policy.state_encoder(next_states.view(N * T, -1)).view(N, T, -1)
+    def update_models(self, batch):
+        """
+        Trains 
+        - Skill Dynamics
+        - Reward function 
+        - Q
+        """
         
-        # encode 할 때 3차원이면 flat, unflat하는 기능 추가 
-        hts = self.policy.encode(batch.states)
-        hts_next = self.policy.encode(batch.next_states)
-
-        # skills = step_inputs['actions']
-        skills = batch.actions
+        # 1. skill seq을 순회하면서
+        # 2. skill을 수행해 다음을 얻음 
+            # a. h_next_pred
+            # b. reward_pred 
+        # 3. h_now, skill로 Q 예측
+        # 4. loss 계산
+            # a. state consistency 
+            # b. reward loss 
+            # c. value loss 
         
-        # high_state = high_states[:, 0]
-        ht = hts[:, 0]
-        consistency_loss, reward_loss, value_loss = 0, 0, 0
-        rollout_hts = []
+        # paper equation에 따르면 transition 단위로만 학습해도 됨. 
+        
+        consistency_loss = 0
+        value_loss = 0
 
+        T = batch.states.shape[1]
+        
+        state_pred = self.policy.encode(batch.states[:, 0])
+        states_pred = []
         for t in range(T):
-            # ---------- value prediction ---------- #
-            # Q-value
+            states_pred.append(state_pred)
+
+            rho = self.rho ** t
+
+            now_batch = edict({ k : v[:, t] for k, v in batch.items()})
+            
+            # next state는 실제 값을 사용. 
+            # state는 이전 step에서 예측된 값을 사용 
+            now_batch['states'] = state_pred
+            now_consistency_losses = self.policy.dist(now_batch, mode = "consistency")
+            state_pred = now_consistency_losses.pop('htH_hat')
+            consistency_loss += self.aggregate_values(now_consistency_losses) * rho
+
+            # target Q : 실제 state, policy action을 사용해 value를 예측. 
+            targetQ_batch = edict({ k : v[:, t] for k, v in batch.items()})
+            rwd_term, ent_term, entropy_term = self.compute_target_q(targetQ_batch)
+            target_qs = rwd_term + ent_term
+            
+            # Q : 예측된 state, 실제 action을 사용해 value를 예측. 
+            qf_loss = 0
             if self.gc:
-                q_input = torch.cat((ht, batch.G, batch.actions[:, t]), dim = -1)
+                q_input = torch.cat((self.policy.encode(now_batch.states), now_batch.G, now_batch.actions), dim = -1)
             else:
-                q_input = torch.cat((ht, batch.actions[:, t]), dim = -1)
+                q_input = torch.cat((self.policy.encode(now_batch.states), now_batch.actions), dim = -1)
 
-            # q1, q2 = [qf(high_state, step_inputs['actions'][:, t]) for qf in self.qfs]
-            q1, q2 = [qf(q_input) for qf in self.qfs]
+            for qf in self.qfs:
+                qs = qf(q_input).squeeze(-1)
+                qf_loss += (qs - target_qs).pow(2).mean()
             
-
-            # target_q_inputs = dict(
-            #     next_states = next_states[:, t],
-            #     G = G,
-            #     q_next_states = high_next_states[:, t],
-            #     rewards = rewards[:, t],
-            #     dones = dones[:, t]
-            # )
-            
-            next_batch = self.next_batch(batch, t)
-
-            # target Q
-            with torch.no_grad():
-                rwd_term, ent_term, entropy_term = self.compute_target_q(next_batch)
-                target_qs = rwd_term + ent_term
-
-
-            # ---------- value function, state consistency ---------- #
-            rollout_inputs = dict(
-                states = ht,
-                actions = skills[:, t]
-            )
-            outputs = self.policy.rollout_latent(rollout_inputs)
-
-            # next_state_pred
-            # high_next_state, rewards_pred = outputs['next_states'], outputs['rewards_pred']
-            ht_next_pred, r_pred = outputs.next_states, outputs.rewards_pred
+            value_loss += rho * qf_loss
         
-            # discounted 
-            rho = (self.rho ** t)
-            consistency_loss += rho * F.mse_loss(ht_next_pred, hts_next[:, t])
-            reward_loss += rho * F.mse_loss(r_pred, batch.rewards[:, t])
-            value_loss += rho * (F.mse_loss(q1, target_qs) + F.mse_loss(q2, target_qs))
+            # # Additional reward prediction loss.
+            # real_state = self.policy.encode(batch.states[:, t])
+            # reward_pred = self.policy.reward_function(torch.cat((real_state, batch.actions[:, t]), dim = -1)).squeeze(-1) 
 
-
-            rollout_hts.append(high_state.clone().detach())
-            high_state = high_next_state
-
-
-        total_loss = (consistency_loss * 2 + reward_loss * 0.5 + value_loss * 0.1) / T
-
-        for qf_optim in self.qf_optims:
-            qf_optim.zero_grad()
-        self.others_optim.zero_grad()
-
-        total_loss.backward()
-
-        for qf_optim in self.qf_optims:
-            qf_optim.step()
-        self.others_optim.step()
-
-        # qf_losses = [value_loss]  
-
+            # reward_loss += F.mse_loss(reward_pred, batch.rewards[:, t])
+            # # Additional value prediction loss.
+            # obs = hl_feat[t] if not cfg.sac else ob[t]["ob"]
+            # q_pred = hl_agent.model.critic(obs, ac[t])
+            # value_loss += mse(q_pred[0], q_target) + mse(q_pred[1], q_target)
         
-        
-        return rollout_high_states
+        model_loss = consistency_loss + value_loss
+        model_loss.register_hook(lambda grad: grad * (1 / T))
 
+        for module_name, optimizer in self.consistency_optims.items():
+            optimizer['optimizer'].zero_grad()
 
-    def update_policy(self, step_inputs):
+        model_loss.backward()
+
+        for module_name, optimizer in self.consistency_optims.items():
+            self.grad_clip(optimizer['optimizer'])
+            optimizer['optimizer'].step()
+
+        self.policy.soft_update() # 
+        update_moving_average(self.target_qfs, self.qfs, self.tau)
+
+        # results = {}
+        # results['qf_loss'] = torch.stack(qf_losses).mean()
+        # results['target_Q'] = target_qs.mean()
+        # results['rwd_term'] = rwd_term.mean()
+        # results['entropy_term'] = ent_term.mean()
+        # self.stat.update(results)
+        # self.stat.update(consistency_losses)
+
+        self.states_pred = torch.stack(states_pred, dim = 1).clone().detach()
+
+    def update_policy(self, batch):
 
         # policy loss 
-        rollout_high_states = step_inputs['rollout_high_states']
+        # rollout_high_states = step_inputs['rollout_high_states']
+
 		# Loss is a weighted sum of Q-values
         policy_loss = 0
-        q_values = 0
-        entropy_terms = 0
-    
-        states = step_inputs['states']
 
-        for t, high_state in enumerate(rollout_high_states):
-            policy_inputs = dict(
+    
+        states = batch.states 
+        T = states.shape[1]
+
+        # 1. 실제 state로 prior 계산
+        # 2. 예측한 state로 
+        
+        for t in range(T):
+            rho = self.rho ** t
+            # state = batch.states[:, t]
+            state, G = self.states_pred[:, t], batch.G[:, t]
+
+            policy_inputs = edict(
                 # states, G
-                states = states[:, t], # skill prior는 GT state로 구하고
-                high_state = high_state, # actor loss는 rollout state로 구한다. 
-                G = step_inputs['G']
+                states = state, # ctor loss는 rollout state로 구한다.  
+                G = G
             )
         
-            policy_inputs['dist'] = self.policy.dist(policy_inputs, latent = True)['policy_skill'] # prior policy mode.
-            policy_inputs['policy_actions'] = policy_inputs['dist'].rsample() 
-            entropy_term, prior_dist = self.entropy(policy_inputs, kl_clip= False) # policy의 dist로는 gradient 전파함 .
-            min_qs = torch.min(*[qf(high_state, policy_inputs['policy_actions']) for qf in self.qfs]) * (self.rho ** t)
-            ent_loss = self.alpha * entropy_term * (self.rho ** t)
-
-            q_values += min_qs.clone().detach().mean(0).item()
-            entropy_terms += entropy_term.clone().detach().mean().item() 
-
-
-            policy_loss += (- min_qs + ent_loss).mean() 
+            policy_dists = self.policy.dist(policy_inputs, mode = "policy")['policy_skill'] # prior policy mode.
+            policy_skill = policy_dists.rsample() 
+            entropy_term, prior_dist = self.entropy(batch.states[:, t], policy_dists, kl_clip= False) # policy의 dist로는 gradient 전파함 .
             
-        policy_loss /= len(rollout_high_states)
             
+            if self.gc:
+                q_input = torch.cat((state, G, policy_skill), dim = -1)
+            else:
+                q_input = torch.cat((state, policy_skill), dim = -1)
+
+            min_qs = torch.min(*[qf(q_input) for qf in self.qfs])
+            ent_loss = self.alpha * entropy_term
+
+            # q_values += min_qs.clone().detach().mean(0).item()
+            # entropy_terms += entropy_term.clone().detach().mean().item() 
+            policy_loss += ((- min_qs + ent_loss) * rho).mean() 
+            
+        policy_loss.register_hook(lambda grad: grad * (1 / T))
+
 
         policy_loss.backward()
         self.grad_clip(self.policy_optim)
@@ -328,49 +353,34 @@ class SAC(BaseModel):
     
 
         results['policy_loss'] = policy_loss.item()
-        results['kl'] = entropy_terms # if self.prior_policy is not None else - entropy_term.mean()
-        results['Q-value'] = q_values
-
-        update_moving_average(self.target_qfs, self.qfs, self.tau)
-        self.policy.prior_policy.soft_update()
+        # results['kl'] = entropy_terms # if self.prior_policy is not None else - entropy_term.mean()
+        # results['Q-value'] = q_values
         
         return results
         
 
     def warmup_Q(self, step_inputs):
         # self.train()
-        # self.policy.inverse_dynamics..eval()
-
-        batch = self.buffer.sample(step_inputs['batch_size']).to(self.device)
+        self.stat = {}
         self.episode = step_inputs['episode']
 
-        with torch.no_grad():
-            states = prep_state(batch.states, self.device)
-            next_states = prep_state(batch.next_states, self.device)
-            # step_inputs['batch'] = batch
-            step_inputs['rewards'] = batch.rewards
-            step_inputs['dones'] = batch.dones
-            step_inputs['states'] = states
-            step_inputs['next_states'] = next_states
-            step_inputs['G'] = step_inputs['G'].repeat(step_inputs['batch_size'], 1).cuda()
-            step_inputs['raw_states'] = states
-            step_inputs['raw_next_states'] = next_states
+        for _ in range(self.q_warmup):
+            q_results = self.update_models(step_inputs)
+        
+        # # orig : 200 
+        for _ in range(int(self.q_warmup)):
+            self.update(step_inputs)
+            # batch = self.buffer.sample(self.rl_batch_size)
+            # self.episode = step_inputs['episode']
+            # self.n_step += 1
+            # self.update_networks(batch)
+            # ------------------- Alpha ------------------- # 
 
-            step_inputs['done'] = True
-
-   
-            step_inputs['actions'] = prep_state(batch.actions, self.device) # high-actions
-
-
-        stat = {}
-
-        for _ in range(self.q_warmup_steps):
-            q_results = self.update_Q_models(step_inputs)
-                        
         # for k, v in q_results.items():
         #     stat[k] = v 
 
-        return stat
+        self.policy.qfs = copy.deepcopy(self.qfs)
+
     
     def next_batch(self, batch, t):
         """
@@ -386,3 +396,10 @@ class SAC(BaseModel):
 
 
         return batch_next
+    
+    @staticmethod
+    def aggregate_values(loss_dict):
+        loss = 0
+        for k, v in loss_dict.items():
+            loss += v
+        return loss

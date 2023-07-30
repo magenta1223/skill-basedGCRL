@@ -6,17 +6,14 @@ sg_dist : false
 negativeSamples : false
 noisy_subgoal : false
 
+buffer_cls : LVD.collector.GC_Buffer
 
 weight :
   f : 1
   D : 1
   invD : 1
-  # r_int : 1
-  # r_int_f : 1
-  # r_int_D : 1
-  # r_int_invD : 1
 
-skill_trainer : LVD.runner.Diversity_Trainer2
+skill_trainer : LVD.runner.Diversity_Trainer
 # rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 rl_trainer : LVD.rl.GCRL_Skill_Trainer
 rlAgentCls : LVD.rl.agent.sac.SAC # LVD.rl.agent.cql
@@ -31,6 +28,8 @@ grad_pass:
 
 
 only_unseen : true
+
+# ------------------ State ------------------ #
 
 state_encoder :
   n_blocks : 5
@@ -53,6 +52,8 @@ state_decoder :
   bias : true
   dropout : 0
 
+# ------------------ Dynamcis, Rollout ------------------ #
+
 dynamics :
   n_blocks : 5
   hidden_dim : 128 
@@ -72,6 +73,8 @@ diff_decoder :
   act_cls : torch.nn.Mish
   bias : true
   dropout : 0
+
+# ------------------ High level Policy ------------------ #
 
 inverse_dynamics :
   n_blocks : 5
@@ -94,6 +97,7 @@ subgoal_generator :
   bias  : true
   dropout : 0   
 
+# ------------------ SPiRL ------------------ #
 prior : 
   n_blocks : 5
   hidden_dim : 128
@@ -118,7 +122,8 @@ skill_encoder :
   dropout : 0
   batch_first : true
   proj_bias : false
-  
+  return_last : true
+
 skill_decoder : 
   n_blocks : 5
   hidden_dim : 128
@@ -129,6 +134,35 @@ skill_decoder :
   tanh : true
   bias : true
   dropout : 0
+
+# ------------------ For Entropy ------------------ #
+
+goal_encoder : 
+  n_blocks : 2
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  tanh : true
+  bias : true
+  dropout : 0
+
+goal_decoder : 
+  n_blocks : 2
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  tanh : false
+  bias : true
+  dropout : 0
+
+
+
+
+# 
 
 q_function : 
   n_blocks : 5

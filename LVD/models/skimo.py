@@ -23,14 +23,17 @@ class Skimo_Model(BaseModel):
         dynamics = SequentialBuilder(cfg.dynamics)
         highlevel_policy = SequentialBuilder(cfg.high_policy)
 
+        reward_function = SequentialBuilder(cfg.reward_function)
+
         self.prior_policy = PRIOR_WRAPPERS['skimo'](
-            prior_policy = prior,
+            skill_prior = prior,
             state_encoder = state_encoder,
             state_decoder = state_decoder,
             dynamics = dynamics,
             highlevel_policy = highlevel_policy,
+            reward_function= reward_function,
             tanh = self.tanh,
-            cfg = self.cfg
+            cfg = cfg
         )
 
         ## skill encoder
@@ -42,7 +45,7 @@ class Skimo_Model(BaseModel):
         self.optimizers = {
             "skill_prior" : {
                 "optimizer" : RAdam( [
-                    {"params" : self.prior_policy.prior_policy.parameters()},
+                    {"params" : self.prior_policy.skill_prior.parameters()},
                     {"params" : self.prior_policy.highlevel_policy.parameters()}
                 ], lr = self.lr ),
                 "metric" : "Prior_S"
@@ -61,7 +64,8 @@ class Skimo_Model(BaseModel):
                     ],            
                     lr = self.lr
                     ),
-                "metric" : "Rec_state"
+                "metric" : "Rec_state",
+                "wo_warmup" : True
             },
 
             "skill_enc_dec" : {
@@ -70,7 +74,8 @@ class Skimo_Model(BaseModel):
                     {"params" : self.skill_decoder.parameters()},
                 ], lr = self.lr ),
                 # "metric" : "Rec_skill"
-                "metric" : "skill_metric"
+                "metric" : "Rec_skill",
+                "wo_warmup" : True
             }
         }
 
@@ -157,12 +162,14 @@ class Skimo_Model(BaseModel):
                 tanh = self.tanh
             ).mean()
 
-            policy_loss = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['policy_skill'], # distributions to optimize
-                self.outputs['z_normal'],
-                tanh = self.tanh
-            ).mean()
+            # policy_loss = self.loss_fn('prior')(
+            #     self.outputs['z'],
+            #     self.outputs['policy_skill'], # distributions to optimize
+            #     self.outputs['z_normal'],
+            #     tanh = self.tanh
+            # ).mean()
+            policy_loss = self.loss_fn('reg')(self.outputs['policy_skill'], self.outputs['post_detach']).mean()
+            # policy_loss = self.loss_fn('reg')(self.outputs['policy_skill'], self.outputs['post_detach']).mean()
 
 
         else:
@@ -185,12 +192,10 @@ class Skimo_Model(BaseModel):
         
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
-        z_tilde = self.outputs['states_repr']
-        z = self.outputs['states_fixed_dist']
-        mmd_loss = compute_mmd(z_tilde, z)
+
 
         # ----------- Add -------------- # 
-        loss = recon + reg * self.reg_beta  + prior + D_loss + recon_state + policy_loss + mmd_loss
+        loss = recon + reg * self.reg_beta  + prior + D_loss + recon_state + policy_loss
 
 
         self.loss_dict = {           

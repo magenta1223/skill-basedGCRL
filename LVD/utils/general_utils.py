@@ -79,6 +79,24 @@ class ConfigParser:
 
         return cfg
 
+class Logger:
+    def __init__(self, log_path, verbose = True):
+        self.log_path =log_path
+        self.verbose = verbose
+    
+    def log(self, message):
+        if message is not None:
+            if self.verbose:
+                print(message)
+            with open(self.log_path, 'a+') as logger:
+                logger.write(f'{message}\n')
+
+    def loss_dict_log(self, loss_dict, set_name):
+        message = set_name.upper() + " "
+        for k, v in loss_dict.items():
+            message += f"{k.replace(set_name.upper() + '_', '')} : {v:.5f} "
+        return message
+
 def get_time():
     now = datetime.datetime.now()
     month = str(now.month).zfill(2)

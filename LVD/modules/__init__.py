@@ -13,7 +13,7 @@ __all__ = [
     # subnetworks
     'InverseDynamicsMLP',
     'DecoderNetwork',
-    'Normal_Distribution',
+    'Learned_Distribution',
     'Multisource_Encoder',
     'Multisource_Decoder',
     'SubgoalGenerator',

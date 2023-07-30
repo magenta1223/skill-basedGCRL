@@ -6,6 +6,7 @@ defaults:
 dataset_cls : LVD.data.Kitchen_Dataset
 structure : skimo
 
+n_skill : 3
 scheduler_params:
   min_lr: 1e-6
 
@@ -59,4 +60,4 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   q_function:
-    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.skill_dim}} 
+    in_feature: ${add:${env.latent_state_dim}, ${env.n_goal}, ${env.skill_dim}} 

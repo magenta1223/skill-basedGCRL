@@ -98,6 +98,10 @@ class SequentialBuilder(BaseModule):
     def dist(self, *args, detached = False):
         result = self(*args)
 
+        if self.module_type in ['rnn', 'transformer']:
+            if self.return_last:
+                result = result[:, -1]
+
         if detached:
             return get_dist(result, tanh = self.tanh), get_dist(result, detached= True, tanh = self.tanh)
         else:

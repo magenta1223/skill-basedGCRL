@@ -15,6 +15,7 @@ __all__ = [
     'seed_everything',
     'ConfigParser',
     'get_time',
+    'Logger',
     # helper
     'AverageMeter',
     'Scheduler_Helper',

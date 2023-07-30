@@ -89,7 +89,10 @@ class Kitchen_Dataset(Base_Dataset):
         seq = self._sample_seq()
         start_idx, goal_idx = self.sample_indices(seq.states)
 
+        # assert start_idx < goal_idx, "Invalid"
 
+        states = deepcopy(seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim])
+        actions = deepcopy(seq.actions[start_idx:start_idx+self.subseq_len-1])
 
         seg_points = deepcopy(seq.points)
         seg_points = sorted( seg_points + [start_idx])
@@ -102,14 +105,14 @@ class Kitchen_Dataset(Base_Dataset):
             # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
             g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.n_pos + self.n_env]
+        G = deepcopy(seq.states[g_index])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
 
 
 
         output = edict(
-            states = seq.states[start_idx:start_idx+self.subseq_len, :self.n_pos + self.n_env],
-            actions = seq.actions[start_idx:start_idx+self.subseq_len-1],
+            states = states,
+            actions = actions,
             G = G
         )
 
@@ -369,7 +372,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
         seq, index = self._sample_seq(return_index= True)
         start_idx, goal_idx = self.sample_indices(seq.states)
 
-        assert start_idx < goal_idx, "Invalid"
+        # assert start_idx < goal_idx, "Invalid"
 
         # trajectory
         states = seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim]

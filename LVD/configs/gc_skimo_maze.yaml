@@ -6,6 +6,7 @@ defaults:
 dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
 structure : skimo
 
+n_skill : 10
 scheduler_params:
   min_lr: 1e-6
 env:

@@ -176,7 +176,7 @@ class HierarchicalEpisode_Relabel(Episode_RR):
 
 
 class GC_Batch(Batch):
-    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False, hindsight_relabeling = False):
+    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False, hindsight_relabel = False):
         # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
         super().__init__(states, actions, rewards, dones, next_states, transitions)
 
@@ -185,7 +185,7 @@ class GC_Batch(Batch):
         self.data['relabeled_rewards'] = relabeled_rewards
 
         self.tanh = tanh
-        self.hindsight_relabeling = hindsight_relabeling
+        self.hindsight_relabel = hindsight_relabel
 
     @property
     def goals(self):
@@ -201,7 +201,7 @@ class GC_Batch(Batch):
 
     def parse(self):
         
-        if self.hindsight_relabeling:
+        if self.hindsight_relabel:
             # sample별로 해야 함. 
             # indices = torch.randn(len(self.states), 1).cuda()
             # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
@@ -238,20 +238,21 @@ class GC_Batch(Batch):
 class GC_Buffer(Buffer):
     """
     """
-    def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
+    # def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
+    def __init__(self, cfg):
 
-        self.state_processor = StateProcessor(env_name)
-        self.env_name = env_name
+        self.state_processor = StateProcessor(cfg.env_name)
+        self.env_name = cfg.env_name
 
 
-        self.tanh = tanh
+        self.tanh = cfg.tanh
         if self.tanh:
             action_dim *= 2
-        self.hindsight_relabeling = hindsight_relabeling
+        self.hindsight_relabel = cfg.hindsight_relabel
 
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        self.max_size = max_size
+        self.state_dim = cfg.state_dim
+        self.action_dim = cfg.action_dim
+        self.max_size = cfg.buffer_size
         
         self.ptr = 0
         self.size = 0
@@ -261,19 +262,19 @@ class GC_Buffer(Buffer):
         # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
 
 
-        self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim * 2 + 3) # rwd, relabeled rwd, dones
+        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + cfg.action_dim + cfg.n_goal * 2 + 3) # rwd, relabeled rwd, dones
         # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
 
 
         dims = OrderedDict([
-            ('state', state_dim),
-            ('action', action_dim),
+            ('state', cfg.state_dim),
+            ('action', cfg.action_dim),
             ('reward', 1),
             ('relabeled_reward', 1),
             ('done', 1),
-            ('next_state', state_dim),
-            ('goal', goal_dim),
-            ('relabled_goal', goal_dim),
+            ('next_state', cfg.state_dim),
+            ('goal', cfg.n_goal),
+            ('relabled_goal', cfg.n_goal),
         ])
         self.layout = dict()
         prev_i = 0
@@ -331,9 +332,164 @@ class GC_Buffer(Buffer):
     def sample(self, n):
         indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
-        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabeling).to(self.device)
+        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device)
         return batch.parse()
     
+
+
+class GC_Temporal_Buffer(Buffer):
+    """
+    """
+    # def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
+    def __init__(self, cfg):
+        
+        self.cfg = cfg 
+        self.state_processor = StateProcessor(cfg.env_name)
+        self.env_name = cfg.env_name
+
+
+        self.tanh = cfg.tanh
+        if self.tanh:
+            cfg.skill_dim *= 2
+        self.hindsight_relabel = cfg.hindsight_relabel
+
+        self.state_dim = cfg.state_dim
+        self.action_dim = cfg.skill_dim
+        self.max_size = cfg.buffer_size
+        
+        self.ptr = 0
+        self.size = 0
+        
+        self.episodes = deque()
+        self.episode_ptrs = deque()
+        # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
+
+
+        self.transitions = torch.empty(cfg.buffer_size, cfg.n_skill, 2*cfg.state_dim + cfg.skill_dim + cfg.n_goal * 2 + 3) # rwd, relabeled rwd, dones
+        # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
+
+
+        dims = OrderedDict([
+            ('state', cfg.state_dim),
+            ('action', cfg.skill_dim),
+            ('reward', 1),
+            ('relabeled_reward', 1),
+            ('done', 1),
+            ('next_state', cfg.state_dim),
+            ('goal', cfg.n_goal),
+            ('relabled_goal', cfg.n_goal),
+        ])
+        self.layout = dict()
+        prev_i = 0
+        for k, v in dims.items():
+            next_i = prev_i + v
+            self.layout[k] = slice(prev_i, next_i)
+            prev_i = next_i
+        
+        self.device = None
+
+
+
+    @property
+    def goal(self):
+        return self.transitions[:, self.layout['goal']]
+
+    @property
+    def relabled_goal(self):
+        return self.transitions[:, self.layout['relabled_goal']]
+
+    @property
+    def relabeled_rewards(self):
+        return self.transitions[:, self.layout['relabeled_rewards']]
+
+
+
+
+    def ep_to_transtions(self, episode):
+        len_ep = len(episode.states[:-1])
+
+        # last state = goal로 변경
+        # relabeled reward 추가
+        relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
+        relabeled_goals = np.tile(relabeled_goal, (len(episode.states)-1, 1))
+
+        relabeled_rewards = deepcopy(episode.relabeled_rewards)
+
+        if self.env_name == "maze":
+            relabeled_rewards[-1] = 100
+
+        relabeled_rewards = np.array(relabeled_rewards)[:, None]
+
+        transitions = []
+
+        for i in range(len(episode.states)-self.cfg.n_skill - 1):
+            _range = slice(i, i+self.cfg.n_skill)
+            _next_range = slice(i + 1, i + 1 +self.cfg.n_skill)
+            transition = np.concatenate([
+                episode.states[_range],
+                episode.actions[_range],
+                np.array(episode.rewards[_range])[:, None],
+                relabeled_rewards[_range],
+                np.array(episode.dones[_range])[:, None],
+                episode.states[_next_range],
+                episode.goals[_range],
+                relabeled_goals[_range]
+            ], axis=-1)
+
+            transitions.append(torch.as_tensor(transition))
+        return torch.stack(transitions, dim = 0)
+    
+    def enqueue(self, episode):
+        # 에피소드 길이가 0 이 될 때 까지
+        # while len(self.episodes) > 0:
+        #     # 가장 앞의 에피소드와
+        #     old_episode = self.episodes[0]
+        #     # 그 ptr을 가져옴
+        #     ptr = self.episode_ptrs[0]
+        #     # ptr - self.ptr을 최대크기 (20000) 으로 나눈 몫임. 
+        #     dist = (ptr - self.ptr) % self.max_size
+
+        #     # 
+        #     if dist < len(episode):
+        #         self.episodes.popleft()
+        #         self.episode_ptrs.popleft()
+        #     else:
+        #         break
+
+        # # self.ptr을 더한 후 
+        # self.episodes.append(episode)
+        # self.episode_ptrs.append(self.ptr)
+        
+        # transition으로 만듬
+        transitions = self.ep_to_transtions(episode)
+
+        
+        # self.ptr + 에피소드 길이가 최대 크기 이하
+        # 즉, 처음부터 채우고 있는 과정임.
+        n_transition_toAdd = len(episode) - self.cfg.n_skill
+        if self.ptr + n_transition_toAdd <= self.max_size:
+            # 빈 곳에 할당
+            self.transitions[self.ptr:self.ptr+n_transition_toAdd] = transitions
+        # 만약 1배 이상 2배 이하라면? 
+        elif self.ptr + n_transition_toAdd < 2*self.max_size:
+            # 잘라서 앞에넣고 뒤에넣고
+            self.transitions[self.ptr:] = transitions[:self.max_size-self.ptr]
+            self.transitions[:n_transition_toAdd-self.max_size+self.ptr] = transitions[self.max_size-self.ptr:]
+        else:
+            raise NotImplementedError
+
+        # 즉, ptr은 현재 episode를 더하고 난 후의 위치임. 
+        self.ptr = (self.ptr + n_transition_toAdd) % self.max_size
+        self.size = min(self.size + n_transition_toAdd, self.max_size)
+
+
+    def sample(self, n):
+        indices = torch.randint(self.size, size=[n])
+        transitions = self.transitions[indices]
+        batch = GC_Batch(*[transitions[..., i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device)
+        return batch.parse()
+
+
 class Offline_Buffer:
     def __init__(self, state_dim, action_dim, trajectory_length = 10, max_size = 1000) -> None:
 

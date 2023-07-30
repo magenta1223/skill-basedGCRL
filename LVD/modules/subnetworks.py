@@ -70,15 +70,13 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
             batch_action = dist.mean
         return batch_action.squeeze(0).cpu().numpy()
     
-class Normal_Distribution(SequentialBuilder):
+class Learned_Distribution(SequentialBuilder):
     def __init__(self, config: Dict[str, None]):
         super().__init__(config)
-        del self.layers
 
-    def dist(self, states):
-        dummy_input = torch.zeros(states.shape[0], self.action_dim * 2)
-        return get_fixed_dist(dummy_input, tanh = self.tanh)
-
+    def forward(self, x):
+        dummy_input = torch.randn(x.shape[0], self.in_feature).to(self.device)
+        return super().forward(dummy_input)
 
 class Multisource_Encoder(SequentialBuilder):
     def __init__(self, config: Dict[str, None]):
