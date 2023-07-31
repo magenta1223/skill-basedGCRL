@@ -246,6 +246,10 @@ class SAC_Skimo(BaseModel):
             state_pred = now_consistency_losses.pop('htH_hat')
             consistency_loss += self.aggregate_values(now_consistency_losses) * rho
 
+            if t == 0:
+                self.stat['reward_loss'] = now_consistency_losses['reward_loss'].item() * 2
+                self.stat['state_consistency'] = now_consistency_losses['state_consistency'].item() * 0.5
+
             # target Q : 실제 state, policy action을 사용해 value를 예측. 
             targetQ_batch = edict({ k : v[:, t] for k, v in batch.items()})
             rwd_term, ent_term, entropy_term = self.compute_target_q(targetQ_batch)

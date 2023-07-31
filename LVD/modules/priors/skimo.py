@@ -100,7 +100,19 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
 
 
         return result
+
     
+    @torch.no_grad()
+    def act_cem(self, states, G):
+        batch = edict(
+            states = prep_state(states, self.device),
+            G = prep_state(G, self.device),
+        )
+        
+        skill_normal, skill = self.cem_planning(batch)
+        return to_skill_embedding(skill_normal), to_skill_embedding(skill)
+
+
     @torch.no_grad()
     def act(self, states, G):
         # 환경별로 state를 처리하는 방법이 다름.
@@ -370,7 +382,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                     },
                 "R" : {
                     "params" :  self.reward_function.parameters(), 
-                    "lr" : self.cfg.f_lr, 
+                    "lr" : 0.001, 
                     # "metric" : "GCSL_loss"
                     "metric" : None,
                 }

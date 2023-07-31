@@ -92,6 +92,11 @@ class GC_Hierarchical_Collector:
         
         while not done and t < self.time_limit:
             if t % self.horizon == 0:
+                # if "act_cem" in  dir(high_actor):
+                #     high_action_normal, high_action = high_actor.act_cem(state, G)
+                # else:
+                #     high_action_normal, high_action = high_actor.act(state, G)
+
                 high_action_normal, high_action = high_actor.act(state, G)
                 data_high_action_normal, data_high_action = high_action_normal, high_action
             else:

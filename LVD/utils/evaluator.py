@@ -43,9 +43,6 @@ class Evaluator:
         )
 
     @staticmethod
-    # def flat_cols(df):
-    #     df.columns = [' / '.join(x) for x in df.columns.to_flat_index()]
-    #     return df
     def flat_cols(df):
         def parseCol(flatten_col):
             if flatten_col[0] == "".join(flatten_col):
@@ -70,6 +67,20 @@ class Evaluator:
         df.to_csv( f"{self.cfg.eval_data_prefix}/zeroshot_rawdata.csv", index = False )
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot.csv", index = False)
+
+        
+        if self.env.name == "kitchen":
+            # mode dropping이 훨~씬 좋다 
+            easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
+        else:
+            easy_tasks = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
+
+        df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
+
+        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
+        df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot_tasktype.csv", index = False)
+        
+
 
     def eval_finetuned(self):
         try:
@@ -132,8 +143,3 @@ class Evaluator:
                     success = np.array(episode.dones).sum() != 0
                 )
                 self.eval_data.append(data)
-
-
-
-
-# class FigureGenerator:
