@@ -80,7 +80,11 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # # -------------- Inverse Dynamics : Skill Learning -------------- #
         # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts_target[:, -1])
-        skill = inverse_dynamics.rsample()
+        
+        if self.cfg.grad_pass.skill:
+            skill = batch.skill
+        else:
+            skill = inverse_dynamics.rsample()
         # skill = batch.skill
 
         # # -------------- Dynamics Learning -------------- #                

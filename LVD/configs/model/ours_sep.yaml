@@ -25,6 +25,7 @@ goal_factor : 5
 grad_pass:
   invD: false
   D : true
+  skill : false
 
 
 only_unseen : true

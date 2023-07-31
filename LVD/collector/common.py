@@ -350,11 +350,13 @@ class GC_Temporal_Buffer(Buffer):
 
         self.tanh = cfg.tanh
         if self.tanh:
-            cfg.skill_dim *= 2
+            skill_dim = cfg.skill_dim * 2
+        else:
+            skill_dim = cfg.skill_dim
         self.hindsight_relabel = cfg.hindsight_relabel
 
         self.state_dim = cfg.state_dim
-        self.action_dim = cfg.skill_dim
+        self.action_dim = skill_dim
         self.max_size = cfg.buffer_size
         
         self.ptr = 0
@@ -364,14 +366,13 @@ class GC_Temporal_Buffer(Buffer):
         self.episode_ptrs = deque()
         # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
 
-        print(cfg.state_dim, cfg.skill_dim, cfg.n_goal )
-        self.transitions = torch.empty(cfg.buffer_size, cfg.n_skill, 2*cfg.state_dim + cfg.skill_dim + cfg.n_goal * 2 + 3) # rwd, relabeled rwd, dones
+        self.transitions = torch.empty(cfg.buffer_size, cfg.n_skill, 2*cfg.state_dim + self.action_dim + cfg.n_goal * 2 + 3) # rwd, relabeled rwd, dones
         # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
 
 
         dims = OrderedDict([
             ('state', cfg.state_dim),
-            ('action', cfg.skill_dim),
+            ('action', self.action_dim),
             ('reward', 1),
             ('relabeled_reward', 1),
             ('done', 1),
@@ -388,8 +389,6 @@ class GC_Temporal_Buffer(Buffer):
         
         self.device = None
 
-
-
     @property
     def goal(self):
         return self.transitions[:, self.layout['goal']]
@@ -401,9 +400,6 @@ class GC_Temporal_Buffer(Buffer):
     @property
     def relabeled_rewards(self):
         return self.transitions[:, self.layout['relabeled_rewards']]
-
-
-
 
     def ep_to_transtions(self, episode):
         len_ep = len(episode.states[:-1])

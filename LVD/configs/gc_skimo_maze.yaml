@@ -35,7 +35,7 @@ model:
     out_dim : ${env.latent_state_dim}
 
   reward_function:
-    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
+    in_feature : ${add:${env.latent_state_dim},  ${env.n_goal}, ${env.skill_dim}}
     out_dim : 1
 
   prior:
