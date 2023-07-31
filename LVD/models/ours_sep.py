@@ -151,7 +151,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.loss_fns['recon_orig'] = ['mse', torch.nn.MSELoss()]
         self.c = 0
         self.render = False
-    
+        self.do_rollout = False
+
     def denormalize(self, x):
         """
         Restore for maze and carla
@@ -534,7 +535,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # self.loss_dict['states_novel'] 
         # 여기에 unseen task중 뭐가 있는지 확인하면 됨. 
 
-    def __main_network__(self, batch, validate = False, rollout = False):
+    def __main_network__(self, batch, validate = False):
         self(batch)
         loss = self.compute_loss(batch)
         if not validate:
@@ -550,16 +551,16 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # ------------------ Rollout  ------------------ #
         training = deepcopy(self.training)
         self.eval()
-        if rollout:
+        if self.do_rollout:
             self.rollout(batch)
     
         if training:
             self.train()
 
-    def optimize(self, batch, e, rollout = False):
+    def optimize(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
-        self.__main_network__(batch, rollout = rollout)
+        self.__main_network__(batch)
         self.get_metrics(batch)
         self.prior_policy.soft_update()
         return self.loss_dict
@@ -567,7 +568,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     @torch.no_grad()
     def validate(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-        self.__main_network__(batch, validate= True, rollout = False)
+        self.__main_network__(batch, validate= True)
         self.get_metrics(batch)
         self.step += 1
 

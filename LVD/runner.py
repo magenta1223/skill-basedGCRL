@@ -301,6 +301,9 @@ class Diversity_Trainer(BaseTrainer):
         self.imgs = None
         self.model.render = False # 이거 한줄 다름. -> pre_epoch_hook으로 걸어서 ㄱㄱ 
 
+        if e == self.cfg.mixin_start:
+            self.model.do_rollout = True
+
     def post_epoch_hook(self, e, validate = False):
         if not validate:
             if self.imgs is not None:
@@ -339,6 +342,28 @@ class Diversity_Trainer(BaseTrainer):
                 self.loss.pop("states_novel")
                 self.loss.pop("actions_novel")
     
+
+    def train_one_epoch(self, e):
+        self.meter_initialize()
+        self.pre_epoch_hook(e)
+
+        for i, batch in enumerate(self.train_loader):
+            self.model.train()
+            self.pre_iter_hook()
+            self.loss = self.model.optimize(batch, e)
+            self.post_iter_hook()
+
+            if not len(self.meters):
+                for key in self.loss.keys():
+                    self.meters[key] = AverageMeter()
+  
+            for k, v in self.loss.items():
+                self.meters[k].update(v, batch['states'].shape[0])
+    
+        self.post_epoch_hook(e)
+
+        return { k : v.avg for k, v in self.meters.items() }
+
     def save(self, path):
         self.model.eval()
         save_dict = self.save_dict()
