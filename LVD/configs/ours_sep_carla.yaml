@@ -61,5 +61,13 @@ model:
     state_dim : ${env.n_pos}
     z_dim  : ${env.skill_dim}
 
+  goal_encoder:
+    in_feature: ${env.n_goal} 
+    out_dim : 64 
+
+  goal_decoder:
+    in_feature: 32
+    out_dim : ${env.n_goal}
+
   q_function:
     in_feature: ${add:${env.latent_state_dim}, ${env.n_goal}, ${env.skill_dim}} 
