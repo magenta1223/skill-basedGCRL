@@ -226,14 +226,15 @@ class BaseTrainer:
         for i, batch in enumerate(loader):
             self.model.eval()
             self.pre_iter_hook(validate = True)
-            loss = self.model.validate(batch, e)
+            self.loss = self.model.validate(batch, e)
             self.post_iter_hook(validate = True)
 
             if not len(self.meters):
-                for key in loss.keys():
+                for key in self.loss.keys():
                     self.meters[key] = AverageMeter()
-            for k, v in loss.items():
+            for k, v in self.loss.items():
                 self.meters[k].update(v, batch['states'].shape[0])
+   
 
         self.post_epoch_hook(e, validate = True)
 
@@ -341,7 +342,10 @@ class Diversity_Trainer(BaseTrainer):
             if "states_novel" in self.loss.keys():
                 self.loss.pop("states_novel")
                 self.loss.pop("actions_novel")
-    
+                self.loss.pop("seq_indices")
+                self.loss.pop("c")
+            if "render" in self.loss.keys():
+                self.loss.pop("render")
 
     def train_one_epoch(self, e):
         self.meter_initialize()

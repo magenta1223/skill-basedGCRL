@@ -172,7 +172,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # ----------- Metrics ----------- #
         weights = batch.weights
         # 이제 싹다 drop한 마당에 GT skill과 같을 이유가 없음. high-policy의 skill과 invD의 skill이 같으면 됨. 
-        self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean().item()
+        self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean().item()
 
         # self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean().item()
 
