@@ -102,15 +102,15 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         return result
 
     
-    @torch.no_grad()
-    def act_cem(self, states, G):
-        batch = edict(
-            states = prep_state(states, self.device),
-            G = prep_state(G, self.device),
-        )
+    # @torch.no_grad()
+    # def act_cem(self, states, G):
+    #     batch = edict(
+    #         states = prep_state(states, self.device),
+    #         G = prep_state(G, self.device),
+    #     )
         
-        skill_normal, skill = self.cem_planning(batch)
-        return to_skill_embedding(skill_normal), to_skill_embedding(skill)
+    #     skill_normal, skill = self.cem_planning(batch)
+    #     return to_skill_embedding(skill_normal), to_skill_embedding(skill)
 
 
     @torch.no_grad()
@@ -124,15 +124,15 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         )
         
         if self.qfs is not None:
-            # skill_normal, skill = self.cem_planning(batch)
-            # return to_skill_embedding(skill_normal), to_skill_embedding(skill)
+            skill_normal, skill = self.cem_planning(batch)
+            return to_skill_embedding(skill_normal), to_skill_embedding(skill)
 
-            dist = self.dist(batch, mode = "act").policy_skill
-            if isinstance(dist, TanhNormal):
-                z_normal, z = dist.sample_with_pre_tanh_value()
-                return to_skill_embedding(z_normal), to_skill_embedding(z)
-            else:
-                return None, to_skill_embedding(dist.sample())
+            # dist = self.dist(batch, mode = "act").policy_skill
+            # if isinstance(dist, TanhNormal):
+            #     z_normal, z = dist.sample_with_pre_tanh_value()
+            #     return to_skill_embedding(z_normal), to_skill_embedding(z)
+            # else:
+            #     return None, to_skill_embedding(dist.sample())
         else:
             dist = self.dist(batch, mode = "act").policy_skill
             if isinstance(dist, TanhNormal):
@@ -195,23 +195,29 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         return value
 
     @torch.no_grad()
-    def rollout(self, inputs):
-        ht, G = inputs['states'], inputs['G']
-        planning_horizon = inputs['planning_horizon']
+    def rollout(self, batch):
+        # ht, G = inputs['states'], inputs['G']
+        # planning_horizon = inputs['planning_horizon']
+
+        ht, G = batch.states, batch.G
+        planning_horizon = batch.planning_horizon
 
         skills = []
         skills_normal = []
 
         for i in range(planning_horizon):
             policy_skill_normal, policy_skill =  self.highlevel_policy.dist(torch.cat((ht, G), dim = -1)).sample_with_pre_tanh_value()
-            dynamics_input = torch.cat((ht, policy_skill), dim = -1)
-            ht = self.dynamics(dynamics_input)
             skills.append(policy_skill)
             skills_normal.append(policy_skill_normal)
+
+            dynamics_input = torch.cat((ht, skills[i]), dim = -1)
+            ht = self.dynamics(dynamics_input)
+
         
         return edict(
             policy_skills = torch.stack(skills, dim=1),
             policy_skills_normal = torch.stack(skills_normal, dim=1)
+
         )
     
 
@@ -227,16 +233,17 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         
         qfs = self.qfs 
         states = batch.states
+        # state encode
         states = self.state_encoder(states)
 
         # Sample policy trajectories.        
-        rollout_inputs = dict(
+        rollout_batch = edict(
             states = states.repeat(self.cfg.num_policy_traj, 1),
             G = batch.G.repeat(self.cfg.num_policy_traj, 1) ,
             planning_horizon = planning_horizon
         )
 
-        rollouts =  self.rollout(rollout_inputs)
+        rollouts =  self.rollout(rollout_batch)
         policy_skills, policy_skills_normal = rollouts['policy_skills'], rollouts['policy_skills_normal']
 
         # CEM optimization.
@@ -244,6 +251,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         
         # zero mean, unit variance
         momentums = torch.zeros(self.cfg.num_sample_traj, planning_horizon, self.cfg.skill_dim * 2, device= self.device)
+
         loc, log_scale = momentums.chunk(2, -1)
         dist = get_dist(loc, log_scale= log_scale, tanh = self.cfg.tanh)
 
@@ -264,7 +272,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             # Weighted aggregation of elite plans.
             score = torch.softmax(self.cfg.cem_temperature * elite_value, dim = 0).unsqueeze(-1)
 
-            dist = self.score_weighted_skills(loc, score, elite_skills)
+            dist, loc = self.score_weighted_skills(loc, score, elite_skills)
 
         # Sample action for MPC.
         score = score.squeeze().cpu().numpy()
@@ -332,12 +340,12 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         weighted_std = torch.sqrt(torch.sum(score.unsqueeze(-1) * (skills - weighted_loc.unsqueeze(0)) ** 2, dim=0))
         
         # soft update 
-        loc = self.cfg.cem_momentum * loc + (1 - self.cfg.cem_momentum) * weighted_loc
+        new_loc = self.cfg.cem_momentum * loc + (1 - self.cfg.cem_momentum) * weighted_loc
         # log_scale = torch.clamp(weighted_std, self._std_decay(self._step), 2).log() # new_std의 최소값. .. 을 해야돼? 
         log_scale = weighted_std.log()
-        dist = get_dist(loc, log_scale, tanh = self.tanh)
+        dist = get_dist(new_loc, log_scale, tanh = self.tanh)
 
-        return dist
+        return dist, new_loc
     
     def encode(self, states, keep_grad = False):
         """

@@ -89,6 +89,7 @@ class Evaluator:
                     # load finetuned weight 
                     # seed 
                     finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}.bin"
+                    print(finetuned_model_path)
                     # ckpt = torch.load(finetuned_model_path)
                     self.high_policy = torch.load(finetuned_model_path)['model'].policy
                     self.eval_singleTask(seed, task)
