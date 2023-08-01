@@ -20,6 +20,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         self.target_state_encoder = copy.deepcopy(self.state_encoder)
         self.step = 0
         self.qfs = None
+        self.rollout_step = 0
 
     def soft_update(self):
         """
@@ -115,6 +116,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
 
     @torch.no_grad()
     def act(self, states, G):
+        self.rollout_step += 1
         # 환경별로 state를 처리하는 방법이 다름.
         # 여기서 수행하지 말고, collector에서 전처리해서 넣자. 
 
@@ -228,8 +230,8 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         Cross Entropy Method
         """
 
-        # planning_horizon  = int(self._horizon_decay(self._step))
-        planning_horizon = self.cfg.planning_horizon
+        planning_horizon  = int(self._horizon_decay(self.rollout_step))
+        # planning_horizon = self.cfg.planning_horizon
         
         qfs = self.qfs 
         states = batch.states
@@ -326,13 +328,13 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
     
     def _std_decay(self, step):
         # from rolf
-        mix = np.clip(step / self.step_interval, 0.0, 1.0)
-        return 0.5 * (1-mix) + 0.01 * mix
+        mix = np.clip(step / self.cfg.step_interval, 0.0, 1.0)
+        return 0.5 * (1-mix) + 0.05 * mix
 
     def _horizon_decay(self, step):
         # from rolf
-        mix = np.clip(step / self.step_interval, 0.0, 1.0)
-        return 1 * (1-mix) + self.planning_horizon * mix
+        mix = np.clip(step / self.cfg.step_interval, 0.0, 1.0)
+        return 1 * (1-mix) + self.cfg.planning_horizon * mix
 
 
     def score_weighted_skills(self, loc, score, skills):
@@ -341,8 +343,8 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         
         # soft update 
         new_loc = self.cfg.cem_momentum * loc + (1 - self.cfg.cem_momentum) * weighted_loc
-        # log_scale = torch.clamp(weighted_std, self._std_decay(self._step), 2).log() # new_std의 최소값. .. 을 해야돼? 
-        log_scale = weighted_std.log()
+        log_scale = torch.clamp(weighted_std, self._std_decay(self.rollout_step), 2).log() # new_std의 최소값. .. 을 해야돼? 
+        # log_scale = weighted_std.log()
         dist = get_dist(new_loc, log_scale, tanh = self.tanh)
 
         return dist, new_loc
