@@ -323,7 +323,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # ) * weights).mean() 
 
         invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-        
+        # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+
 
         # ----------- Dynamics -------------- # 
         flat_D_loss = self.loss_fn('recon')(
@@ -370,8 +371,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # 도달한 state만이 중요하므로 반드시 invD만을 target으로 해야 함. 
         # mode dropping
         # (s, g)에 대한 subgoal이 복수개 존재 시, 가장 유력한 하나만 있으면 됨. 다른건 필요 없다. 
-        # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
         reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+        # reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
+        
+        
         F_loss = r_int + reg_term 
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
