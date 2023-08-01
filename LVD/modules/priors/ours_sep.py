@@ -244,7 +244,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         start = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
         # sg_input = torch.cat((start,  G), dim = -1)
-        start_detached = start.clone().detach()
+        # start_detached = start.clone().detach()
         sg_input = self.sg_input(start, G)
 
         if self.cfg.sg_dist:
@@ -262,9 +262,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             subgoal_f_dist = None
 
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.cfg.tanh)
-        with torch.no_grad():
-            skill_sub = invD_sub.rsample()
-            subgoal_D = self.forward_D(start, skill_sub, use_target= True)
+        skill_sub = invD_sub.rsample()
+        subgoal_D = self.forward_D(start, skill_sub, use_target= True)
 
         return invD_sub, subgoal_D, subgoal_f, subgoal_f_dist
 

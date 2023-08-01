@@ -171,8 +171,11 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         """
         # ----------- Metrics ----------- #
         weights = batch.weights
-        self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item()
-    
+        # 이제 싹다 drop한 마당에 GT skill과 같을 이유가 없음. high-policy의 skill과 invD의 skill이 같으면 됨. 
+        self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean().item()
+
+        # self.loss_dict['F_skill_GT'] = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean().item()
+
         # KL (post || state-conditioned prior)
         self.loss_dict['Prior_S']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior'])*weights).mean().item()
         
@@ -323,7 +326,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # ) * weights).mean() 
 
         invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-        # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+        # invD_loss = (self.loss_fn('reg')(self.outputs['post'], self.outputs['invD']) * weights).mean()
 
 
         # ----------- Dynamics -------------- # 
@@ -367,12 +370,16 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
         r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
         r_int = r_int_f + r_int_D
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
 
         # 도달한 state만이 중요하므로 반드시 invD만을 target으로 해야 함. 
         # mode dropping
         # (s, g)에 대한 subgoal이 복수개 존재 시, 가장 유력한 하나만 있으면 됨. 다른건 필요 없다. 
-        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+        # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
         # reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
+
+        # 지금은 수렴 정도를 파악. 실제 skill과 계산
+        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
         
         
         F_loss = r_int + reg_term 
@@ -400,7 +407,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
 
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
 
         self.loss_dict = {           
             # total
@@ -409,8 +416,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "Reg" : reg.item(),
             "D" : D_loss.item(),
             "flat_D" : flat_D_loss.item(),
+            "r_int" : r_int.item(),
             "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
-            "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
+            # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
             "F_skill_kld" : reg_term.item() / self.weight.invD if self.weight.invD else 0,
             "Rec_state" : recon_state.item(),
             "diff_loss" : diff_loss.item(),
