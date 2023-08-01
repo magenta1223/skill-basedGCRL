@@ -171,9 +171,9 @@ class GC_Skill_RL_Trainer:
 
         high_ep, high_ep_relabeled = episode.as_high_episode()
         self.agent.buffer.enqueue(high_ep) 
-        if high_ep_relabeled is not None:
-            # nothing acheived
-            self.agent.buffer.enqueue(high_ep_relabeled) 
+        # if high_ep_relabeled is not None:
+        #     # nothing acheived
+        #     self.agent.buffer.enqueue(high_ep_relabeled) 
 
         # high_ep = episode.as_high_episode()
         # self.agent.buffer.enqueue(high_ep) 
