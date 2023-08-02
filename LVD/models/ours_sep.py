@@ -325,8 +325,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         #     tanh = self.tanh
         # ) * weights).mean() 
 
-        # invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-        invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+        invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
+        # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
 
 
         # ----------- Dynamics -------------- # 
