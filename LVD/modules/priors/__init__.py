@@ -7,7 +7,7 @@ from .simpl import SiMPL_Prior
 from .flat_gcsl import Flat_GCSL
 from .spirl import SPiRL_Prior
 from .ours_sep import GoalConditioned_Diversity_Sep_Prior
-from .ours_sep_gen import GoalConditioned_Diversity_Gen_Prior
+from .ours_sep_sep2 import GoalConditioned_Diversity_Sep2_Prior
 
 PRIOR_WRAPPERS = {
     "sc" : StateConditioned_Prior,
@@ -19,7 +19,7 @@ PRIOR_WRAPPERS = {
     "simpl" : SiMPL_Prior,
     "flat_gcsl" : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Prior,
-    "ours_gen" : GoalConditioned_Diversity_Gen_Prior,
+    "ours_sep2" : GoalConditioned_Diversity_Sep2_Prior,
 
 }
 

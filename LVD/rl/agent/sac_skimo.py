@@ -230,7 +230,7 @@ class SAC_Skimo(BaseModel):
 
         T = batch.states.shape[1]
         
-        state_pred = self.policy.encode(batch.states[:, 0])
+        state_pred = self.policy.encode(batch.states[:, 0], keep_grad= True)
         states_pred = []
         for t in range(T):
             states_pred.append(state_pred)
@@ -247,8 +247,8 @@ class SAC_Skimo(BaseModel):
             consistency_loss += self.aggregate_values(now_consistency_losses) * rho
 
             if t == 0:
-                self.stat['reward_loss'] = now_consistency_losses['reward_loss'].item() * 2
                 self.stat['state_consistency'] = now_consistency_losses['state_consistency'].item() * 0.5
+                self.stat['reward_loss'] = now_consistency_losses['reward_loss'].item() * 2
 
             # target Q : 실제 state, policy action을 사용해 value를 예측. 
             targetQ_batch = edict({ k : v[:, t] for k, v in batch.items()})
@@ -301,7 +301,7 @@ class SAC_Skimo(BaseModel):
         # self.stat.update(results)
         # self.stat.update(consistency_losses)
 
-        self.states_pred = torch.stack(states_pred, dim = 1).clone().detach()
+        self.states_pred = torch.stack(states_pred, dim = 1)#.clone().detach()
 
     def update_policy(self, batch):
 
@@ -348,7 +348,7 @@ class SAC_Skimo(BaseModel):
             
         policy_loss.register_hook(lambda grad: grad * (1 / T))
 
-
+        self.policy_optim.zero_grad()
         policy_loss.backward()
         self.grad_clip(self.policy_optim)
         self.policy_optim.step()

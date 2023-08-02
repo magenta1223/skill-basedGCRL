@@ -10,7 +10,7 @@ from .base import BaseModel
 from .flat_gcsl import Flat_GCSL
 from .spirl import SPiRL_Model
 from .ours_sep import GoalConditioned_Diversity_Sep_Model
-from .ours_sep_gen import GoalConditioned_Diversity_Gen_Model
+from .ours_sep_sep2 import GoalConditioned_Diversity_Sep2_Model
 
 MODELS = {
     "sc" : StateConditioned_Model,
@@ -25,7 +25,7 @@ MODELS = {
     "gc_skimo" : Skimo_Model,
     'flat_gcsl' : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Model,
-    'ours_gen' : GoalConditioned_Diversity_Gen_Model
+    'ours_sep2' : GoalConditioned_Diversity_Sep2_Model
 }
 
 
@@ -35,7 +35,7 @@ __all__ = [
     'StateConditioned_Diversity_Model',
     'GoalConditioned_GoalPrompt_Model',
     "GoalConditioned_Diversity_Sep_Model",
-    'GoalConditioned_Diversity_Gen_Model',
+    'GoalConditioned_Diversity_Sep2_Model',
     'Skimo_Model',
     'SiMPL_Model',
     'BaseModel',
