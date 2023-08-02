@@ -140,19 +140,19 @@ tasks = np.array([
     # [6,0,2,4],  # KBLH
     # [5,1,2,4],  # MTLH
     # Well-algined, Missing
-    [5,6,0,1], # MKBT
-    # [5,6,0,2], # MKBL
+    # [5,6,0,1], # MKBT
+    [5,6,0,2], # MKBL
     # Mis-algined, Missing 
-    # [6,1,2,4],  # KTLH
-    # [5,1,3,4],  # MTSH
+    [6,1,2,4],  # KTLH
+    [5,1,3,4],  # MTSH
     
     # # newly added 
-    # [0,2,3,4],  # BLSH
-    # [0,1,2,4],  # BTLH
-    # [6,1,3,4],  # KTSH
-    # [5,0,2,4],  # MBLH
-    # [5,6,1,3],  # MKTS
-    # [5,1,2,3],  # MTLS
+    [0,2,3,4],  # BLSH
+    [0,1,2,4],  # BTLH
+    [6,1,3,4],  # KTSH
+    [5,0,2,4],  # MBLH
+    [5,6,1,3],  # MKTS
+    [5,1,2,3],  # MTLS
     # [1,2,3,4],  # TLSH # 그에 맞는 transition이 존재하지 않음 
 ])
 

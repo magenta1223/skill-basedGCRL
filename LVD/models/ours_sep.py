@@ -370,8 +370,11 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
 
         # r_int_f = 0
-        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
-        r_int = r_int_f + r_int_D
+        # r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        # r_int = r_int_f + r_int_D
+        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
+
+
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
 
         # 도달한 state만이 중요하므로 반드시 invD만을 target으로 해야 함. 

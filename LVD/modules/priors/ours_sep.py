@@ -283,15 +283,15 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             subgoal_f = subgoal_f + start_detached
             subgoal_f_dist = None
 
-        # invD_sub, _ = self.target_inverse_dynamics.dist(state = start, subgoal = subgoal_f, tanh = self.cfg.tanh)
-        # skill_sub = invD_sub.rsample()
-        # subgoal_D = self.forward_D(start, skill_sub, use_target= True)
-
-
-
-        invD_sub, _ = self.inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
+        invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
         skill_sub = invD_sub.rsample()
-        subgoal_D = self.forward_D(start, skill_sub)
+        subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
+
+
+
+        # invD_sub, _ = self.inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
+        # skill_sub = invD_sub.rsample()
+        # subgoal_D = self.forward_D(start, skill_sub)
 
         return invD_sub, subgoal_D, subgoal_f, subgoal_f_dist
 
