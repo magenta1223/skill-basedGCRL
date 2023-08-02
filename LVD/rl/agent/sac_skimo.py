@@ -317,11 +317,18 @@ class SAC_Skimo(BaseModel):
 
         # 1. 실제 state로 prior 계산
         # 2. 예측한 state로 
+
+        # next state 
         
+        state = None
         for t in range(T):
             rho = self.rho ** t
             # state = batch.states[:, t]
-            state, G = self.states_pred[:, t], batch.G[:, t]
+            # state, G = self.states_pred[:, t], batch.G[:, t]
+        
+
+            if state is None:
+                state, G = self.policy.encode(batch.states[:, t]), batch.G[:, t]
 
             policy_inputs = edict(
                 # states, G
@@ -345,7 +352,9 @@ class SAC_Skimo(BaseModel):
             # q_values += min_qs.clone().detach().mean(0).item()
             # entropy_terms += entropy_term.clone().detach().mean().item() 
             policy_loss += ((- min_qs + ent_loss) * rho).mean() 
-            
+
+            state = self.policy.dynamics(torch.cat((state, policy_skill), dim = -1))
+
         policy_loss.register_hook(lambda grad: grad * (1 / T))
 
         self.policy_optim.zero_grad()
