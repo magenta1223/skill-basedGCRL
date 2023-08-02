@@ -153,6 +153,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             return self.consistency(batch)
         
         elif mode == "policy":
+            self.step += 1
             state, G = batch.states, batch.G
 
             if state.shape[-1] == self.cfg.latent_state_dim:
@@ -304,10 +305,36 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         state_consistency = F.mse_loss(htH_hat, htH)
         reward_loss = F.mse_loss(rewards_pred, batch.rewards)
 
+        # gcsl 
+        # GCSL_loss_skill = (nll_dist(
+        #     batch.actions,
+        #     invD_sub,
+        #     batch.actions_normal,
+        #     tanh = self.cfg.tanh
+        # ) * weights).mean()
+        
+
+        policy_skill =  self.highlevel_policy.dist(torch.cat((ht.clone().detach(), G), dim = -1))
+
+        # 여기에 kl을 해야 함. 
+        GCSL_loss = nll_dist(
+            batch.actions,
+            policy_skill,
+            batch.actions_normal,
+            tanh = self.cfg.tanh
+        ).mean()
+
+
+        # 이렇게하면 mode covering임.
+        # mode dropping ㄱ 
+
+        # GCSL_loss = GCSL_loss_subgoal + GCSL_loss_skill
+
         
         return  edict(
             state_consistency = state_consistency * 2,
             reward_loss = reward_loss * 0.5,
+            GCSL_loss = GCSL_loss,
             htH_hat = htH_hat,
         )
     
@@ -380,13 +407,13 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             consistency = {
                 "state" : {
                     "params" : self.state_encoder.parameters(),
-                    "lr" : self.cfg.invD_lr, 
+                    "lr" : 5e-7, #self.cfg.invD_lr, 
                     "metric" : None,
                     # "metric" : "skill_consistency"
                     },
                 "D" : {
                     "params" : self.dynamics.parameters(), 
-                    "lr" : self.cfg.D_lr, 
+                    "lr" : 5e-7, #self.cfg.D_lr, 
                     "metric" : None,
                     # "metric" : "state_consistency"
                     },
@@ -395,9 +422,13 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                     "lr" : 0.001, 
                     # "metric" : "GCSL_loss"
                     "metric" : None,
+                },
+                "high_policy" : {
+                    "params" :  self.highlevel_policy.parameters(), 
+                    "lr" : 5e-7, 
+                    # "metric" : "GCSL_loss"
+                    "metric" : None,
                 }
-
-
 
                 # "state_enc" : {
                 #     "params" :  self.state_encoder.parameters(), 
