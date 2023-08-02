@@ -293,7 +293,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # skill_sub = invD_sub.rsample()
         # subgoal_D = self.forward_D(start, skill_sub)
 
-        return invD_sub, subgoal_D, subgoal_f, subgoal_f_dist
+        return invD_sub, subgoal_D, subgoal_f.clone().detach(), subgoal_f_dist
 
 
     @torch.no_grad()
