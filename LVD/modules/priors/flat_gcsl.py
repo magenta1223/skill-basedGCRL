@@ -61,8 +61,13 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         """
         if mode == "consistency":
             states, G = batch.states, batch.relabeled_goals
-            policy_skill = self.policy(torch.cat((states, G), dim = -1))
-            policy_skill = torch.tanh(policy_skill)
+
+
+            policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
+            policy_skill = policy_action_dist.rsample()
+
+            # policy_skill = self.policy(torch.cat((states, G), dim = -1))
+            # policy_skill = torch.tanh(policy_skill)
             skill_consistency = F.mse_loss(policy_skill, batch.actions)
 
             return edict(
@@ -71,8 +76,11 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
 
         else:
             states, G = batch.states, batch.G    
-            policy_skill = self.policy(torch.cat((states, G), dim = -1))
-            policy_skill = torch.tanh(policy_skill)
+            # policy_skill = self.policy(torch.cat((states, G), dim = -1))
+            # policy_skill = torch.tanh(policy_skill)
+
+            policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
+            policy_skill = policy_action_dist.rsample()
 
             return edict(
                 policy_skill = policy_skill,
