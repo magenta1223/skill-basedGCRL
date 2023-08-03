@@ -14,7 +14,8 @@ model:
 
   policy:
     in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
-    out_dim : ${env.action_dim}
+    out_dim : ${multiply:${env.action_dim}, 2}    
+    # out_dim : ${env.action_dim}
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 
