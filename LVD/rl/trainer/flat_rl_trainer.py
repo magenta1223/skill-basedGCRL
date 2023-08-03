@@ -141,17 +141,17 @@ class Flat_RL_Trainer:
         log = {}
 
         # ------------- Collect Data ------------- #
-        with self.sac.policy.expl() : #, collector.env.step_render():
-            episode, G = self.collector.collect_episode(self.sac.policy, verbose = True)
+        with self.agent.policy.expl() : #, collector.env.step_render():
+            episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
 
         if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
             print("success")
 
-        self.sac.buffer.enqueue(episode) 
+        self.agent.buffer.enqueue(episode) 
         log['tr_return'] = sum(episode.rewards)
 
         
-        if self.sac.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
+        if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
         n_step = self.n_step(episode)
@@ -162,7 +162,7 @@ class Flat_RL_Trainer:
                 episode = n_ep,
                 G = G
             )
-            stat = self.sac.update(step_inputs)
+            stat = self.agent.update(step_inputs)
 
         log.update(itemize(stat))
 
@@ -171,10 +171,10 @@ class Flat_RL_Trainer:
     def visualize(self):
         
         if self.env.name == "maze":
-            return draw_maze(plt.gca(), self.env, list(self.sac.buffer.episodes)[-20:])
+            return draw_maze(plt.gca(), self.env, list(self.agent.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":
-            with self.sac.policy.expl() : #, collector.env.step_render():
-                imgs = self.collector.collect_episode(self.sac.policy, vis = True)
+            with self.agent.policy.expl() : #, collector.env.step_render():
+                imgs = self.collector.collect_episode(self.agent.policy, vis = True)
             imgs = np.array(imgs).transpose(0, 3, 1, 2)
             return wandb.Video(imgs, fps=50, format = "mp4")
         else:
