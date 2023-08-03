@@ -230,7 +230,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
 
 
-        self.loss_dict['MI_skill'] = self.loss_fn('reg')(self.outputs['post_detach'], prev_post).mean()
+        # self.loss_dict['MI_skill'] = self.loss_fn('reg')(self.outputs['post_detach'], prev_post).mean()
+        self.loss_dict['MI_skill'] = self.loss_fn('reg')(prev_post, self.outputs['post_detach']).mean()
+
         self.loss_dict['MI_goal'] = self.loss_fn('reg')(self.outputs['goal_dist'], prev_goal_dist).mean()
 
         # self.loss_dict['MI_skill'] = 
@@ -372,7 +374,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # r_int_f = 0
         # r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
         # r_int = r_int_f + r_int_D
-        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
+        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
 
 
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
@@ -384,7 +386,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
 
         # 지금은 수렴 정도를 파악. 실제 skill과 계산
-        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean() * self.weight.invD
         
         
         F_loss = r_int + reg_term 

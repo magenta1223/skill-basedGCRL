@@ -34,6 +34,15 @@ class Flat_RL_Trainer:
             # name = f"LEVEL {str(args.level)}", 
             config = self.rl_cfgs,
         )
+
+        self.data = []
+        # result 생성시각 구분용도 
+        self.run_id = cfg.run_id #get_time()
+        
+        # eval_data path :  logs/[ENV_NAME]/[STRUCTURE_NAME]/[PRETRAIN_OVERRIDES]/[RL_OVERRIDES]/[TASK]
+        self.result_path = self.cfg.result_path
+        os.makedirs(self.result_path, exist_ok= True)
+
     
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
@@ -44,50 +53,53 @@ class Flat_RL_Trainer:
         # load skill learners and prior policy
     
         # learnable
-        # policy = PRIOR_WRAPPERS['flat_gcsl'](
-        #     policy = SequentialBuilder(self.cfg.gcsl_policy),
-        #     tanh =  self.cfg.tanh
-        # )
         model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
         policy = deepcopy(model.prior_policy)
         # non-learnable
-        action_prior = Normal_Distribution(self.cfg.normal_distribution)
-        action_prior.requires_grad_(False) 
+        # action_prior = Normal_Distribution(self.cfg.normal_distribution)
+        # action_prior.requires_grad_(False) 
 
         qfs = [SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg.state_dim, self.cfg.action_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name).to(policy.device)
+        buffer = GC_Buffer(self.cfg).to(policy.device)
         collector = GC_Flat_Collector(
             self.env,
             time_limit= self.cfg.time_limit,
         )
 
-        sac_modules = {
+
+        agent_submodules = {
             'policy' : policy,
-            'skill_prior' : action_prior, 
+            # 'skill_prior' : get_fixed_dist(), 
             'buffer' : buffer, 
             'qfs' : qfs,            
         }        
 
         # See rl_cfgs in LVD/configs/common.yaml 
-        sac_config = {**self.rl_cfgs}
-        sac_config.update(sac_modules)
+        agent_config = {**self.rl_cfgs}
+        agent_config.update(agent_submodules)
 
-        sac_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
-        sac_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
+        agent_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
+        agent_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
 
 
-        sac = Flat_GCSL(sac_config).cuda()
+        agent = Flat_GCSL(agent_config).cuda()
 
-        self.collector, self.sac = collector, sac
+        self.collector, self.agent = collector, agent
 
     def fit(self):
+        for seed in self.cfg.seeds:
+            self.__fit__(seed)
+
+    def __fit__(self, seed):
+        seed_everything(seed)
+
         # for task_obj in self.tasks:
         for task_obj in self.tasks[1:2]:
             task_name = str(task_obj)
             self.prep()
 
             torch.save({
-                "model" : self.sac,
+                "model" : self.agent,
                 # "collector" : collector if env_name != "carla" else None,
                 # "task" : task_obj if env_name != "carla" else np.array(task_obj),
                 # "env" : env if env_name != "carla" else None,
@@ -106,17 +118,9 @@ class Flat_RL_Trainer:
                 early_stop = 0
                 for n_ep in range(self.cfg.n_episode+1):                    
                     log = self.train_policy(n_ep)
-                    log['n_ep'] = n_ep
-                    log[f'{task_name}_return'] = log['tr_return']
-                    if 'GCSL_loss' in log.keys():
-                        # 반대가 좋긴한데 zero-division error나옴. 
-                        log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
-                    del log['tr_return']
 
-                    if (n_ep + 1) % self.cfg.render_period == 0:
-                        log['policy_vis'] = self.visualize()
+                    log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
 
-                    ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
                     if ewm_rwds > self.cfg.early_stop_threshold:
                         early_stop += 1
                     else:
@@ -178,3 +182,22 @@ class Flat_RL_Trainer:
 
     def n_step(self, episode):
         return int(self.cfg.reuse_rate * len(episode) / self.cfg.batch_size)
+    
+
+    
+    def postprocess_log(self, log, task_name, n_ep, ewm_rwds):
+
+        log['n_ep'] = n_ep
+        log[f'{task_name}_return'] = log['tr_return']
+        if 'GCSL_loss' in log.keys():
+            log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
+        del log['tr_return']
+
+        if (n_ep + 1) % self.cfg.render_period == 0:
+            log['policy_vis'] = self.visualize()
+
+        ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+        log = {f"{task_name}/{k}": log[k] for k in log.keys()}
+
+        return log, ewm_rwds
+    

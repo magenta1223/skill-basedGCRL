@@ -304,6 +304,10 @@ class Diversity_Trainer(BaseTrainer):
 
         if e == self.cfg.mixin_start:
             self.model.do_rollout = True
+            self.save(f'{self.model_id}/orig_skill.bin')
+
+
+
 
     def post_epoch_hook(self, e, validate = False):
         if not validate:
@@ -347,26 +351,6 @@ class Diversity_Trainer(BaseTrainer):
             if "render" in self.loss.keys():
                 self.loss.pop("render")
 
-    def train_one_epoch(self, e):
-        self.meter_initialize()
-        self.pre_epoch_hook(e)
-
-        for i, batch in enumerate(self.train_loader):
-            self.model.train()
-            self.pre_iter_hook()
-            self.loss = self.model.optimize(batch, e)
-            self.post_iter_hook()
-
-            if not len(self.meters):
-                for key in self.loss.keys():
-                    self.meters[key] = AverageMeter()
-  
-            for k, v in self.loss.items():
-                self.meters[k].update(v, batch['states'].shape[0])
-    
-        self.post_epoch_hook(e)
-
-        return { k : v.avg for k, v in self.meters.items() }
 
     def save(self, path):
         self.model.eval()
