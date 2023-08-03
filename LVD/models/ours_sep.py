@@ -377,6 +377,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
         # # tanh라서 logprob에 normal 필요할 수도
         # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
+        # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist].sample().repeat(1,2))).mean() * 0.001
 
         # loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
 
@@ -398,7 +399,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         weights = batch.weights
         goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        loss = goal_recon
+        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
+
+        loss = goal_recon + goal_reg
 
         prev_goal_dist = self.prev_goal_encoder.dist(batch.G)
 
