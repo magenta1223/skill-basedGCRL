@@ -70,13 +70,13 @@ class Flat_GCSL(BaseModel):
     def compute_loss(self, batch):
         # ----------- SPiRL -------------- # 
 
-        # recon = self.loss_fn('recon')(self.outputs['policy_skill'], batch.actions)
+        recon = self.loss_fn('recon')(self.outputs.policy_action, batch.actions)
         
-        recon = self.loss_fn('prior')(
-            batch.actions,
-            self.outputs.policy_action_dist,
-            tanh = False
-        ).mean()
+        # recon = self.loss_fn('prior')(
+        #     batch.actions,
+        #     self.outputs.policy_action_dist,
+        #     tanh = False
+        # ).mean()
         
 
         loss = recon
