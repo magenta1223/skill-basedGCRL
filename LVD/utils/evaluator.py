@@ -17,7 +17,6 @@ class Evaluator:
         
         # model 
         model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
-        assert 1==0, cfg.zeroshot_weight
         self.high_policy = deepcopy(model.prior_policy)
         # non-learnable
         low_actor = deepcopy(model.skill_decoder)

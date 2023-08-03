@@ -291,7 +291,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         Finetune state encoder, dynamics
         """
 
-        states, next_states, skill, G = batch.states, batch.next_states, batch.actions, batch.G
+        states, next_states, skill, G, relabeled_G = batch.states, batch.next_states, batch.actions, batch.G, batch.relabeled_G
         
         if states.shape[1] == self.cfg.latent_state_dim:
             ht = states 
@@ -314,7 +314,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         # ) * weights).mean()
         
 
-        policy_skill =  self.highlevel_policy.dist(torch.cat((ht.clone().detach(), G), dim = -1))
+        policy_skill =  self.highlevel_policy.dist(torch.cat((ht.clone().detach(), relabeled_G), dim = -1))
 
         # 여기에 kl을 해야 함. 
         GCSL_loss = nll_dist(

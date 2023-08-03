@@ -176,13 +176,20 @@ class BaseTrainer:
             self.logger.log(message)
             
             for module_name, scheduler in self.schedulers_no_warmup.items():
-                msgs = scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
-                self.logger.log(msgs)
+                try:
+                    msgs = scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
+                    self.logger.log(msgs)
+                except:
+                    pass 
+
 
             if e >= self.cfg.warmup_steps:
                 for module_name, scheduler in self.schedulers_warmup.items():
-                    msgs = scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
-                    self.logger.log(msgs)
+                    try:
+                        msgs = scheduler.step(valid_loss_dict[self.schedulers_metric[module_name]])
+                        self.logger.log(msgs)
+                    except:
+                        pass 
 
                 if self.loop_indicator(e, valid_loss_dict['metric']):
                     print("early stop", 'loss',  valid_loss_dict['metric'])
@@ -299,13 +306,20 @@ class BaseTrainer:
 class Diversity_Trainer(BaseTrainer): 
 
     def pre_epoch_hook(self, e, validate = False):
-        self.imgs = None
-        self.model.render = False # 이거 한줄 다름. -> pre_epoch_hook으로 걸어서 ㄱㄱ 
 
-        if e == self.cfg.mixin_start:
-            self.model.do_rollout = True
-            self.save(f'{self.model_id}/orig_skill.bin')
+        if not validate:
+            # if e == self.cfg.mixin_start:
+            #     self.model.do_rollout = True
+            #     self.save(f'{self.model_id}/orig_skill.bin')
 
+
+            self.imgs = None
+            self.model.render = False # 이거 한줄 다름. -> pre_epoch_hook으로 걸어서 ㄱㄱ 
+            self.model.prev_skill_encoder = deepcopy(self.model.skill_encoder)
+            self.model.prev_goal_encoder = deepcopy(self.model.goal_encoder)
+
+        else:
+            pass 
 
 
 
@@ -329,11 +343,16 @@ class Diversity_Trainer(BaseTrainer):
                 self.train_loader.set_mode("with_buffer")
             self.train_loader.update_buffer()
 
-            self.model.prev_skill_encoder = deepcopy(self.model.skill_encoder)
-            self.model.prev_goal_encoder = deepcopy(self.model.goal_encoder)
+            if e + 1 == self.cfg.mixin_start:
+                self.model.do_rollout = True
+                self.save(f'{self.model_id}/orig_skill.bin')
 
         else:
-            pass 
+            pass
+
+
+
+
 
     def post_iter_hook(self, validate = False):
         if not validate:
