@@ -75,14 +75,14 @@ class Flat_RL_Trainer:
         }        
 
         # See rl_cfgs in LVD/configs/common.yaml 
-        agent_config = {**self.rl_cfgs}
-        agent_config.update(agent_submodules)
+        rl_agent_config = edict({**self.cfg})
+        rl_agent_config.update(agent_submodules)
 
-        agent_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
-        agent_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
+        rl_agent_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
+        rl_agent_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
 
 
-        agent = Flat_GCSL(agent_config).cuda()
+        agent = Flat_GCSL(rl_agent_config).cuda()
 
         self.collector, self.agent = collector, agent
 
