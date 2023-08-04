@@ -31,6 +31,9 @@ class BaseTrainer:
         """
         Prepare for fitting
         """
+
+        print(self.model.optimizers['goal']['wo_warmup'])
+
         self.schedulers_no_warmup = {
             k : self.cfg.schedulerClass(v['optimizer'], **self.cfg.scheduler_params, module_name = k) for k, v in self.model.optimizers.items() if "wo_warmup" in v
         }
@@ -275,6 +278,9 @@ class BaseTrainer:
 
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
+
+        print(checkpoint['schedulers_wo_warmup'])
+
         [ scheduler.load_state_dict(checkpoint['schedulers_wo_warmup'][module_name] )  for module_name, scheduler in self.schedulers_no_warmup.items()]
         [ scheduler.load_state_dict(checkpoint['schedulers_warmup'][module_name] )  for module_name, scheduler in self.schedulers_warmup.items()]
 
@@ -375,6 +381,9 @@ class Diversity_Trainer(BaseTrainer):
         self.model.eval()
         save_dict = self.save_dict()
         save_dict['cls'] = Diversity_Trainer
+        
+        print(save_dict['schedulers_wo_warmup'].keys())
+
         torch.save(save_dict, path)
 
     def eval_rollout(self):

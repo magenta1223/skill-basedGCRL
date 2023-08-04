@@ -80,10 +80,10 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
             # policy_skill = torch.tanh(policy_skill)
 
             policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
-            policy_skill = policy_action_dist.rsample()
+            # policy_skill = policy_action_dist.rsample()
 
             return edict(
-                policy_skill = policy_skill,
+                policy_skill = policy_action_dist
             )
 
     @torch.no_grad()
@@ -95,9 +95,12 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
             G = prep_state(G, self.device),
         )
 
-        skill = self.dist(dist_inputs).policy_skill
-        # TODO explore 여부에 따라 mu or sample을 결정
-        return to_skill_embedding(skill)
+        dist = self.dist(dist_inputs).policy_skill
+        if isinstance(dist, TanhNormal):
+            z_normal, z = dist.sample_with_pre_tanh_value()
+            return to_skill_embedding(z_normal), to_skill_embedding(z)
+        else:
+            return None, to_skill_embedding(dist.sample())
 
     def get_rl_params(self):
         

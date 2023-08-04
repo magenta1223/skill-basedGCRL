@@ -399,7 +399,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         weights = batch.weights
         goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
+        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 0
 
         loss = goal_recon + goal_reg
 

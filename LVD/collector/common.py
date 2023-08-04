@@ -256,7 +256,7 @@ class GC_Buffer(Buffer):
         self.hindsight_relabel = cfg.hindsight_relabel
 
         self.state_dim = cfg.state_dim
-        self.action_dim = cfg.action_dim
+        self.action_dim = action_dim
         self.max_size = cfg.buffer_size
         
         self.ptr = 0
@@ -273,7 +273,7 @@ class GC_Buffer(Buffer):
 
         dims = OrderedDict([
             ('state', cfg.state_dim),
-            ('action', cfg.action_dim),
+            ('action', action_dim),
             ('reward', 1),
             ('relabeled_reward', 1),
             ('done', 1),
