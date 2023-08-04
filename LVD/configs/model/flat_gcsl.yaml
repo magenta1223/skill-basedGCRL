@@ -16,7 +16,7 @@ policy :
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.LayerNorm
   act_cls : torch.nn.Mish
-  tanh : false
+  tanh : true
   bias : true
   dropout : 0
 
