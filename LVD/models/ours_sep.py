@@ -11,6 +11,7 @@ from simpl_reproduce.maze.maze_vis import draw_maze
 import numpy as np 
 from matplotlib import pyplot as plt
 from d4rl.pointmaze.maze_model import WALL
+import torch.distributions as torch_dist
 
 class GoalConditioned_Diversity_Sep_Model(BaseModel):
     """
@@ -123,20 +124,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 ),
                 "metric" : "diff_loss",
             },
-            # "entropy_skill" : {
-            #     "optimizer" : RAdam([
-            #         {'params' : self.skill_dist.parameters()},
-            #     ], lr = self.lr
-            #     ),
-            #     "metric" : "skill_ent"
-            # },
-            # "entropy_goal" : {
-            #     "optimizer" : RAdam([
-            #         {'params' : self.goal_dist.parameters()},
-            #     ], lr = self.lr
-            #     ),
-            #     "metric" : "goal_ent"
-            # },
             "goal" : {
                 "optimizer" : RAdam([
                     {'params' : self.goal_encoder.parameters()},
@@ -241,49 +228,49 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
     def forward(self, batch):
-        # enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
-        # post, post_detach = self.skill_encoder.dist(enc_inputs, detached = True)
+        enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
+        post, post_detach = self.skill_encoder.dist(enc_inputs, detached = True)
 
-        # if self.tanh:
-        #     skill_normal, skill = post.rsample_with_pre_tanh_value()
-        #     # Outputs
-        #     z = skill.clone().detach()
-        #     z_normal = skill_normal.clone().detach()
+        if self.tanh:
+            skill_normal, skill = post.rsample_with_pre_tanh_value()
+            # Outputs
+            z = skill.clone().detach()
+            z_normal = skill_normal.clone().detach()
 
-        # else:
-        #     skill = post.rsample()
-        #     z_normal = None
-        #     z = skill.clone().detach()
+        else:
+            skill = post.rsample()
+            z_normal = None
+            z = skill.clone().detach()
 
-        # fixed_dist = get_fixed_dist(skill.repeat(1,2), tanh = self.tanh)
+        fixed_dist = get_fixed_dist(skill.repeat(1,2), tanh = self.tanh)
 
 
-        # if self.manipulation:
-        #     decode_inputs = self.dec_input(batch.states[:, :, :self.n_pos], skill, self.Hsteps)
-        # else:
-        #     decode_inputs = self.dec_input(batch.states, skill, self.Hsteps)
-        #     # decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
+        if self.manipulation:
+            decode_inputs = self.dec_input(batch.states[:, :, :self.n_pos], skill, self.Hsteps)
+        else:
+            decode_inputs = self.dec_input(batch.states, skill, self.Hsteps)
+            # decode_inputs = self.dec_input(skill_states[:, :, :self.n_pos].clone(), skill, self.Hsteps)
 
-        # N, T = decode_inputs.shape[:2]
-        # skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
+        N, T = decode_inputs.shape[:2]
+        skill_hat = self.skill_decoder(decode_inputs.view(N * T, -1)).view(N, T, -1)
 
-        # if not self.manipulation:
-        #     batch['skill'] = z
+        if not self.manipulation:
+            batch['skill'] = z
 
-        # batch['skill'] = skill
+        batch['skill'] = skill
 
-        # # skill prior
-        # self.outputs =  self.prior_policy(batch)
+        # skill prior
+        self.outputs =  self.prior_policy(batch)
         
-        # # skill prior & inverse dynamics's target
-        # self.outputs['z'] = z
-        # self.outputs['z_normal'] = z_normal
+        # skill prior & inverse dynamics's target
+        self.outputs['z'] = z
+        self.outputs['z_normal'] = z_normal
 
-        # self.outputs['post'] = post
-        # self.outputs['post_detach'] = post_detach
-        # self.outputs['fixed'] = fixed_dist
-        # self.outputs['actions_hat'] = skill_hat
-        # self.outputs['actions'] = batch.actions
+        self.outputs['post'] = post
+        self.outputs['post_detach'] = post_detach
+        self.outputs['fixed'] = fixed_dist
+        self.outputs['actions_hat'] = skill_hat
+        self.outputs['actions'] = batch.actions
 
 
 
@@ -295,139 +282,143 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
     def compute_loss(self, batch):
-        # # 생성된 data에 대한 discount 
-        # weights = batch.weights
-
-        # # ----------- Skill Recon & Regularization -------------- # 
-        # recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions, weights)
-        # reg = (self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']) * weights).mean()
-        
-        # # ----------- State/Goal Conditioned Prior -------------- # 
-        # prior = (self.loss_fn('prior')(
-        #     self.outputs['z'],
-        #     self.outputs['prior'], # distributions to optimize
-        #     self.outputs['z_normal'],
-        #     tanh = self.tanh
-        # ) * weights).mean()
-
-        # invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-        # # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
-
-
-        # # ----------- Dynamics -------------- # 
-        # flat_D_loss = self.loss_fn('recon')(
-        #     self.outputs['flat_D'],
-        #     self.outputs['flat_D_target'],
-        #     weights
-        # ) #* self.Hsteps #* 0.1 # 1/skill horizon  
-
-        # D_loss = self.loss_fn('recon')(
-        #     self.outputs['D'],
-        #     self.outputs['D_target'],
-        #     weights
-        # )         
-
-        # if self.negativeSamples:
-        #     invD_random_loss = (self.loss_fn('prior')(
-        #         self.outputs['random_z'],
-        #         self.outputs['invD_random'], 
-        #         self.outputs['random_z_normal'],
-        #         tanh = self.tanh
-        #     ) * weights).mean() 
-
-        #     D_random_loss = self.loss_fn('recon')(
-        #         self.outputs['D_random'],
-        #         self.outputs['D_random_target'],
-        #         weights
-        #     )         
-            
-        #     invD_loss = (invD_loss + invD_random_loss) * 0.5
-        #     D_loss = (D_loss + D_random_loss) * 0.5
-        
-        # # ----------- subgoal generator -------------- #         
-        # if self.sg_dist:
-        #     r_int_f = (self.loss_fn("prior")(
-        #         self.outputs['subgoal_f_target'],
-        #         self.outputs['subgoal_f_dist']
-        #     ) * weights).mean() * self.weight.f 
-        # else:
-        #     r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
-        
-
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
-
-
-        # # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
-        # # 지금은 수렴 정도를 파악. 실제 skill과 계산
-        # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean() * self.weight.invD
-        
-        
-        # F_loss = r_int + reg_term 
-
-        # recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
-
-        # if self.manipulation:
-        #     diff_loss = self.loss_fn("recon")(
-        #         self.outputs['diff'], 
-        #         self.outputs['diff_target'], 
-        #         weights
-        #     )
-        # else:
-        #     diff_loss = torch.tensor([0]).cuda()
-        
-        # # tanh라서 logprob에 normal 필요할 수도
-        # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist].sample().repeat(1,2))).mean() * 0.001
-
-        # loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
-
-        # self.loss_dict = {           
-        #     # total
-        #     "loss" : loss.item(), #+ prior_loss.item(),
-        #     "Rec_skill" : recon.item(),
-        #     "Reg" : reg.item(),
-        #     "D" : D_loss.item(),
-        #     "flat_D" : flat_D_loss.item(),
-        #     "r_int" : r_int.item(),
-        #     "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
-        #     # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
-        #     "F_skill_kld" : reg_term.item() / self.weight.invD if self.weight.invD else 0,
-        #     "Rec_state" : recon_state.item(),
-        #     "diff_loss" : diff_loss.item(),
-        #     "Rec_goal" : goal_recon.item()
-        # }       
-
+        # 생성된 data에 대한 discount 
         weights = batch.weights
+
+        # ----------- Skill Recon & Regularization -------------- # 
+        recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions, weights)
+        reg = (self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']) * weights).mean()
+        
+        # ----------- State/Goal Conditioned Prior -------------- # 
+        prior = (self.loss_fn('prior')(
+            self.outputs['z'],
+            self.outputs['prior'], # distributions to optimize
+            self.outputs['z_normal'],
+            tanh = self.tanh
+        ) * weights).mean()
+
+        invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
+        # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+
+
+        # ----------- Dynamics -------------- # 
+        flat_D_loss = self.loss_fn('recon')(
+            self.outputs['flat_D'],
+            self.outputs['flat_D_target'],
+            weights
+        ) #* self.Hsteps #* 0.1 # 1/skill horizon  
+
+        D_loss = self.loss_fn('recon')(
+            self.outputs['D'],
+            self.outputs['D_target'],
+            weights
+        )         
+
+        if self.negativeSamples:
+            invD_random_loss = (self.loss_fn('prior')(
+                self.outputs['random_z'],
+                self.outputs['invD_random'], 
+                self.outputs['random_z_normal'],
+                tanh = self.tanh
+            ) * weights).mean() 
+
+            D_random_loss = self.loss_fn('recon')(
+                self.outputs['D_random'],
+                self.outputs['D_random_target'],
+                weights
+            )         
+            
+            invD_loss = (invD_loss + invD_random_loss) * 0.5
+            D_loss = (D_loss + D_random_loss) * 0.5
+        
+        # ----------- subgoal generator -------------- #         
+        if self.sg_dist:
+            r_int_f = (self.loss_fn("prior")(
+                self.outputs['subgoal_f_target'],
+                self.outputs['subgoal_f_dist']
+            ) * weights).mean() * self.weight.f 
+        else:
+            r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
+        
+
+        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+
+
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
+        # 지금은 수렴 정도를 파악. 실제 skill과 계산
+        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean() * self.weight.invD
+        
+        
+        F_loss = r_int + reg_term 
+
+        recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
+
+        if self.manipulation:
+            diff_loss = self.loss_fn("recon")(
+                self.outputs['diff'], 
+                self.outputs['diff_target'], 
+                weights
+            )
+        else:
+            diff_loss = torch.tensor([0]).cuda()
+        
+        # tanh라서 logprob에 normal 필요할 수도
         goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 0
+        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
 
-        loss = goal_recon + goal_reg
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
 
-        prev_goal_dist = self.prev_goal_encoder.dist(batch.G)
+        self.loss_dict = {           
+            # total
+            "loss" : loss.item(), #+ prior_loss.item(),
+            "Rec_skill" : recon.item(),
+            "Reg" : reg.item(),
+            "D" : D_loss.item(),
+            "flat_D" : flat_D_loss.item(),
+            "r_int" : r_int.item(),
+            "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
+            # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
+            "F_skill_kld" : reg_term.item() / self.weight.invD if self.weight.invD else 0,
+            "Rec_state" : recon_state.item(),
+            "diff_loss" : diff_loss.item(),
+            "Rec_goal" : goal_recon.item()
+        }       
+
+        # weights = batch.weights
+        # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
+        # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 0
+
+        # loss = goal_recon + goal_reg
+
+        # prev_goal_dist = self.prev_goal_encoder.dist(batch.G)
 
         
 
 
-        self.loss_dict = {
-            'loss' : loss.item(),
-            'Rec_goal' : loss.item(),
-            'metric' : loss.item()
-        }
+        # self.loss_dict = {
+        #     'loss' : loss.item(),
+        #     'Rec_goal' : loss.item(),
+        #     'metric' : loss.item()
+        # }
 
-        self.loss_dict['MI_goal'] = self.loss_fn('reg')(self.outputs['goal_dist'], prev_goal_dist).mean()
+        # self.loss_dict['MI_goal'] = self.loss_fn('reg')(self.outputs['goal_dist'], prev_goal_dist).mean()
 
 
         return loss
     
     @torch.no_grad()
     def rollout(self, batch):
-        result = self.prior_policy.rollout(batch)
+        
+        rollout_batch = edict({ k : v[batch.rollout] for k, v in batch.items()})
+
+
+        result = self.prior_policy.rollout(rollout_batch)
         c = result['c']
         states_rollout = result['states_rollout']
         skill_sampled = result['skill_sampled']    
         skills = result['skills']  
 
-        N, T = batch.states.shape[:2]
+        N, T = rollout_batch.states.shape[:2]
         skills = torch.cat(( skill_sampled.unsqueeze(1).repeat(1,T-c-1, 1), skills ), dim = 1)
 
         if self.manipulation:
@@ -439,10 +430,27 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         N, T, _ = dec_inputs.shape
         actions_rollout = self.skill_decoder(dec_inputs.view(N * T, -1)).view(N, T, -1)
         
-        states_novel = torch.cat((batch.states[:, :c+1], states_rollout), dim = 1)[batch.rollout].detach().cpu()
-        actions_novel = torch.cat((batch.actions[:, :c], actions_rollout), dim = 1)[batch.rollout].detach().cpu()
-        seq_indices = batch.seq_index[batch.rollout]
-        start_indices = batch.start_idx[batch.rollout]
+        states_novel = torch.cat((rollout_batch.states[:, :c+1], states_rollout), dim = 1).detach().cpu()
+        actions_novel = torch.cat((rollout_batch.actions[:, :c], actions_rollout), dim = 1).detach().cpu()
+        seq_indices = rollout_batch.seq_index.detach().cpu()
+        start_indices = rollout_batch.start_idx.detach().cpu()
+
+        # filter 
+        goals = self.state_processor.goal_transform(states_rollout[:, -1])
+        
+        self.goal_encoder(goals)
+        goal_dist = self.goal_encoder.dist(goals)
+        goal_emb = goal_dist.sample()
+        goal_recon = self.goal_decoder(goal_emb)
+        goal_reDist = self.goal_encoder.dist(goal_recon)
+
+        
+        scores = self.loss_fn("reg")(goal_dist, goal_reDist)
+        scores = scores.softmax(dim = 0)
+
+        # score 기반으로 sampling
+        indices = torch_dist.Categorical(scores).sample((100, )).detach().cpu()
+
 
         # if self.only_unseen and self.seen_tasks is not None:
         #     # only for check whether unseen goal in the robotics env is generated. 
@@ -464,11 +472,11 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         #     self.c = c
         #     self.loss_dict['c'] = start_indices + c
 
-        self.loss_dict['states_novel'] = states_novel
-        self.loss_dict['actions_novel'] = actions_novel
-        self.loss_dict['seq_indices'] = seq_indices
+        self.loss_dict['states_novel'] = states_novel[indices]
+        self.loss_dict['actions_novel'] = actions_novel[indices]
+        self.loss_dict['seq_indices'] = seq_indices[indices]
         self.c = c
-        self.loss_dict['c'] = start_indices + c
+        self.loss_dict['c'] = start_indices[indices] + c
 
         if self.normalize:
             # 여기서 다르게 해야함. 
@@ -561,7 +569,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
         self.__main_network__(batch)
-        # self.get_metrics(batch)
+        self.get_metrics(batch)
         self.prior_policy.soft_update()
         return self.loss_dict
     
@@ -569,7 +577,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     def validate(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
         self.__main_network__(batch, validate= True)
-        # self.get_metrics(batch)
+        self.get_metrics(batch)
         self.step += 1
 
         return self.loss_dict

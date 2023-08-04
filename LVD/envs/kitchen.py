@@ -140,7 +140,7 @@ tasks = np.array([
     # [6,0,2,4],  # KBLH
     # [5,1,2,4],  # MTLH
     # Well-algined, Missing
-    # [5,6,0,1], # MKBT
+    [5,6,0,1], # MKBT
     [5,6,0,2], # MKBL
     # Mis-algined, Missing 
     [6,1,2,4],  # KTLH
