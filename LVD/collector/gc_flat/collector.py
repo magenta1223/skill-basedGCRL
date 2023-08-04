@@ -45,7 +45,9 @@ class GC_Flat_Collector:
             if 'TimeLimit.truncated' in info:
                 data_done = not info['TimeLimit.truncated']
             
-            
+            if action_normal is not None:
+                action = np.concatenate((action, action_normal))
+
             episode.add_step(action, state, G, reward, relabeled_reward, data_done, info)
 
 
