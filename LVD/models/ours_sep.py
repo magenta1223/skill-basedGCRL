@@ -224,6 +224,34 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.loss_dict['MI_goal'] = self.loss_fn('reg')(self.outputs['goal_dist'], prev_goal_dist).mean()
 
         # self.loss_dict['MI_skill'] = 
+        goals = batch.G
+        known_goals_score = self.loopMI(goals)
+
+        # known goal에서 나올 수 있는 수준의 MI는? -> 
+        # known은 log취하면 normal임 -> mu + std * 1.35 -> exp -> threshold로 
+
+        # MI scale이 개큼.. 
+        log_score = known_goals_score.log()
+
+        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        min_value, max_value = torch.quantile(log_score, qauntile)
+
+
+        truncated = log_score[(min_value < log_score) & (log_score < max_value)].exp()
+
+        # mu, std = truncated.mean(), truncated.std()
+
+
+        # threshold = (mu + std * 1.35).exp()
+
+        # log_score[log_score > threshold]
+
+
+
+        self.loss_dict['MI_goal_mean'] = truncated.mean()
+        self.loss_dict['MI_goal_std'] = truncated.std()
+
+
 
 
 
@@ -364,9 +392,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
         # tanh라서 logprob에 normal 필요할 수도
         goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
+        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-6
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
 
         self.loss_dict = {           
             # total
@@ -381,7 +409,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "F_skill_kld" : reg_term.item() / self.weight.invD if self.weight.invD else 0,
             "Rec_state" : recon_state.item(),
             "diff_loss" : diff_loss.item(),
-            "Rec_goal" : goal_recon.item()
+            "Rec_goal" : goal_recon.item(),
         }       
 
         # weights = batch.weights
@@ -436,20 +464,30 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         start_indices = rollout_batch.start_idx.detach().cpu()
 
         # filter 
-        goals = self.state_processor.goal_transform(states_rollout[:, -1])
+        goals = rollout_batch.G
+        rollout_goals = self.state_processor.goal_transform(states_rollout[:, -1])
         
-        self.goal_encoder(goals)
-        goal_dist = self.goal_encoder.dist(goals)
-        goal_emb = goal_dist.sample()
-        goal_recon = self.goal_decoder(goal_emb)
-        goal_reDist = self.goal_encoder.dist(goal_recon)
+        known_goals_score = self.loopMI(goals)
+        rollout_goals_score = self.loopMI(rollout_goals)
 
+        # known goal에서 나올 수 있는 수준의 MI는? -> 
+        # known은 log취하면 normal임 -> mu + std * 1.35 -> exp -> threshold로 
+        log_score = known_goals_score.log()
+        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        min_value, max_value = torch.quantile(log_score, qauntile)
+        truncated = log_score[(min_value < log_score) & (log_score < max_value)]
+
+        mu, std = truncated.mean(), truncated.std()
+        threshold = (mu + std * 1.35).exp()
+        indices = rollout_goals_score > threshold
+        indices = indices.detach().cpu()
         
-        scores = self.loss_fn("reg")(goal_dist, goal_reDist)
-        scores = scores.softmax(dim = 0)
+        # scores = known_goals_score.softmax(dim = 0)
+
+
 
         # score 기반으로 sampling
-        indices = torch_dist.Categorical(scores).sample((100, )).detach().cpu()
+        # indices = torch_dist.Categorical(rollout_goals_score).sample((100, )).detach().cpu()
 
 
         # if self.only_unseen and self.seen_tasks is not None:
@@ -478,66 +516,67 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.c = c
         self.loss_dict['c'] = start_indices[indices] + c
 
-        if self.normalize:
-            # 여기서 다르게 해야함. 
-            self.loss_dict['states_novel'] = self.denormalize(self.loss_dict['states_novel'])
-            # states_novel[:, :2] = (states_novel[:, :2] + 0.5) * 40
+        if sum(indices):
+            if self.normalize:
+                # 여기서 다르게 해야함. 
+                self.loss_dict['states_novel'] = self.denormalize(self.loss_dict['states_novel'])
+                # states_novel[:, :2] = (states_novel[:, :2] + 0.5) * 40
 
-        if not self.render:
-            if self.env.name == "kitchen":
-                imgs = []
-                achieved_goal = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
-                imgs = render_from_env(env = self.env, task = self.tasks[0], states = self.loss_dict['states_novel'][0], text = achieved_goal)
-                self.render = True
-                self.loss_dict['render'] = imgs
+            if not self.render:
+                if self.env.name == "kitchen":
+                    imgs = []
+                    achieved_goal = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
+                    imgs = render_from_env(env = self.env, task = self.tasks[0], states = self.loss_dict['states_novel'][0], text = achieved_goal)
+                    self.render = True
+                    self.loss_dict['render'] = imgs
 
-            elif self.env.name == "maze": 
-                orig_goal = batch.finalG[batch.rollout][0].detach().cpu().numpy() 
-                generated_stateSeq = self.loss_dict['states_novel'][0].detach().cpu().numpy()
-                if self.normalize:
-                    orig_goal = (orig_goal + 0.5) * 40
-                    generated_stateSeq = (generated_stateSeq + 0.5) * 40
-                generated_goal = generated_stateSeq[-1][:2]                
+                elif self.env.name == "maze": 
+                    orig_goal = batch.finalG[batch.rollout][0].detach().cpu().numpy() 
+                    generated_stateSeq = self.loss_dict['states_novel'][0].detach().cpu().numpy()
+                    if self.normalize:
+                        orig_goal = (orig_goal + 0.5) * 40
+                        generated_stateSeq = (generated_stateSeq + 0.5) * 40
+                    generated_goal = generated_stateSeq[-1][:2]                
 
-                markers = [
-                    edict(
-                        data = orig_goal,
-                        params = edict(
-                            marker = "x",
-                            c = "red",
-                            s = 200, 
-                            zorder = 5, 
-                            linewidths = 4
+                    markers = [
+                        edict(
+                            data = orig_goal,
+                            params = edict(
+                                marker = "x",
+                                c = "red",
+                                s = 200, 
+                                zorder = 5, 
+                                linewidths = 4
+                            )
+                        ),
+                        edict(
+                            data = generated_goal,
+                            params = edict(
+                                marker = "x",
+                                c = "blue",
+                                s = 200, 
+                                zorder = 5, 
+                                linewidths = 4
+                            )
+                        ),
+                        edict(
+                            data = generated_stateSeq[0][:2],
+                            params = edict(
+                                marker = "o",
+                                c = "green",
+                                s = 200, 
+                                zorder = 5, 
+                                linewidths = 4
+                            )
                         )
-                    ),
-                    edict(
-                        data = generated_goal,
-                        params = edict(
-                            marker = "x",
-                            c = "blue",
-                            s = 200, 
-                            zorder = 5, 
-                            linewidths = 4
-                        )
-                    ),
-                    edict(
-                        data = generated_stateSeq[0][:2],
-                        params = edict(
-                            marker = "o",
-                            c = "green",
-                            s = 200, 
-                            zorder = 5, 
-                            linewidths = 4
-                        )
-                    )
-                ]
-                
-                episodes = [ edict(states = generated_stateSeq) ]
+                    ]
+                    
+                    episodes = [ edict(states = generated_stateSeq) ]
 
-                fig = render_from_env(env = self.env, episodes = episodes, markers = markers)
+                    fig = render_from_env(env = self.env, episodes = episodes, markers = markers)
 
-                self.render = True
-                self.loss_dict['render'] = fig   
+                    self.render = True
+                    self.loss_dict['render'] = fig   
 
         return self.loss_dict
         # self.loss_dict['states_novel'] 
@@ -628,3 +667,23 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             smooth_actions.append(skill_hat)
         
         return torch.cat(smooth_actions, dim = 0).detach().cpu().numpy()
+    
+    @torch.no_grad()
+    def loopMI(self, goals):
+        self.goal_encoder(goals)
+        goal_dist = self.goal_encoder.dist(goals)
+        goal_emb = goal_dist.sample()
+        goal_recon = self.goal_decoder(goal_emb)
+        goal_reDist = self.goal_encoder.dist(goal_recon)
+
+        
+        # known goal에서 나올 수 있는 뺑뺑이 MI의 
+
+        scores = self.loss_fn("reg")(goal_dist, goal_reDist)
+
+        return scores
+        # scores = scores.softmax(dim = 0)
+
+        # # score 기반으로 sampling
+        # indices = torch_dist.Categorical(scores).sample((100, )).detach().cpu()
+

@@ -235,7 +235,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             G = deepcopy(states[goal_idx])[:self.n_pos + self.n_env]
             G[ : self.n_pos] = 0 # only env state
 
-            discount_start = np.exp(self.discount_lambda * (start_idx - c))
+            discount_start = np.exp(self.discount_lambda * max((start_idx - c), 0))
             # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
             discount_G = 1
 
@@ -249,7 +249,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
                 actions=actions,
                 G=G,
                 rollout = False,
-                weights = 1, #discount_start * discount_G
+                weights = discount_start * discount_G
                 # start_idx = 999 #self.novel
             )
 

@@ -81,11 +81,20 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:,-1])
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts_target[:, -1])
         
-        if self.cfg.grad_pass.skill:
-            skill = batch.skill
-        else:
-            skill = inverse_dynamics.rsample()
-        # skill = batch.skill
+        # if self.cfg.grad_pass.skill:
+        #     skill = batch.skill
+        # else:
+        #     skill = inverse_dynamics.rsample()
+
+        # gradient swap 
+
+        # invD skill 
+        # skill = inverse_dynamics.sample()
+
+        skill = batch.skill - batch.skill.detach() + inverse_dynamics.sample()
+
+
+
 
         # # -------------- Dynamics Learning -------------- #                
         flat_D, cache = self.forward_flatD(hts, skill)

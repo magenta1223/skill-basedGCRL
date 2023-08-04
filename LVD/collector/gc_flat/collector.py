@@ -31,7 +31,7 @@ class GC_Flat_Collector:
         imgs = []
         
         while not done and t < self.time_limit:
-            action = actor.act(state, G)
+            action_normal, action = actor.act(state, G)
 
             state, reward, done, info = self.env.step(action)
             relabeled_reward = info['relabeled_reward']
