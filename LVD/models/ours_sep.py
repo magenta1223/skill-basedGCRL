@@ -328,7 +328,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
         # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
 
-
         # ----------- Dynamics -------------- # 
         flat_D_loss = self.loss_fn('recon')(
             self.outputs['flat_D'],
@@ -342,23 +341,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             weights
         )         
 
-        if self.negativeSamples:
-            invD_random_loss = (self.loss_fn('prior')(
-                self.outputs['random_z'],
-                self.outputs['invD_random'], 
-                self.outputs['random_z_normal'],
-                tanh = self.tanh
-            ) * weights).mean() 
-
-            D_random_loss = self.loss_fn('recon')(
-                self.outputs['D_random'],
-                self.outputs['D_random_target'],
-                weights
-            )         
-            
-            invD_loss = (invD_loss + invD_random_loss) * 0.5
-            D_loss = (D_loss + D_random_loss) * 0.5
-        
         # ----------- subgoal generator -------------- #         
         if self.sg_dist:
             r_int_f = (self.loss_fn("prior")(
@@ -370,6 +352,11 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
 
         r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+
+        # r_int_f = 0
+        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        
+        r_int = r_int_f + r_int_D
 
 
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D

@@ -114,7 +114,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
 
         # # -------------- Subgoal Generator -------------- #
-        invD_sub, subgoal_D, subgoal_f, subgoal_f_dist = self.forward_subgoal_G(hts[:, 0], G)
+        invD_sub, subgoal_D, subgoal_f, subgoal_f_detach, subgoal_f_dist = self.forward_subgoal_G(hts[:, 0], G)
 
         # -------------- Rollout for metric -------------- #
         check_subgoals_input = (hts, subgoal_target, inverse_dynamics, D, subgoal_D, subgoal_f)
@@ -279,30 +279,23 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         sg_input = self.sg_input(start_detached, G)
 
         if self.cfg.sg_dist:
-            # NLL을 하려면
-            # 1. subgoal generator가 분포를 출력
-            # 2. invD, D에서 받는 loss는 sampled state에 대해서 계산
-            # 3. 직접 regularize하는 경우는 normal distribution을 상정, nll으로 수행 
             subgoal_f_dist = self.subgoal_generator.dist(sg_input)
             subgoal_f = subgoal_f_dist.rsample() + start_detached
-
 
         else:
             subgoal_f = self.subgoal_generator(sg_input)
             subgoal_f = subgoal_f + start_detached
             subgoal_f_dist = None
 
-        invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
+        invD_sub, _ = self.inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
         skill_sub = invD_sub.rsample()
         subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
-
-
 
         # invD_sub, _ = self.inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
         # skill_sub = invD_sub.rsample()
         # subgoal_D = self.forward_D(start, skill_sub)
 
-        return invD_sub, subgoal_D, subgoal_f.clone().detach(), subgoal_f_dist
+        return invD_sub, subgoal_D, subgoal_f, subgoal_f.clone().detach(), subgoal_f_dist
 
 
     @torch.no_grad()
