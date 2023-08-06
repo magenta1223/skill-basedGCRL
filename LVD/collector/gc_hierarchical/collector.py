@@ -123,8 +123,6 @@ class GC_Hierarchical_Collector:
                 data_high_action_w_normal = None
             
             episode.add_step(low_action, data_high_action_w_normal, state, G, reward, relabeled_reward, data_done, info)
-
-
             t += 1
         if verbose:
             targetG = self.state_processor.state_goal_checker(G)

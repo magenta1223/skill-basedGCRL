@@ -1,5 +1,5 @@
 from ...contrib.simpl.collector.storage import Episode 
-from ...utils import StateProcessor
+from ...utils import StateProcessor, coloring
 
 import numpy as np
 from copy import deepcopy
@@ -50,12 +50,12 @@ class GC_Flat_Collector:
 
             episode.add_step(action, state, G, reward, relabeled_reward, data_done, info)
 
-
-
-
             t += 1
         if verbose:
-            print( self.state_processor.state_goal_checker(state)  )
+
+            targetG = self.state_processor.state_goal_checker(G)
+            achievedG = self.state_processor.state_goal_checker(state)
+            coloring(self.env.name, targetG, achievedG, data_done) 
 
         if vis:
             return imgs
