@@ -80,10 +80,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts_target[:, -1])
         invD_target, _ = self.forward_invD(hts[:,0], hts_target[:, -1], use_target= True)
 
-        # if self.cfg.grad_pass.skill:
-        #     skill = batch.skill
-        # else:
-        #     skill = inverse_dynamics.rsample()
+        if self.cfg.grad_pass.skill:
+            skill = batch.skill
+        else:
+            skill = inverse_dynamics.rsample()
 
         # gradient swap 
 
@@ -92,7 +92,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         # skill = batch.skill - batch.skill.detach() + inverse_dynamics.sample()
 
-        skill = inverse_dynamics.rsample()
+        # skill = inverse_dynamics.rsample()
 
 
 
@@ -309,8 +309,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             subgoal_f = _subgoal_f + start_detached
             subgoal_f_dist = None
 
-
-        invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
+        invD_sub, _ = self.forward_invD(start = start_detached, subgoal= subgoal_f, use_target= False)
+        # invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
         skill_sub = invD_sub.rsample()
         subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
 

@@ -114,26 +114,7 @@ class GC_Skill_RL_Trainer:
                 early_stop = 0
                 for n_ep in range(self.cfg.n_episode+1):                    
                     log = self.train_policy(n_ep, seed)
-                    # log['n_ep'] = n_ep
-                    # log[f'{task_name}_return'] = log['tr_return']
-                    # if 'GCSL_loss' in log.keys():
-                    #     log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
-                    # del log['tr_return']
 
-                    # if (n_ep + 1) % self.cfg.render_period == 0:
-                    #     log['policy_vis'] = self.visualize()
-
-                    # ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
-                    # if ewm_rwds > self.cfg.early_stop_threshold:
-                    #     early_stop += 1
-                    # else:
-                    #     early_stop = 0
-                    
-                    # if early_stop == 10:
-                    #     print("Converged enough. Early Stop!")
-                    #     break
-
-                    # log = {f"{task_name}/{k}": log[k] for k in log.keys()}
                     log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
                     wandb.log(log)
                     # clear plot
@@ -199,7 +180,6 @@ class GC_Skill_RL_Trainer:
         
         # ------------- Warming up phase ------------- #
         elif n_ep == self.cfg.precollect:
-            print("Here?")
             step_inputs = edict(
                 episode = n_ep,
                 G = G

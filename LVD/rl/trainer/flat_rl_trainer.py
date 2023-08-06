@@ -18,6 +18,7 @@ from ...utils import *
 from ...collector import GC_Flat_Collector, GC_Buffer
 
 from simpl_reproduce.maze.maze_vis import draw_maze
+import pandas as pd
 
 
 class Flat_RL_Trainer:
@@ -117,7 +118,7 @@ class Flat_RL_Trainer:
                 ewm_rwds = 0
                 early_stop = 0
                 for n_ep in range(self.cfg.n_episode+1):                    
-                    log = self.train_policy(n_ep)
+                    log = self.train_policy(n_ep, seed)
 
                     log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
 
@@ -135,8 +136,24 @@ class Flat_RL_Trainer:
                     # clear plot
                     plt.cla()
 
+                    # 매 ep끝날 때 마다 저장. 
+                    if os.path.exists(f"{self.result_path}/rawdata.csv"):
+                        df = pd.read_csv(f"{self.result_path}/rawdata.csv")
+                        new_data = pd.DataFrame(self.data)
+                        df = pd.concat((df, new_data), axis = 0)
+                        
+                    else:
+                        df = pd.DataFrame(self.data)
+                    
+                    df.drop_duplicates(inplace = True)
+                    df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
 
-    def train_policy(self, n_ep):
+            torch.save({
+                "model" : self.agent,
+            }, f"{self.cfg.weights_path}/{task_name}.bin")   
+
+
+    def train_policy(self, n_ep, seed):
 
         log = {}
 
@@ -150,7 +167,18 @@ class Flat_RL_Trainer:
         self.agent.buffer.enqueue(episode) 
         log['tr_return'] = sum(episode.rewards)
 
-        
+        data = edict(
+            env = self.env.name, 
+            task = str(self.collector.env.task),
+            seed = seed, 
+            episode = n_ep,
+            reward  = sum(episode.rewards),
+            success = np.array(episode.dones).sum() != 0,
+            run_id = self.run_id
+        )
+        self.data.append(data)
+
+
         if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
