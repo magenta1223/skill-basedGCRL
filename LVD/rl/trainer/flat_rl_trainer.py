@@ -94,7 +94,7 @@ class Flat_RL_Trainer:
         seed_everything(seed)
 
         # for task_obj in self.tasks:
-        for task_obj in self.tasks[1:2]:
+        for task_obj in self.tasks:
             task_name = str(task_obj)
             self.prep()
 

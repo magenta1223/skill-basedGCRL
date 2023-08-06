@@ -40,14 +40,14 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         # 혼합
         
         policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
-        z = policy_action_dist.rsample()
+        policy_action = policy_action_dist.rsample()
 
         
 
         return edict(
             states = states,
             policy_action_dist = policy_action_dist,
-            policy_action = z,
+            policy_action = policy_action,
         )
 
     def soft_update(self):
@@ -64,11 +64,11 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
 
 
             policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
-            policy_skill = policy_action_dist.rsample()
+            policy_action = policy_action_dist.rsample()
 
             # policy_skill = self.policy(torch.cat((states, G), dim = -1))
             # policy_skill = torch.tanh(policy_skill)
-            skill_consistency = F.mse_loss(policy_skill, batch.actions)
+            skill_consistency = F.mse_loss(policy_action, batch.actions)
 
             return edict(
                 skill_consistency = skill_consistency

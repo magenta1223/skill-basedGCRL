@@ -33,6 +33,7 @@ class BaseModel(BaseModule):
 
         self.outputs = {}
         self.loss_dict = {}
+        self.training_step = 0
         self.step = 0
     
     @staticmethod

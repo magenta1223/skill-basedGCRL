@@ -316,7 +316,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # ----------- Skill Recon & Regularization -------------- # 
         recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions, weights)
         reg = (self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']) * weights).mean()
-        
+        # reg += (self.loss_fn('reg')(self.outputs['invD'], self.outputs['fixed']) * weights).mean()
+
         # ----------- State/Goal Conditioned Prior -------------- # 
         prior = (self.loss_fn('prior')(
             self.outputs['z'],
@@ -325,7 +326,11 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             tanh = self.tanh
         ) * weights).mean()
 
+        # invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
         invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
+        invD_loss += (self.loss_fn('reg')(self.outputs['invD_detach'], self.outputs['post']) * weights).mean() * self.invD_coef
+
+
         # invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
 
         # ----------- Dynamics -------------- # 
@@ -342,26 +347,22 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         )         
 
         # ----------- subgoal generator -------------- #         
-        if self.sg_dist:
-            r_int_f = (self.loss_fn("prior")(
-                self.outputs['subgoal_f_target'],
-                self.outputs['subgoal_f_dist']
-            ) * weights).mean() * self.weight.f 
-        else:
-            r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
+        # if self.sg_dist:
+        #     r_int_f = (self.loss_fn("prior")(
+        #         self.outputs['subgoal_f_target'],
+        #         self.outputs['subgoal_f_dist']
+        #     ) * weights).mean() * self.weight.f 
+        # else:
+        #     r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
         
 
-        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
 
         # r_int_f = 0
-        r_int_D = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
         
-        r_int = r_int_f + r_int_D
-
-
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights) * self.weight.D
         # 지금은 수렴 정도를 파악. 실제 skill과 계산
-        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean() * self.weight.invD
+        reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
         
         
         F_loss = r_int + reg_term 
@@ -573,6 +574,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self(batch)
         loss = self.compute_loss(batch)
         if not validate:
+            self.training_step += 1
             for module_name, optimizer in self.optimizers.items():
                 optimizer['optimizer'].zero_grad()
 
@@ -581,6 +583,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             for module_name, optimizer in self.optimizers.items():
                 # self.grad_clip(optimizer['optimizer'])
                 optimizer['optimizer'].step()
+
+            # subgoal regularize
+            # if not self.training_step % 40:
+            #     self.subgoal_regularize(batch)
 
         # ------------------ Rollout  ------------------ #
         training = deepcopy(self.training)
@@ -604,7 +610,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
         self.__main_network__(batch, validate= True)
         self.get_metrics(batch)
-        self.step += 1
+        # self.step += 1
 
         return self.loss_dict
     
@@ -674,3 +680,28 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # # score 기반으로 sampling
         # indices = torch_dist.Categorical(scores).sample((100, )).detach().cpu()
 
+
+
+    def subgoal_regularize(self, batch):
+
+        enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
+        post, post_detach = self.skill_encoder.dist(enc_inputs, detached = True)
+
+        if self.tanh:
+            skill_normal, skill = post.rsample_with_pre_tanh_value()
+        else:
+            skill = post.rsample()
+
+        batch['skill'] = skill
+
+        # skill prior
+        result =  self.prior_policy(batch)
+        
+        # log 
+        # reg2 = (self.loss_fn('reg')(post, result['invD_detach']) * batch.weights).mean() * 1e-2 # 순서 ? 
+        reg2 = (self.loss_fn('reg')(result['invD_detach'], post) * batch.weights).mean() * 1e-2 # 순서 ? 
+        
+
+        self.optimizers['skill_enc_dec']['optimizer'].zero_grad()
+        reg2.backward()
+        self.optimizers['skill_enc_dec']['optimizer'].step()

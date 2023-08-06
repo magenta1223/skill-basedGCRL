@@ -8,6 +8,8 @@ noisy_subgoal : false
 
 buffer_cls : LVD.collector.GC_Buffer
 
+invD_coef : 1
+
 weight :
   f : 1
   D : 1
