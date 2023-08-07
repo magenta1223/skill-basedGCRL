@@ -11,7 +11,7 @@ buffer_cls : LVD.collector.GC_Buffer
 invD_coef : 1
 
 invD_only_f : false
-mode_drop : false
+mode_drop : true
 
 weight :
   f : 1
@@ -38,7 +38,7 @@ only_unseen : true
 # ------------------ State ------------------ #
 
 state_encoder :
-  n_blocks : 5
+  n_blocks : 2
   hidden_dim : 128 
   module_type : linear
   linear_cls : LVD.modules.LinearBlock
@@ -49,7 +49,7 @@ state_encoder :
   dropout : 0
 
 state_decoder :
-  n_blocks : 5
+  n_blocks : 2
   hidden_dim : 128 
   module_type : linear
   linear_cls : LVD.modules.LinearBlock
@@ -61,7 +61,7 @@ state_decoder :
 # ------------------ Dynamcis, Rollout ------------------ #
 
 dynamics :
-  n_blocks : 5
+  n_blocks : 2
   hidden_dim : 128 
   module_type : linear
   linear_cls : LVD.modules.LinearBlock
@@ -71,7 +71,7 @@ dynamics :
   dropout : 0
 
 diff_decoder :
-  n_blocks : 5
+  n_blocks : 2
   hidden_dim : 128 
   module_type : linear
   linear_cls : LVD.modules.LinearBlock
@@ -105,7 +105,7 @@ subgoal_generator :
 
 # ------------------ SPiRL ------------------ #
 prior : 
-  n_blocks : 5
+  n_blocks : 2
   hidden_dim : 128
   module_type : linear
   linear_cls : LVD.modules.LinearBlock

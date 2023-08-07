@@ -61,7 +61,7 @@ resume_ckpt : 0
 zeroshot : false
 hindsight_relabel : true
 
-save_ckpt : 9999
+save_ckpt : 50
 early_stop_rounds : 100
 n_rollout_steps : 10
 workers : 16

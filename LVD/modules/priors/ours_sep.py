@@ -251,7 +251,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         else:
             _subgoal_f = self.subgoal_generator(sg_input)
-            subgoal_f = _subgoal_f + start_detached
+            subgoal_f = _subgoal_f #+ start_detached
             subgoal_f_dist = None
 
         invD_sub, _ = self.forward_invD(start = start_detached, subgoal= subgoal_f)

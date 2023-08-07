@@ -348,6 +348,10 @@ class Diversity_Trainer(BaseTrainer):
                 self.model.do_rollout = True
                 self.save(f'{self.model_id}/orig_skill.bin')
 
+            if e > self.cfg.save_ckpt:
+                self.save(f'{self.model_id}/{e}.bin')
+
+
         else:
             pass
 

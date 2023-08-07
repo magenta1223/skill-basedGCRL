@@ -417,7 +417,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             
             # 만약 start_idx가 c보다 나중이면 -> discount..해야겠지? 
             if start_idx > c :
-                discount_start = np.exp(self.discount_lambda * (start_idx - c))
+                discount_start = np.exp(self.discount_lambda *  max((start_idx - c), 0))
             else:
                 discount_start = 1
             # discount_G = np.exp(self.discount_lambda * (goal_idx - c))

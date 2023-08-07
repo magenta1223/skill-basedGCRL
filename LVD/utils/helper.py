@@ -89,9 +89,9 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
             self.num_bad_epochs = 0
             self.n_steps = 0
 
-        # if self.n_steps > 25:
-        #     msgs = self._reduce_lr(epoch)
-        #     self.n_steps = 0 
+        if self.n_steps > 25:
+            msgs = self._reduce_lr(epoch)
+            self.n_steps = 0 
 
         self._last_lr = [group['lr'] for group in self.optimizer.param_groups]
 
