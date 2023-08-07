@@ -44,6 +44,8 @@ def main(cfg):
 
         # zeroshot
         cfg.zeroshot_weight = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"
+        cfg.zeroshot_weight_before_rollout = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/orig_skill.bin"
+
         # finetune 
         cfg.finetune_weight_prefix = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{rl_overrides}"
         cfg.project_name = cfg.structure

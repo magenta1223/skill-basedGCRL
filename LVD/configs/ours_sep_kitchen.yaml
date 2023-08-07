@@ -60,10 +60,10 @@ model:
 
   goal_encoder:
     in_feature: ${env.n_goal} 
-    out_dim : 64 
+    out_dim : 16 
 
   goal_decoder:
-    in_feature: 32
+    in_feature: 8
     out_dim : ${env.n_goal}
 
   q_function:

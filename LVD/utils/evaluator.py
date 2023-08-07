@@ -16,7 +16,11 @@ class Evaluator:
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
         
         # model 
-        model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
+        try:
+            model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
+        except:
+            print("No end.")
+            model = cfg.skill_trainer.load(cfg.zeroshot_weight_before_rollout, cfg).model
         self.high_policy = deepcopy(model.prior_policy)
         # non-learnable
         low_actor = deepcopy(model.skill_decoder)

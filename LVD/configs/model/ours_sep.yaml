@@ -10,6 +10,9 @@ buffer_cls : LVD.collector.GC_Buffer
 
 invD_coef : 1
 
+invD_only_f : false
+mode_drop : false
+
 weight :
   f : 1
   D : 1
@@ -27,7 +30,7 @@ goal_factor : 5
 grad_pass:
   invD: false
   D : true
-  skill : false
+  skill : true
 
 
 only_unseen : true
