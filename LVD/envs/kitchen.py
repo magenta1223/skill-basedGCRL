@@ -169,11 +169,11 @@ kitchen_ablation_tasks = kitchen_subtasks[tasks]
 
 
 kitchen_known_tasks = ['KBTS','MKBS','MKLH','KTLS',
-               'BTLS','MTLH','MBTS','KBLH',
-               'MKLS','MBSH','MKBH','KBSH',
-               'MBTH','BTSH','MBLS','MLSH',
-               'KLSH','MBTL','MKTL','MKSH',
-               'KBTL','KBLS','MKTH','KBTH']
+                    'BTLS','MTLH','MBTS','KBLH',
+                    'MKLS','MBSH','MKBH','KBSH',
+                    'MBTH','BTSH','MBLS','MLSH',
+                    'KLSH','MBTL','MKTL','MKSH',
+                    'KBTL','KBLS','MKTH','KBTH']
 
 
 

@@ -308,8 +308,9 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             "with_buffer" : self.__skill_learning_with_buffer__,
         }
         
-        self.max_generated_seqs = 10000
-        self.generated_seqs = []
+        self.buffer_size = 10000
+        self.prev_buffer = []
+        self.now_buffer = []
 
         self.discount_lambda = np.log(0.99)
 
@@ -331,14 +332,13 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             generated_actions = actions[i]
             
             # start idx도 필요
-            concatenated_states = np.concatenate((seq.states[:c[i], :self.state_dim], generated_states), axis = 0)
-            concatenated_actions = np.concatenate((seq.actions[:c[i]], generated_actions), axis = 0)
+            concatenated_states = np.concatenate((seq.states[:c[i], :self.state_dim], generated_states), axis = 0)[:280]
+            concatenated_actions = np.concatenate((seq.actions[:c[i]], generated_actions), axis = 0)[:280]
             
             # np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
             # sequnece가 원래것과 매칭이 안되고 있음. 버그
             # assert 1==0, "a"
-            
-
+        
             # g = \varphi(s) 인 \varphi는 알고 있음을 가정. (뭐가 열렸는지 돌아갔는지 정도는 알 수 있음.)
             # 그러면 유의한 goal state가 뭔지 정도는 알 수 있음. 
             # = 유의미한 goal 변화 없으면 거기서 컽
@@ -349,19 +349,15 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 seq_index = seq_idx.item()
             )
 
-            self.generated_seqs.append(new_seq)
+            self.prev_buffer.append(new_seq)
 
-            if len(self.generated_seqs) > self.max_generated_seqs:
-                self.generated_seqs = self.generated_seqs[1:]
-
-        # np.savez("./unseen_G_states.npz", states = concatenated_states, actions = concatenated_actions)
-        # self.buffer_now.enqueue(states, actions, c)
-
+            if len(self.prev_buffer) > self.buffer_size:
+                self.prev_buffer = self.prev_buffer[1:]
 
     def update_buffer(self):
+        self.now_buffer = deepcopy(self.prev_buffer)
+        self.prev_buffer = []
         pass
-        # self.buffer_prev.copy_from(self.buffer_now)
-        # self.buffer_now.reset()
 
     def __getitem__(self, index):
         # mode에 따라 다른 sampl 
@@ -409,17 +405,9 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
 
     def __skill_learning_with_buffer__(self):
 
-        if np.random.rand() < self.mixin_ratio and len(self.generated_seqs) > 0:
-            # np.random.choice()
-            # _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
-            
-            # seq = deepcopy( np.random.choice(self.generated_seqs, 1))
-            # seq = deepcopy(self.generated_seqs[_seq_index])
-            # seq = deepcopy(self.generated_seqs.sample())
-
-
-            _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
-            seq = deepcopy(self.generated_seqs[_seq_index])
+        if np.random.rand() < self.mixin_ratio and len(self.now_buffer) > 0:
+            _seq_index = np.random.randint(0, len(self.now_buffer), 1)[0]
+            seq = deepcopy(self.now_buffer[_seq_index])
             states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
             start_idx, goal_idx = self.sample_indices(states)
             
@@ -427,7 +415,6 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             G = deepcopy(states[goal_idx])[:self.state_dim]
             G[ : self.n_pos] = 0 # only env state
             
-            # 
             # 만약 start_idx가 c보다 나중이면 -> discount..해야겠지? 
             if start_idx > c :
                 discount_start = np.exp(self.discount_lambda * (start_idx - c))
@@ -435,7 +422,6 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 discount_start = 1
             # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
             discount_G = 1
-
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
             actions = actions[start_idx:start_idx+self.subseq_len-1]

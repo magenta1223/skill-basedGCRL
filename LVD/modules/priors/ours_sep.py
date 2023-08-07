@@ -132,7 +132,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             subgoal_D =  subgoal_D,
             subgoal_f = subgoal_f,
             # subgoal_target =  subgoal_target,
-            subgoal_D_target =  subgoal_target,
+            subgoal_D_target =  subgoal_f,
             subgoal_f_target =  subgoal_target,
             # subgoal_f_target =  hts[:, -1].clone().detach(),
             subgoal_f_dist = subgoal_f_dist,
@@ -285,6 +285,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
     
     @torch.no_grad()
     def rollout(self, batch):
+
         states = batch.states
         N, T, _ = states.shape
         skill_length = T - 1
@@ -296,23 +297,33 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         ht_pos, ht_nonPos = _ht.chunk(2, -1)
         # skill_sampled = self.skill_prior.dist(ht_pos).sample()
         
-        if self.cfg.manipulation:
-            skill_sampled = self.skill_prior.dist(ht_pos).sample()
-        else:
-            skill_sampled = self.skill_prior.dist(_ht).sample()
 
-        if "skill" in batch:
-            skill_sampled = batch.skill 
+
+
+        if self.cfg.manipulation:
+            skill = self.skill_prior.dist(ht_pos).sample()
+        else:
+            skill = self.skill_prior.dist(_ht).sample()
+
 
         states_rollout = []
         _state = states[:, c]
         nonPos_raw_state = states[:, c, self.cfg.n_pos:]
+        skills = [] 
 
-        # 1 skill
-        for _ in range(c, skill_length):
+        for i in range(c, self.cfg.plan_H):
             # execute skill on latent space and append to the original sub-trajectory 
             # flat_D로 rollout -> diff in latent space -> diff in raw state space 
-            next_ht, cache = self.forward_flatD(_ht, skill_sampled) 
+
+            if (i - c) % 5 == 0:
+                # skill = self.skill_prior.dist(ht_pos).sample()
+                if self.cfg.manipulation:
+                    skill = self.skill_prior.dist(ht_pos).sample()
+                else:
+                    skill = self.skill_prior.dist(_ht).sample()
+
+
+            next_ht, cache = self.forward_flatD(_ht, skill) 
 
             if self.cfg.manipulation:
                 _, _, _, diff_nonPos_latent = cache
@@ -325,56 +336,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 _state, pos_raw_state, _ = self.state_decoder(next_ht)
                 # _state = pos_raw_state
 
-
-            # _, _, _, diff_nonPos_latent = cache
-            # diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-            # _, pos_raw_state, _ = self.state_decoder(next_ht)
-            # nonPos_raw_state = nonPos_raw_state + diff_nonPos
-            # _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-
-
-
-            states_rollout.append(_state)
-            _ht = next_ht
-            ht_pos, ht_nonPos = _ht.chunk(2, -1)
-        
-        skills = []
-        # for f learning, execute 4 skill more
-        for i in range(self.cfg.plan_H):
-            if i % 10 == 0:
-                # skill = self.skill_prior.dist(ht_pos).sample()
-                if self.cfg.manipulation:
-                    skill = self.skill_prior.dist(ht_pos).sample()
-                else:
-                    skill = self.skill_prior.dist(_ht).sample()
-
-            next_ht, cache = self.forward_flatD(_ht, skill) 
-            if self.cfg.manipulation:
-                _, _, _, diff_nonPos_latent = cache
-                diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-                _, pos_raw_state, _ = self.state_decoder(next_ht)
-                nonPos_raw_state = nonPos_raw_state + diff_nonPos
-
-                _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-            else:
-                # _, pos_raw_state, _ = self.state_decoder(next_ht)
-                # _state = pos_raw_state
-                _state, pos_raw_state, _ = self.state_decoder(next_ht)
-            # _, _, _, diff_nonPos_latent = cache
-            # diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-            # _, pos_raw_state, _ = self.state_decoder(next_ht)
-            # nonPos_raw_state = nonPos_raw_state + diff_nonPos
-
-            # _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-    
-
-
-            # back to ppc 
             states_rollout.append(_state)
             _ht = next_ht
             ht_pos, ht_nonPos = _ht.chunk(2, -1)
 
             skills.append(skill)
+
+
             
         states_rollout = torch.stack(states_rollout, dim = 1)
         skills = torch.stack(skills, dim = 1)
@@ -382,7 +350,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         result =  edict(
             c = c,
             states_rollout = states_rollout,
-            skill_sampled = skill_sampled,
             skills = skills,
         )
 
