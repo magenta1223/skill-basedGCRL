@@ -96,7 +96,7 @@ class Flat_RL_Trainer:
 
         # for task_obj in self.tasks:
         for task_obj in self.tasks:
-            task_name = str(task_obj)
+            task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
 
             torch.save({
