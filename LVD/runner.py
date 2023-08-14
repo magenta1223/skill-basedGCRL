@@ -277,7 +277,7 @@ class BaseTrainer:
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
         
-        if hasattr(self, "schedulers_no_warmup"):
+        if "schedulers_no_warmup" in checkpoint.keys():
             [ scheduler.load_state_dict(checkpoint['schedulers_wo_warmup'][module_name] )  for module_name, scheduler in self.schedulers_no_warmup.items()]
             [ scheduler.load_state_dict(checkpoint['schedulers_warmup'][module_name] )  for module_name, scheduler in self.schedulers_warmup.items()]
         else:
