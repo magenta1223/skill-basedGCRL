@@ -34,7 +34,7 @@ def main(cfg):
         cfg.run_name = config_path(hydra_config.job.override_dirname)
         cfg.job_name = config_path(hydra_config.job.name)
         cfg.run_id = get_time()
-        cfg.rl_overrides = rl_overrides
+        cfg.rl_overrides = config_path(rl_overrides)
 
         # PATHS  
         # pretrain weights 
