@@ -276,10 +276,12 @@ class BaseTrainer:
 
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
-        [ scheduler.load_state_dict(checkpoint['schedulers_wo_warmup'][module_name] )  for module_name, scheduler in self.schedulers_no_warmup.items()]
         
-        if hasattr(self, "schedulers_warmup"):
+        if hasattr(self, "schedulers_no_warmup"):
+            [ scheduler.load_state_dict(checkpoint['schedulers_wo_warmup'][module_name] )  for module_name, scheduler in self.schedulers_no_warmup.items()]
             [ scheduler.load_state_dict(checkpoint['schedulers_warmup'][module_name] )  for module_name, scheduler in self.schedulers_warmup.items()]
+        else:
+            [ scheduler.load_state_dict(checkpoint['schedulers'][module_name] )  for module_name, scheduler in self.schedulers.items()]
 
         self.best_summary_loss = checkpoint['best_summary_loss']
         
