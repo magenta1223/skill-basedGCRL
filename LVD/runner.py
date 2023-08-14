@@ -344,18 +344,25 @@ class Diversity_Trainer(BaseTrainer):
                 self.train_loader.set_mode("with_buffer")
             self.train_loader.update_buffer()
 
-            if e + 1 == self.cfg.mixin_start:
+            if e + 1 >= self.cfg.mixin_start:
                 self.model.do_rollout = True
+
+            if e + 1 == self.cfg.mixin_start:
                 self.save(f'{self.model_id}/orig_skill.bin')
 
             if e > self.cfg.save_ckpt:
                 self.save(f'{self.model_id}/{e}.bin')
 
-
         else:
             pass
 
+    def pre_iter_hook(self, validate=False):
+        if not validate:
+            if len(self.train_loader.dataset.prev_buffer) >= self.cfg.offline_buffer_size:
+                self.model.do_rollout = False
 
+        else:
+            pass 
 
 
 

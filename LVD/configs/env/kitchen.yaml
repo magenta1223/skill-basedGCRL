@@ -24,13 +24,13 @@ normalize : false
 subseq_len : 11
 max_seq_len : 280
 epoch_cycles_train : 100
-
+offline_buffer_size : 10000
 
 batch_size : 1024
-mixin_start : 30
-mixin_ratio : 0.15
+mixin_start : 50
+mixin_ratio : 0.1
 plan_H : 160
-epochs : 100
+epochs : 80
 # epochs : 40
 warmup_steps : 20
 

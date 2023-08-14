@@ -40,7 +40,7 @@ def main(cfg):
             cfg.eval_data_prefix = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/default/"
 
 
-        cfg.eval_rawdata_path = f"{cfg.eval_data_prefix}/rawdata.csv"
+        cfg.eval_rawdata_path = f"{cfg.eval_data_prefix}rawdata.csv"
 
         # zeroshot
         cfg.zeroshot_weight = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"

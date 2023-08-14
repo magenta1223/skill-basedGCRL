@@ -29,9 +29,13 @@ model:
     out_dim : ${env.state_dim}
 
   dynamics :
-    in_feature : ${add:${divide:${env.latent_state_dim}, 2}, ${env.skill_dim}}
+    in_feature : ${get_D_dim:${env.latent_state_dim}, ${env.skill_dim}, ${model.diff.skill}}
     out_dim : ${env.latent_state_dim} 
   
+  flat_dynamics :
+    in_feature : ${get_D_dim:${env.latent_state_dim}, ${env.skill_dim}, ${model.diff.flat}}
+    out_dim : ${env.latent_state_dim} 
+
   diff_decoder:
     in_feature : ${divide:${env.latent_state_dim}, 2}
     out_dim : ${env.n_env}

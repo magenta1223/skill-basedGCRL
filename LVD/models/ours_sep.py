@@ -26,7 +26,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         prior = SequentialBuilder(cfg.prior)
-        flat_dynamics = SequentialBuilder(cfg.dynamics)
+        flat_dynamics = SequentialBuilder(cfg.flat_dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
         if cfg.manipulation:
@@ -157,7 +157,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.loss_dict['Prior_S']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior'])*weights).mean().item()
         
         # KL (post || goal-conditioned policy)
-        self.loss_dict['Prior_GC']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item()
+        self.loss_dict['Prior_GC']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean().item()
                 
         # dummy metric 
         self.loss_dict['metric'] = self.loss_dict['Prior_GC']
@@ -170,7 +170,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     @torch.no_grad()
     def validation_metric(self, batch):
         weights = batch.weights
-
 
         states = self.outputs['states']
         reconstructed_subgoal, _, _ = self.prior_policy.state_decoder(self.outputs['subgoal_rollout'])
@@ -299,13 +298,13 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         # invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
 
-        # if self.invD_only_f:
-        #     invD_loss = torch.tensor([0]).cuda()
-        # else:
-        #     if self.mode_drop:
-        #         invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-        #     else:
-        #         invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+        if self.invD_only_f:
+            invD_loss = torch.tensor([0]).cuda()
+        else:
+            if self.mode_drop:
+                invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
+            else:
+                invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
 
 
         # ----------- Dynamics -------------- # 
@@ -330,8 +329,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # else:
         #     r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
         
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
 
-        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+        r_int += self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
 
         # r_int_f = 0
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
@@ -340,11 +343,27 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         if self.mode_drop:
-            reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean() * self.weight.invD
+            # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            reg_term = (self.loss_fn('prior')(
+                self.outputs['skill_sub'],
+                self.outputs['invD_detach'], # distributions to optimize
+                self.outputs['skill_sub_normal'],
+                tanh = self.tanh
+            ) * weights).mean()
+    
         else:
-            reg_term = (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
-
+            # reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
+            reg_term = (self.loss_fn('prior')(
+                self.outputs['skill_sub'],
+                self.outputs['invD_detach'], # distributions to optimize
+                self.outputs['skill_sub_normal'],
+                tanh = self.tanh
+            ) * weights).mean()
         
+
+
+
         F_loss = r_int + reg_term 
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
@@ -360,10 +379,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
         # tanh라서 logprob에 normal 필요할 수도
         goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-4
+        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
 
-        # loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
-        loss = recon + reg * self.reg_beta + prior + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
+        # loss = recon + reg * self.reg_beta + prior + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
 
 
         self.loss_dict = {           
@@ -376,7 +395,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "r_int" : r_int.item(),
             "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
             # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
-            "F_skill_kld" : reg_term.item() / self.weight.invD if self.weight.invD else 0,
+            "F_skill_kld" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
+            "diff_loss" : diff_loss.item(),
             "Rec_state" : recon_state.item(),
             "Rec_goal" : goal_recon.item(),
         }       
@@ -490,11 +510,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
             if not self.render:
                 if self.env.name == "kitchen":
+                    img_len = max(self.loss_dict['c'][0].item() + self.plan_H - 280, 1)  
                     imgs = []
                     achieved_goal = self.state_processor.state_goal_checker(self.loss_dict['states_novel'][0][-1])
                     imgs = render_from_env(env = self.env, task = self.tasks[0], states = self.loss_dict['states_novel'][0], text = achieved_goal)
                     self.render = True
-                    self.loss_dict['render'] = imgs
+                    self.loss_dict['render'] = imgs[:-img_len]
 
                 elif self.env.name == "maze": 
                     orig_goal = batch.finalG[batch.rollout][0].detach().cpu().numpy() 

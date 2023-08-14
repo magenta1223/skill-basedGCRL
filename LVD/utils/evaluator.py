@@ -69,7 +69,7 @@ class Evaluator:
         
         df = pd.DataFrame(self.eval_data)
         df.to_csv( f"{self.cfg.eval_data_prefix}/zeroshot_rawdata.csv", index = False )
-        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
+        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot.csv", index = False)
 
         
@@ -81,7 +81,7 @@ class Evaluator:
 
         df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
 
-        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
+        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot_tasktype.csv", index = False)
         
 
@@ -109,7 +109,7 @@ class Evaluator:
                 
         df = pd.DataFrame(self.eval_data)
         df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
-        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'std']).pipe(self.flat_cols).reset_index()
+        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/finetuned.csv", index = False)
 
     def eval_learningGraph(self):
@@ -125,7 +125,7 @@ class Evaluator:
         
         raw_data.drop(['run_id'], axis = 1, inplace= True)
 
-        aggregated = raw_data[['episode', 'task', 'reward']].groupby(['task', 'episode'], as_index= False).agg(['mean', 'std'])
+        aggregated = raw_data[['episode', 'task', 'reward']].groupby(['task', 'episode'], as_index= False).agg(['mean', 'sem'])
         aggregated = aggregated.reset_index().pipe(self.flat_cols)
 
         

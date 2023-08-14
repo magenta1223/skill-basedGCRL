@@ -308,7 +308,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             "with_buffer" : self.__skill_learning_with_buffer__,
         }
         
-        self.buffer_size = 10000
+        self.buffer_size = cfg.offline_buffer_size 
         self.prev_buffer = []
         self.now_buffer = []
 
@@ -432,7 +432,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 actions=actions,
                 G=G,
                 rollout = False,
-                weights = 1, #discount_start * discount_G,
+                weights = discount_start, #discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx
                 # start_idx = 999 #self.novel

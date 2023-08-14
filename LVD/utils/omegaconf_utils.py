@@ -40,6 +40,10 @@ def get_indim(manipulation, state_dim, n_obj, skill_dim):
 def get_statedim(manipulation, state_dim, n_obj):
     return n_obj if manipulation else state_dim 
 
+
+def get_D_dim(latent_state_dim, skill_dim, diff):
+    return latent_state_dim // 2 + skill_dim if diff else latent_state_dim + skill_dim 
+
 OmegaConf.register_new_resolver("add", add)
 OmegaConf.register_new_resolver("multiply", multiply)
 OmegaConf.register_new_resolver("divide", divide)
@@ -49,3 +53,4 @@ OmegaConf.register_new_resolver("get_cycle", get_cycle)
 OmegaConf.register_new_resolver("get_outdim", get_outdim)
 OmegaConf.register_new_resolver("get_indim", get_indim)
 OmegaConf.register_new_resolver("get_statedim", get_statedim)
+OmegaConf.register_new_resolver("get_D_dim", get_D_dim)

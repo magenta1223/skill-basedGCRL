@@ -76,38 +76,23 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
 
         # -------------- Inverse Dynamics : Skill Learning -------------- #
-        # inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts_target[:, -1])
-        # invD_target, _ = self.forward_invD(hts[:,0], hts_target[:, -1], use_target= True)
-        # if self.cfg.grad_pass.skill:
-        #     skill = batch.skill
-        # else:
-        #     skill = inverse_dynamics.rsample()
+        inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:, -1])
 
-        skill = batch.skill
+        if self.cfg.grad_pass.skill:
+            skill = batch.skill
+        else:
+            skill = inverse_dynamics.rsample()
 
         # -------------- Dynamics Learning -------------- #                
         flat_D, cache = self.forward_flatD(hts, skill)
         D = self.forward_D(hts[:, 0], skill)
-        
-        # only env diff만 
-        # if self.cfg.manipulation:
-        #     diff_nonPos_latent = cache[-1].view(N, T-1, -1)
-        #     diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
-        #     diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
-        # else:
-        #     diff_nonPos_latent = cache[-1].view(N, T-1, -1)
-        #     diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
-        #     diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
 
         diff_nonPos_latent = cache[-1].view(N, T-1, -1)
         diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
         diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
 
-
         # # -------------- Subgoal Generator -------------- #
-        invD_sub, subgoal_D, subgoal_f, subgoal_f_dist = self.forward_subgoal_G(hts[:, 0], G)
-
-
+        invD_sub, skill_sub, skill_sub_normal, subgoal_D, subgoal_f, subgoal_f_dist = self.forward_subgoal_G(hts[:, 0], G)
 
         result = edict(
             # State Auto-Encoder
@@ -118,8 +103,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # Skills 
             prior = prior,
             prior_detach = prior_detach,
-            # invD = inverse_dynamics,
-            # invD_detach = inverse_dynamics_detach,
+            invD = inverse_dynamics,
+            invD_detach = inverse_dynamics_detach,
             # invD_target = invD_target,
 
             # Dynamics modules
@@ -129,6 +114,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             flat_D_target = hts_target[:, 1:],
 
             # Subgoal generator 
+            skill_sub = skill_sub,
+            skill_sub_normal = skill_sub_normal,
             subgoal_D =  subgoal_D,
             subgoal_f = subgoal_f,
             # subgoal_target =  subgoal_target,
@@ -162,15 +149,15 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             start = start.clone().detach()
             subgoal = subgoal.clone().detach() 
             
-        if self.cfg.noisy_subgoal:
-            subgoal += torch.rand_like(subgoal) * 0.001
+        # if self.cfg.noisy_subgoal:
+        #     subgoal += torch.rand_like(subgoal) * 0.001
 
-        if use_target:
-            module = self.target_inverse_dynamics
-        else:
-            module = self.inverse_dynamics
+        # if use_target:
+        #     module = self.target_inverse_dynamics
+        # else:
+        #     module = self.inverse_dynamics
         
-        inverse_dynamics, inverse_dynamics_detach  = module.dist(state = start, subgoal = subgoal, tanh = self.cfg.tanh)
+        inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.cfg.tanh)
 
         return inverse_dynamics, inverse_dynamics_detach
     
@@ -183,32 +170,48 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # pos, nonPos = start.chunk(2, -1)
 
         if len(pos.shape) < 3:
-            flat_dynamics_input = torch.cat((pos, skill), dim=-1)
+            if self.cfg.diff.flat:
+                flat_dynamics_input = torch.cat((pos, skill), dim=-1)
+            else:
+                flat_dynamics_input = torch.cat((start, skill), dim=-1)
+
             flat_D = self.flat_dynamics(flat_dynamics_input)
             pos_now, nonPos_now = flat_D.chunk(2, -1)
 
-            if self.cfg.grad_pass.D:
-                flat_D = start + flat_D
-            else:
-                flat_D = start.clone().detach() + flat_D
+            if self.cfg.diff:
+                if self.cfg.grad_pass.flat_D:
+                    flat_D = start + flat_D
+                else:
+                    flat_D = start.clone().detach() + flat_D
 
         else:
             N, T = pos.shape[:2]
             skill_length = T- 1
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-            flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
+
+            if self.cfg.diff.flat:
+                flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
+            else:
+                flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
+
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
             
-            if self.cfg.manipulation:
-                pos_now, nonPos_now = flat_D.chunk(2, -1)
-            else:
-                # pos_now, nonPos_now = flat_D, None
-                pos_now, nonPos_now = flat_D.chunk(2, -1)
+            if self.cfg.diff.flat:
+                if self.cfg.manipulation:
+                    pos_now, nonPos_now = flat_D.chunk(2, -1)
+                else:
+                    pos_now, nonPos_now = flat_D, None
+                    # pos_now, nonPos_now = flat_D.chunk(2, -1)
 
-            if self.cfg.grad_pass.D:
-                flat_D = start[:,:-1] + flat_D
             else:
-                flat_D = start[:,:-1].clone().detach() + flat_D
+                pos_now, nonPos_now = None, flat_D.chunk(2, -1)[1] - nonPos[:, :-1]
+
+
+            if self.cfg.diff.flat:
+                if self.cfg.grad_pass.flat_D:
+                    flat_D = start[:,:-1] + flat_D
+                else:
+                    flat_D = start[:,:-1].clone().detach() + flat_D
 
         cache = pos, nonPos, pos_now, nonPos_now
 
@@ -221,17 +224,21 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         else:
             pos, nonPos = start, None
         # pos, nonPos = start.chunk(2, -1)
-        dynamics_input = torch.cat((pos, skill), dim=-1)
-
+        if self.cfg.diff.skill:
+            dynamics_input = torch.cat((pos, skill), dim=-1)
+        else:
+            dynamics_input = torch.cat((start, skill), dim=-1)
+            
         if use_target:
             D = self.target_dynamics(dynamics_input)
         else:
             D = self.dynamics(dynamics_input)
 
-        if self.cfg.grad_pass.D:
-            D = start + D
-        else:
-            D = start.clone().detach() + D
+        if self.cfg.diff.skill:
+            if self.cfg.grad_pass.skill_D:
+                D = start + D
+            else:
+                D = start.clone().detach() + D
 
         return D
     
@@ -241,7 +248,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
     def forward_subgoal_G(self, start, G):
 
         start_detached = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
-
         sg_input = self.sg_input(start_detached, G)
 
         if self.cfg.sg_dist:
@@ -251,14 +257,16 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         else:
             _subgoal_f = self.subgoal_generator(sg_input)
-            subgoal_f = _subgoal_f #+ start_detached
+            subgoal_f = _subgoal_f + start_detached
             subgoal_f_dist = None
 
-        invD_sub, _ = self.forward_invD(start = start_detached, subgoal= subgoal_f)
-        skill_sub = invD_sub.rsample()
+        # invD_sub, _ = self.forward_invD(start = start_detached, subgoal= subgoal_f, use_target= True)
+        invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)
+
+        skill_sub_normal, skill_sub = invD_sub.rsample_with_pre_tanh_value()
         subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
 
-        return invD_sub, subgoal_D, subgoal_f, subgoal_f_dist
+        return invD_sub, skill_sub, skill_sub_normal, subgoal_D, subgoal_f, subgoal_f_dist
 
 
     @torch.no_grad()
@@ -316,25 +324,47 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # flat_D로 rollout -> diff in latent space -> diff in raw state space 
 
             if (i - c) % 5 == 0:
-                # skill = self.skill_prior.dist(ht_pos).sample()
                 if self.cfg.manipulation:
                     skill = self.skill_prior.dist(ht_pos).sample()
                 else:
                     skill = self.skill_prior.dist(_ht).sample()
 
-
             next_ht, cache = self.forward_flatD(_ht, skill) 
 
+            # 
+
             if self.cfg.manipulation:
+                # diff가 아니면 뭘 해야 하지?
+                # 1. flat_D의 결과는 seen ppc, seen env의 unseen 조합 -> diff decoder가 필요
+                # 2. 다만 cache에서 주는 값이 diff decoder로 복구 가능한 값이 아님. -> 수정 
+                # 3. 그러면 같은 방식으로 decoding 가능. 
+
                 _, _, _, diff_nonPos_latent = cache
                 diff_nonPos = self.diff_decoder(diff_nonPos_latent)
                 _, pos_raw_state, _ = self.state_decoder(next_ht)
                 nonPos_raw_state = nonPos_raw_state + diff_nonPos
                 _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            
             else:
                 # 여기서는 next_ht가 unseen일까? 아뇨?  
                 _state, pos_raw_state, _ = self.state_decoder(next_ht)
                 # _state = pos_raw_state
+
+
+            # if self.cfg.manipulation:
+            #     if self.cfg.diff:
+            #         _, _, _, diff_nonPos_latent = cache
+            #     else:
+            #         diff_nonPos_latent = next_ht - _ht
+
+            #     diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+            #     _, pos_raw_state, _ = self.state_decoder(next_ht)
+            #     nonPos_raw_state = nonPos_raw_state + diff_nonPos
+            #     _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+            # else:
+            #     # 여기서는 next_ht가 unseen일까? 아뇨?  
+            #     _state, pos_raw_state, _ = self.state_decoder(next_ht)
+            #     # _state = pos_raw_state
 
             states_rollout.append(_state)
             _ht = next_ht
@@ -387,14 +417,16 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             # subgoal 
             # sg_input = torch.cat((ht, G), dim = -1)
-            sg_input = self.sg_input(ht, G)
-            subgoal_f = self.subgoal_generator(sg_input)
-            subgoal_f = subgoal_f + ht
+            # sg_input = self.sg_input(ht, G)
+            # subgoal_f = self.subgoal_generator(sg_input)
+            # subgoal_f = subgoal_f + ht
 
-            # invD
-            invD, _ = self.forward_invD(ht, subgoal_f)
-            skill = invD.rsample() 
-            D = self.forward_D(ht, skill)
+            # # invD
+            # invD, _ = self.forward_invD(ht, subgoal_f)
+            # skill = invD.rsample() 
+            # D = self.forward_D(ht, skill)
+
+            invD, skill, skill_normal, subgoal_D, subgoal_f, subgoal_f_dist = self.forward_subgoal_G(ht, G)
 
             result =  edict(
                 policy_skill = invD
@@ -474,7 +506,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         #     tanh = self.cfg.tanh
         # ).mean()
 
-        invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
+
+        invD_sub, skill, skill_normal, subgoal_D, subgoal_f, subgoal_f_dist = self.forward_subgoal_G(ht, G)
         
         weights = torch.softmax(batch.skill_values, dim = 0) * states.shape[0] 
 
