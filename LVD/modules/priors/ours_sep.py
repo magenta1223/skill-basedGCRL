@@ -70,7 +70,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         # -------------- State-Conditioned Prior -------------- #
         if self.cfg.manipulation:
-            prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
+            # prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
+            prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
 
         else:
             prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
@@ -170,10 +171,11 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # pos, nonPos = start.chunk(2, -1)
 
         if len(pos.shape) < 3:
-            if self.cfg.diff.flat:
-                flat_dynamics_input = torch.cat((pos, skill), dim=-1)
-            else:
-                flat_dynamics_input = torch.cat((start, skill), dim=-1)
+            # if self.cfg.diff.flat:
+            #     flat_dynamics_input = torch.cat((pos, skill), dim=-1)
+            # else:
+            #     flat_dynamics_input = torch.cat((start, skill), dim=-1)
+            flat_dynamics_input = torch.cat((start, skill), dim=-1)
 
             flat_D = self.flat_dynamics(flat_dynamics_input)
             pos_now, nonPos_now = flat_D.chunk(2, -1)
@@ -189,10 +191,12 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             skill_length = T- 1
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
 
-            if self.cfg.diff.flat:
-                flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
-            else:
-                flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
+            # if self.cfg.diff.flat:
+            #     flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
+            # else:
+            #     flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
+
+            flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
 
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
             
@@ -224,11 +228,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         else:
             pos, nonPos = start, None
         # pos, nonPos = start.chunk(2, -1)
-        if self.cfg.diff.skill:
-            dynamics_input = torch.cat((pos, skill), dim=-1)
-        else:
-            dynamics_input = torch.cat((start, skill), dim=-1)
+        # if self.cfg.diff.skill:
+        #     dynamics_input = torch.cat((pos, skill), dim=-1)
+        # else:
+        #     dynamics_input = torch.cat((start, skill), dim=-1)
             
+        dynamics_input = torch.cat((start, skill), dim=-1)
+
         if use_target:
             D = self.target_dynamics(dynamics_input)
         else:

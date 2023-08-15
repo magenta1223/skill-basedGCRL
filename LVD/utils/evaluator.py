@@ -5,6 +5,7 @@ import pandas as pd
 import os 
 import numpy as np
 import torch
+from .general_utils import *
 
 class Evaluator:
     def __init__(self, cfg):
@@ -46,6 +47,15 @@ class Evaluator:
             learningGraph = self.eval_learningGraph
         )
 
+        self.set_logger()
+
+    def set_logger(self):
+        self.run_path = f"logs/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}"
+        
+        log_path = f"{self.run_path}/{self.cfg.job_name}.log"
+        self.logger = Logger(log_path, verbose= False)
+
+
     @staticmethod
     def flat_cols(df):
         def parseCol(flatten_col):
@@ -72,7 +82,9 @@ class Evaluator:
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot.csv", index = False)
 
-        
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot.csv")
+
+
         if self.env.name == "kitchen":
             # mode dropping이 훨~씬 좋다 
             easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
@@ -83,7 +95,8 @@ class Evaluator:
 
         df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot_tasktype.csv", index = False)
-        
+
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot_tasktype.csv")
 
 
     def eval_finetuned(self):
@@ -109,8 +122,12 @@ class Evaluator:
                 
         df = pd.DataFrame(self.eval_data)
         df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_rawdata.csv")
+
         aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/finetuned.csv", index = False)
+
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
 
     def eval_learningGraph(self):
         # 학습과정에서 생성된 csv 파일 불러와서 
@@ -135,6 +152,9 @@ class Evaluator:
             group['y'] = group['y'].ewm(alpha = 0.2).mean()
             group.to_csv(f"{self.cfg.eval_data_prefix}/{task}.csv", index = False)
         
+            self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{task}.csv")
+
+
     def eval_singleTask(self, seed, task):
         with self.collector.env.set_task(task):
             for _ in range(self.cfg.n_eval):

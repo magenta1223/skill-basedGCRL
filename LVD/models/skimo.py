@@ -168,9 +168,13 @@ class Skimo_Model(BaseModel):
             #     self.outputs['z_normal'],
             #     tanh = self.tanh
             # ).mean()
-            policy_loss = self.loss_fn('reg')(self.outputs['policy_skill'], self.outputs['post_detach']).mean()
-            # policy_loss = self.loss_fn('reg')(self.outputs['policy_skill'], self.outputs['post_detach']).mean()
 
+
+            if self.mode_drop:
+                policy_loss = self.loss_fn('reg')(self.outputs['policy_skill'], self.outputs['post_detach']).mean()
+            else:
+                policy_loss = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean()
+    
 
         else:
             prior = self.loss_fn('prior')(
@@ -190,7 +194,6 @@ class Skimo_Model(BaseModel):
             self.outputs['D_target']
         )  
         
-
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states']) # ? 
 
 

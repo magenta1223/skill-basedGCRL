@@ -33,7 +33,7 @@ model:
     out_dim : ${env.latent_state_dim} 
   
   flat_dynamics :
-    in_feature : ${get_D_dim:${env.latent_state_dim}, ${env.skill_dim}, ${model.diff.flat}}
+    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
     out_dim : ${env.latent_state_dim} 
 
   diff_decoder:
@@ -49,7 +49,8 @@ model:
     out_dim : ${env.latent_state_dim}
 
   prior:
-    in_feature : ${divide:${env.latent_state_dim},2}
+    # in_feature : ${divide:${env.latent_state_dim},2}
+    in_feature : ${env.latent_state_dim}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_encoder:
