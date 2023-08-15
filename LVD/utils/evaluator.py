@@ -89,7 +89,7 @@ class Evaluator:
             # mode dropping이 훨~씬 좋다 
             easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
         else:
-            easy_tasks = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
+            easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
 
         df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
 
