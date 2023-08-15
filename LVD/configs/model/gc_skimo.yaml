@@ -11,6 +11,7 @@ rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 rlAgentCls : LVD.rl.agent.SAC_Skimo # LVD.rl.agent.cql
 consistency_update : true
 model_update : true
+mode_drop : false
 
 state_encoder :
   n_blocks : 5
