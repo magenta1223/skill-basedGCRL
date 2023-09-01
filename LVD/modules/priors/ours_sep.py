@@ -71,21 +71,32 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # -------------- State-Conditioned Prior -------------- #
         if self.cfg.manipulation:
             # prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
-            prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
+            # prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
+            prior, prior_detach = self.foward_prior(hts)
 
         else:
-            prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
+            prior, prior_detach = self.foward_prior(hts)
+            # prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
 
         # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:, -1])
+        
+        if self.cfg.grad_swap:
+            # skill = batch.skill - batch.skill.clone().detach() + inverse_dynamics.rsample()
 
-        if self.cfg.grad_pass.skill:
+            invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
+            skill = invD_skill - invD_skill.clone().detach() + batch.skill
+
+        elif self.cfg.grad_pass.skill:
+            invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
             skill = batch.skill
         else:
-            skill = inverse_dynamics.rsample()
+            invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
+            skill = invD_skill.clone()
 
         # -------------- Dynamics Learning -------------- #                
-        flat_D, cache = self.forward_flatD(hts, skill)
+        flat_D, cache = self.forward_flatD(hts, batch.skill)
+        # flat_D, cache = self.forward_flatD(hts, skill)
         D = self.forward_D(hts[:, 0], skill)
 
         diff_nonPos_latent = cache[-1].view(N, T-1, -1)
@@ -113,6 +124,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             flat_D = flat_D,
             D_target =  subgoal_target, 
             flat_D_target = hts_target[:, 1:],
+
+            invD_skill_normal = invD_skill_normal.clone().detach(),
+            invD_skill = invD_skill.clone().detach(),
 
             # Subgoal generator 
             skill_sub = skill_sub,
@@ -142,6 +156,15 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         return result
     
+    def foward_prior(self, start):
+        if len(start.shape) > 2:
+            start = start[:, 0]
+        
+        start = start.chunk(2, -1)[0].clone().detach()
+
+        # return self.skill_prior.dist(start.clone().detach(), detached = True)
+        return self.skill_prior.dist(start, detached = True)
+
     # def forward_invD(self, hts):
     def forward_invD(self, start, subgoal, use_target = False):
         # subgoal = subgoal.clone().detach()
@@ -163,12 +186,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         return inverse_dynamics, inverse_dynamics_detach
     
     def forward_flatD(self, start, skill):
+        # start = start.clone().detach()
+        # skill = skill.clone().detach()
         # rollout / check 
         if self.cfg.manipulation:
             pos, nonPos = start.chunk(2, -1)
         else:
             pos, nonPos = start, None
-        # pos, nonPos = start.chunk(2, -1)
 
         if len(pos.shape) < 3:
             # if self.cfg.diff.flat:
@@ -315,10 +339,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
 
         if self.cfg.manipulation:
-            skill = self.skill_prior.dist(ht_pos).sample()
-        else:
-            skill = self.skill_prior.dist(_ht).sample()
+            # skill = self.skill_prior.dist(ht_pos).sample()
+            # skill = self.skill_prior.dist(_ht).sample()
+            skill = self.foward_prior(_ht)[0].sample()
 
+        else:
+            # skill = self.skill_prior.dist(_ht).sample()
+            skill = self.foward_prior(_ht)[0].sample()
 
         states_rollout = []
         _state = states[:, c]
@@ -331,26 +358,24 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             if (i - c) % 5 == 0:
                 if self.cfg.manipulation:
-                    skill = self.skill_prior.dist(ht_pos).sample()
+                    skill = self.foward_prior(_ht)[0].sample()
+                    # skill = self.skill_prior.dist(ht_pos).sample()
                 else:
-                    skill = self.skill_prior.dist(_ht).sample()
+                    # skill = self.skill_prior.dist(_ht).sample()
+                    skill = self.foward_prior(_ht)[0].sample()
+
 
             next_ht, cache = self.forward_flatD(_ht, skill) 
 
-            # 
-
             if self.cfg.manipulation:
-                # diff가 아니면 뭘 해야 하지?
-                # 1. flat_D의 결과는 seen ppc, seen env의 unseen 조합 -> diff decoder가 필요
-                # 2. 다만 cache에서 주는 값이 diff decoder로 복구 가능한 값이 아님. -> 수정 
-                # 3. 그러면 같은 방식으로 decoding 가능. 
-
                 _, _, _, diff_nonPos_latent = cache
                 diff_nonPos = self.diff_decoder(diff_nonPos_latent)
                 _, pos_raw_state, _ = self.state_decoder(next_ht)
                 nonPos_raw_state = nonPos_raw_state + diff_nonPos
                 _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-            
+
+                # _state, pos_raw_state, _ = self.state_decoder(next_ht)
+
             else:
                 # 여기서는 next_ht가 unseen일까? 아뇨?  
                 _state, pos_raw_state, _ = self.state_decoder(next_ht)

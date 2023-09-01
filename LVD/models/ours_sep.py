@@ -312,7 +312,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             self.outputs['flat_D'],
             self.outputs['flat_D_target'],
             weights
-        ) #* self.Hsteps #* 0.1 # 1/skill horizon  
+        ) # 1/skill horizon  
 
         D_loss = self.loss_fn('recon')(
             self.outputs['D'],
@@ -330,39 +330,66 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         #     r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
         
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
 
-        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-        r_int += self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+        # r_int = torch.tensor([0]).cuda()
+
+        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+        # r_int += self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+
+        # 2개 다 : 2.60 / 2.37
 
         # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
 
         # r_int_f = 0
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
         
         # 지금은 수렴 정도를 파악. 실제 skill과 계산
 
 
         if self.mode_drop:
             # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            reg_term = (self.loss_fn('prior')(
-                self.outputs['skill_sub'],
-                self.outputs['invD_detach'], # distributions to optimize
-                self.outputs['skill_sub_normal'],
-                tanh = self.tanh
-            ) * weights).mean()
+            reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean()
+
+
+            # reg_term = (self.loss_fn('prior')(
+            #     self.outputs['skill_sub'],
+            #     self.outputs['invD_detach'], # distributions to optimize
+            #     self.outputs['skill_sub_normal'],
+            #     tanh = self.tanh
+            # ) * weights).mean()
     
+            # reg_term = (self.loss_fn('prior')(
+            #     self.outputs['invD_skill'],
+            #     self.outputs['invD_detach'], # distributions to optimize
+            #     self.outputs['invD_skill_normal'],
+            #     tanh = self.tanh
+            # ) * weights).mean()
+
         else:
             # reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
-            reg_term = (self.loss_fn('prior')(
-                self.outputs['skill_sub'],
-                self.outputs['invD_detach'], # distributions to optimize
-                self.outputs['skill_sub_normal'],
-                tanh = self.tanh
-            ) * weights).mean()
+            # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() 
+            # flat_attach 2.24 / 1.88
+            # flat_detach 2.28 / 2.10 별 차이 없음. 
+            reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * 0.005
+            # reg_term = 0
+
+
+            # reg_term = (self.loss_fn('prior')(
+            #     self.outputs['z'],
+            #     self.outputs['invD_sub'], # distributions to optimize
+            #     self.outputs['z_normal'],
+            #     tanh = self.tanh
+            # ) * weights).mean()
         
-
-
+            # reg_term = (self.loss_fn('prior')(
+            #     self.outputs['invD_skill'],
+            #     self.outputs['invD_detach'], # distributions to optimize
+            #     self.outputs['invD_skill_normal'],
+            #     tanh = self.tanh
+            # ) * weights).mean()
 
         F_loss = r_int + reg_term 
 
@@ -395,7 +422,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "r_int" : r_int.item(),
             "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
             # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
-            "F_skill_kld" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
+            # "F_skill_kld" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
+            "KL_F_invD" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
+            "KL_F_z" : (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item(),
             "diff_loss" : diff_loss.item(),
             "Rec_state" : recon_state.item(),
             "Rec_goal" : goal_recon.item(),
@@ -583,14 +612,14 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 # self.grad_clip(optimizer['optimizer'])
                 optimizer['optimizer'].step()
 
-        # ------------------ Rollout  ------------------ #
-        training = deepcopy(self.training)
-        self.eval()
-        if self.do_rollout:
-            self.rollout(batch)
+            # ------------------ Rollout  ------------------ #
+            training = deepcopy(self.training)
+            self.eval()
+            if self.do_rollout:
+                self.rollout(batch)
     
-        if training:
-            self.train()
+            if training:
+                self.train()
 
     def optimize(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})

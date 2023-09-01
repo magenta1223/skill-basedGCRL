@@ -129,6 +129,22 @@ class Evaluator:
 
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
 
+        if self.env.name == "kitchen":
+            # mode dropping이 훨~씬 좋다 
+            easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
+        else:
+            easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
+
+        df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
+
+        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/finetune_tasktype.csv", index = False)
+
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_tasktype.csv")
+
+
+
+
     def eval_learningGraph(self):
         # 학습과정에서 생성된 csv 파일 불러와서 
         # 슈루룩 

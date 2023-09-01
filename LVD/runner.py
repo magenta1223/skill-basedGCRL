@@ -363,7 +363,6 @@ class Diversity_Trainer(BaseTrainer):
         if not validate:
             if len(self.train_loader.dataset.prev_buffer) >= self.cfg.offline_buffer_size:
                 self.model.do_rollout = False
-
         else:
             pass 
 

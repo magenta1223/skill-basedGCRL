@@ -27,12 +27,12 @@ epoch_cycles_train : 100
 offline_buffer_size : 10000
 
 batch_size : 1024
-mixin_start : 50
+mixin_start : 1
 mixin_ratio : 0.1
 plan_H : 160
 epochs : 80
 # epochs : 40
-warmup_steps : 20
+warmup_steps : 10
 
 skill_dim : 10
 latent_state_dim : 256

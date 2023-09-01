@@ -12,10 +12,11 @@ invD_coef : 1
 
 invD_only_f : false
 mode_drop : false
+grad_swap : true
 
 diff:
   flat: true
-  skill : false
+  skill: false
 
 weight :
   f : 1
@@ -23,18 +24,17 @@ weight :
   invD : 1
 
 skill_trainer : LVD.runner.Diversity_Trainer
-# rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 rl_trainer : LVD.rl.GCRL_Skill_Trainer
-rlAgentCls : LVD.rl.agent.sac.SAC # LVD.rl.agent.cql
+rlAgentCls : LVD.rl.agent.sac.SAC
 consistency_update : true
 model_update : true
 
-goal_factor : 5
+goal_factor : 1
 
 grad_pass:
   invD: false
-  skill_D : true
   flat_D : true
+  skill_D : true # diff=false면 무의미 
   skill : true
 
 
