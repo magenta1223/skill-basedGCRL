@@ -84,9 +84,13 @@ def to_skill_embedding(tensor):
     return tensor.clone().detach().cpu().squeeze(0).numpy()
 
 
-def weighted_mse(pred, target, weights):
+def weighted_mse(pred, target, weights = None):
     agg_dims = list(range(1, len(pred.shape)))
     mse = torch.pow(pred - target, 2).mean(dim = agg_dims)
-    weighted_error = mse * weights
-    weighted_mse_loss = torch.mean(weighted_error)
-    return weighted_mse_loss
+    
+    if weights is not None:
+        weighted_error = mse * weights
+        weighted_mse_loss = torch.mean(weighted_error)
+        return weighted_mse_loss
+    else:
+        return torch.mean(mse)

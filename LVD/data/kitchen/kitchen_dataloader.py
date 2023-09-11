@@ -67,6 +67,10 @@ class Kitchen_Dataset(Base_Dataset):
         self.shuffle = self.phase == "train"
         random.shuffle(self.seqs)
 
+
+
+
+
         if self.phase == "train":
             self.start = 0
             self.end = int(self.SPLIT.train * self.n_seqs)
@@ -312,7 +316,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
         self.prev_buffer = []
         self.now_buffer = []
 
-        self.discount_lambda = np.log(0.99)
+        self.discount = np.log(0.99)
 
     def set_mode(self, mode):
         assert mode in ['skill_learning', 'with_buffer']
@@ -417,11 +421,19 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             
             # 만약 start_idx가 c보다 나중이면 -> discount..해야겠지? 
             if start_idx > c :
-                discount_start = np.exp(self.discount_lambda *  max((start_idx - c), 0))
+                discount_start = np.exp(self.discount *  max((start_idx - c), 0))
             else:
                 discount_start = 1
+
             # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
             discount_G = 1
+            if goal_idx > c :
+                discount_G = np.exp(self.discount *  max((goal_idx - c), 0))
+
+            
+            else:
+                discount_G = 1
+
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
             actions = actions[start_idx:start_idx+self.subseq_len-1]
@@ -432,7 +444,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 actions=actions,
                 G=G,
                 rollout = False,
-                weights = discount_start, #discount_start * discount_G,
+                weights = discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx
                 # start_idx = 999 #self.novel
@@ -441,3 +453,109 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             return output
         else:
             return self.__skill_learning__()
+        
+class Kitchen_Dataset_Flat_WGCSL(Kitchen_Dataset):
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+        self.discount = np.log(0.99)
+    
+    def __len__(self):
+        # if self.dataset_size != -1:
+        #     return self.dataset_size
+        return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0])
+
+    def sample_indices(self, states, min_idx = 0): 
+        """
+        return :
+            - start index of sub-trajectory
+            - goal index for hindsight relabeling
+        """
+
+        goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
+        start_idx = np.random.randint(min_idx, states.shape[0] - 1)
+        
+        goal_index = np.random.randint(start_idx, goal_max_index)
+
+        return start_idx, goal_index
+
+
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        start_idx, goal_idx = self.sample_indices(seq.states)
+
+        G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
+        G[ : self.n_pos] = 0 # only env state
+        reward =  1 if goal_idx - start_idx < 3 else 0 
+        
+        # discounted relabeling weight 
+        drw = np.exp(self.discount * (goal_idx - start_idx))
+        
+        output = edict(
+            states = seq.states[start_idx, :self.n_pos + self.n_env],
+            actions = seq.actions[start_idx],
+            next_states = seq.states[start_idx + 1, :self.n_pos + self.n_env],
+            G = G,
+            reward = reward,
+            drw = drw
+        )
+
+        return output
+    
+class Kitchen_Dataset_Flat_RIS(Kitchen_Dataset):
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+        self.discount = np.log(0.99)
+        
+        self.all_states = np.concatenate([seq.states for seq in self.seqs], axis = 0)
+            
+    
+    def __len__(self):
+        # if self.dataset_size != -1:
+        #     return self.dataset_size
+        return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0])
+
+    def sample_indices(self, states, min_idx = 0): 
+        """
+        return :
+            - start index of sub-trajectory
+            - goal index for hindsight relabeling
+        """
+
+        goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
+        start_idx = np.random.randint(min_idx, states.shape[0] - 1)
+        
+        goal_index = np.random.randint(start_idx, goal_max_index)
+
+        return start_idx, goal_index
+
+
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        start_idx, goal_idx = self.sample_indices(seq.states)
+
+
+        # subgoal_index = np.random.randint(start_idx, goal_idx)
+        
+        subgoal_index = np.random.randint(0, len(self.all_states) - 1)
+
+        G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
+        G[ : self.n_pos] = 0 # only env state
+        reward = - 1 if goal_idx - start_idx < 1 else 1
+        
+        # discounted relabeling weight 
+        # drw = np.exp(self.discount * (goal_idx - start_idx))
+
+        
+        
+        output = edict(
+            states = seq.states[start_idx, :self.n_pos + self.n_env],
+            actions = seq.actions[start_idx],
+            subgoals = self.all_states[subgoal_index, :self.n_pos + self.n_env],
+            next_states = seq.states[start_idx + 1, :self.n_pos + self.n_env],
+            G = G,
+            reward = reward,
+            # drw = drw
+            done = True if reward else False
+        )
+
+        return output

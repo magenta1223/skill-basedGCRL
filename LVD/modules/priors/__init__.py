@@ -9,6 +9,9 @@ from .spirl import SPiRL_Prior
 from .ours_sep import GoalConditioned_Diversity_Sep_Prior
 from .ours import GoalConditioned_Diversity_Prior
 
+from .ris import RIS_Prior
+
+
 PRIOR_WRAPPERS = {
     "sc" : StateConditioned_Prior,
     "gc" : GoalConditioned_Prior,
@@ -20,6 +23,7 @@ PRIOR_WRAPPERS = {
     "flat_gcsl" : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Prior,
     "ours" : GoalConditioned_Diversity_Prior,
+    "ris" : RIS_Prior
 
 }
 

@@ -14,6 +14,8 @@ invD_only_f : false
 mode_drop : false
 grad_swap : true
 
+advantage : false
+
 diff:
   flat: true
   skill: false

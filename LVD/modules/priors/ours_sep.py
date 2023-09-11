@@ -186,7 +186,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         return inverse_dynamics, inverse_dynamics_detach
     
     def forward_flatD(self, start, skill):
-        # start = start.clone().detach()
+        start = start.clone().detach()
         # skill = skill.clone().detach()
         # rollout / check 
         if self.cfg.manipulation:

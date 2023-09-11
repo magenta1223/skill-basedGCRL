@@ -62,7 +62,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         self.goal_encoder = SequentialBuilder(cfg.goal_encoder)
         self.goal_decoder = SequentialBuilder(cfg.goal_decoder)
+        
         self.prev_goal_encoder = deepcopy(self.goal_encoder)
+        self.random_goal_encoder = SequentialBuilder(cfg.goal_encoder)
+
 
         # prev epoch skill encoder
         # hard updated on epoch basis 
@@ -202,11 +205,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
         prev_post, _ = self.prev_skill_encoder.dist(enc_inputs, detached = True)
 
-        prev_goal_dist = self.prev_goal_encoder.dist(batch.G)
-
         # self.loss_dict['MI_skill'] = self.loss_fn('reg')(self.outputs['post_detach'], prev_post).mean()
         self.loss_dict['MI_skill'] = self.loss_fn('reg')(prev_post, self.outputs['post_detach']).mean()
-        self.loss_dict['MI_goal'] = self.loss_fn('reg')(self.outputs['goal_dist'], prev_goal_dist).mean()
 
         goals = batch.G
         known_goals_score = self.loopMI(goals)
@@ -273,11 +273,17 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
 
-        goal_dist = self.goal_encoder.dist(batch.G)
-        goal_embedding = goal_dist.rsample()
-        goal_hat = self.goal_decoder(goal_embedding)
-        self.outputs['G_hat'] = goal_hat
-        self.outputs['goal_dist'] = goal_dist
+        # goal_dist = self.goal_encoder.dist(batch.G)
+        # goal_embedding = goal_dist.rsample()
+        # goal_hat = self.goal_decoder(goal_embedding)
+        # self.outputs['G_hat'] = goal_hat
+        # self.outputs['goal_dist'] = goal_dist
+
+        goal_embedding = self.goal_encoder(batch.G)
+        target_goal_embedding = self.random_goal_encoder(batch.G)
+
+        self.outputs['goal_embedding'] = goal_embedding
+        self.outputs['target_goal_embedding'] = target_goal_embedding
 
 
     def compute_loss(self, batch):
@@ -295,8 +301,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             self.outputs['z_normal'],
             tanh = self.tanh
         ) * weights).mean()
-
-        # invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
 
         if self.invD_only_f:
             invD_loss = torch.tensor([0]).cuda()
@@ -321,77 +325,29 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         )         
 
         # ----------- subgoal generator -------------- #         
-        # if self.sg_dist:
-        #     r_int_f = (self.loss_fn("prior")(
-        #         self.outputs['subgoal_f_target'],
-        #         self.outputs['subgoal_f_dist']
-        #     ) * weights).mean() * self.weight.f 
-        # else:
-        #     r_int_f = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.f 
-        
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
 
-        # r_int = torch.tensor([0]).cuda()
-
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-        # r_int += self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-
-        # 2개 다 : 2.60 / 2.37
-
-        # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-
-        # r_int_f = 0
-        r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
-        
-        # 지금은 수렴 정도를 파악. 실제 skill과 계산
-
-
-        if self.mode_drop:
-            # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['post_detach']) * weights).mean()
-
-
-            # reg_term = (self.loss_fn('prior')(
-            #     self.outputs['skill_sub'],
-            #     self.outputs['invD_detach'], # distributions to optimize
-            #     self.outputs['skill_sub_normal'],
-            #     tanh = self.tanh
-            # ) * weights).mean()
+        # reg_term 쓰지말고, r_int의 advantage로 
+        if self.advantage:
+            reg_term = 0
+            # 아무 subgoal이나 생성해보고
+            # 그중에 진짜 아닌것만 쳐내 
+            skill_diff = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights)
+            advantage = torch.softmax(- skill_diff, dim = 0).clone().detach()
+            
+            # 너무 작음. 
+            subgoal_weights = skill_diff.shape[0] * (weights * advantage)
     
-            # reg_term = (self.loss_fn('prior')(
-            #     self.outputs['invD_skill'],
-            #     self.outputs['invD_detach'], # distributions to optimize
-            #     self.outputs['invD_skill_normal'],
-            #     tanh = self.tanh
-            # ) * weights).mean()
+            r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], subgoal_weights) * self.weight.D
+
+            F_loss = r_int 
+
 
         else:
-            # reg_term = (self.loss_fn("reg")(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() * self.weight.invD
-            # reg_term = (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            # reg_term = (self.loss_fn('reg')(self.outputs['invD_detach'], self.outputs['invD_sub']) * weights).mean() 
-            # flat_attach 2.24 / 1.88
-            # flat_detach 2.28 / 2.10 별 차이 없음. 
-            reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * 0.005
-            # reg_term = 0
-
-
-            # reg_term = (self.loss_fn('prior')(
-            #     self.outputs['z'],
-            #     self.outputs['invD_sub'], # distributions to optimize
-            #     self.outputs['z_normal'],
-            #     tanh = self.tanh
-            # ) * weights).mean()
+            r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+            reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            F_loss = r_int + reg_term 
+    
         
-            # reg_term = (self.loss_fn('prior')(
-            #     self.outputs['invD_skill'],
-            #     self.outputs['invD_detach'], # distributions to optimize
-            #     self.outputs['invD_skill_normal'],
-            #     tanh = self.tanh
-            # ) * weights).mean()
-
-        F_loss = r_int + reg_term 
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
@@ -405,10 +361,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             diff_loss = torch.tensor([0]).cuda()
         
         # tanh라서 logprob에 normal 필요할 수도
-        goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
+        # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
+        # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
+        goal_recon = self.loss_fn("recon")(self.outputs['target_goal_embedding'], self.outputs['goal_embedding'], weights)
+
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
         # loss = recon + reg * self.reg_beta + prior + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
 
 
@@ -430,24 +388,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "Rec_goal" : goal_recon.item(),
         }       
 
-        # weights = batch.weights
-        # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
-        # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 0
 
-        # loss = goal_recon + goal_reg
-
-        # prev_goal_dist = self.prev_goal_encoder.dist(batch.G)
-
-        
-
-
-        # self.loss_dict = {
-        #     'loss' : loss.item(),
-        #     'Rec_goal' : loss.item(),
-        #     'metric' : loss.item()
-        # }
-
-        # self.loss_dict['MI_goal'] = self.loss_fn('reg')(self.outputs['goal_dist'], prev_goal_dist).mean()
 
 
         return loss
@@ -480,8 +421,21 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         goals = rollout_batch.G
         rollout_goals = self.state_processor.goal_transform(states_rollout[:, -1])
         
+        # RND를 기준으로 
+
+
         known_goals_score = self.loopMI(goals)
         rollout_goals_score = self.loopMI(rollout_goals)
+
+        goal_emb = self.goal_encoder(goals)
+        goal_emb_random = self.random_goal_encoder(goals)
+        known_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+        
+        goal_emb = self.goal_encoder(rollout_goals)
+        goal_emb_random = self.random_goal_encoder(rollout_goals)
+        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+
+
 
         # known goal에서 나올 수 있는 수준의 MI는? -> 
         log_score = known_goals_score.log()
@@ -493,6 +447,25 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         threshold = (mu + std * 1.35).exp()
         indices = rollout_goals_score > threshold
         indices = indices.detach().cpu()
+
+
+        # print(rollout_goals_score, threshold, indices)
+
+
+
+        # known_goals_score = self.loopMI(goals)
+        # rollout_goals_score = self.loopMI(rollout_goals)
+
+        # # known goal에서 나올 수 있는 수준의 MI는? -> 
+        # log_score = known_goals_score.log()
+        # qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        # min_value, max_value = torch.quantile(log_score, qauntile)
+        # truncated = log_score[(min_value < log_score) & (log_score < max_value)]
+
+        # mu, std = truncated.mean(), truncated.std()
+        # threshold = (mu + std * 1.35).exp()
+        # indices = rollout_goals_score > threshold
+        # indices = indices.detach().cpu()
         
         # scores = known_goals_score.softmax(dim = 0)
 
@@ -685,7 +658,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     
     @torch.no_grad()
     def loopMI(self, goals):
-        self.goal_encoder(goals)
+        # self.goal_encoder(goals)
         goal_dist = self.goal_encoder.dist(goals)
         goal_emb = goal_dist.sample()
         goal_recon = self.goal_decoder(goal_emb)

@@ -1,0 +1,18 @@
+defaults:
+  - common
+  - model: ris
+  - env : kitchen
+
+structure : ris
+dataset_cls : LVD.data.Kitchen_Dataset_Flat_RIS
+
+model:
+  policy:
+    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
+    out_dim : ${multiply:${env.action_dim}, 2}
+    # out_dim : ${env.action_dim}
+
+
+  q_function:
+    in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 
+      # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 
