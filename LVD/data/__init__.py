@@ -15,6 +15,8 @@ __all__ = [
     'Maze_Dataset_Div',
     'Maze_Dataset_Div_Sep',
     'Maze_Dataset_Flat',
+    'Maze_Dataset_Flat_WGCSL',
+    'Maze_Dataset_Flat_RIS',
     'Carla_Dataset',
     'Carla_Dataset_Div',
 ]

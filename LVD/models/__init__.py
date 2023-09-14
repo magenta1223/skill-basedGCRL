@@ -12,6 +12,7 @@ from .spirl import SPiRL_Model
 from .ours_sep import GoalConditioned_Diversity_Sep_Model
 from .ours import GoalConditioned_Diversity_Model
 from .wgcsl import WGCSL
+from .ris import RIS
 
 MODELS = {
     "sc" : StateConditioned_Model,
@@ -27,7 +28,8 @@ MODELS = {
     'flat_gcsl' : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Model,
     'ours' : GoalConditioned_Diversity_Model,
-    'flat_wgcsl' : WGCSL
+    'flat_wgcsl' : WGCSL,
+    'ris' : RIS
 }
 
 
@@ -41,5 +43,6 @@ __all__ = [
     'Skimo_Model',
     'SiMPL_Model',
     'BaseModel',
-    'WGCSL'
+    'WGCSL',
+    'RIS'
     ]

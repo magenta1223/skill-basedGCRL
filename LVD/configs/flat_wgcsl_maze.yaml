@@ -1,10 +1,10 @@
 defaults:
   - common
-  - model: ris
-  - env : kitchen
+  - model: flat_wgcsl
+  - env : maze
 
-structure : ris
-dataset_cls : LVD.data.Kitchen_Dataset_Flat_RIS
+structure : flat_wgcsl
+dataset_cls : LVD.data.Maze_Dataset_Flat_WGCSL
 
 model:
   policy:
@@ -12,9 +12,6 @@ model:
     out_dim : ${multiply:${env.action_dim}, 2}
     # out_dim : ${env.action_dim}
 
-  high_level_policy:
-    in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
-    out_dim : ${multiply:${env.state_dim}, 2}
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 

@@ -360,3 +360,128 @@ class Maze_Dataset_Flat(Maze_Dataset):
             seq_index = index,
             start_idx = start_idx
         )
+
+
+    def __len__(self):
+        return int(self.SPLIT[self.phase] * self.n_seqs)  * 500 # len traj
+
+
+
+class Maze_Dataset_Flat_WGCSL(Maze_Dataset):
+
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+        self.discount = np.log(0.99)
+    
+    def sample_indices(self, states, min_idx = 0): 
+        """
+        return :
+            - start index of sub-trajectory
+            - goal index for hindsight relabeling
+        """
+
+        goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
+        start_idx = np.random.randint(min_idx, states.shape[0] - 1)
+        
+        goal_index = np.random.randint(start_idx, goal_max_index)
+
+        return start_idx, goal_index
+
+
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        # start_idx = np.random.randint(0, seq.states.shape[0] - 1)
+        # goal_idx = -1
+
+        states = seq['obs']
+        actions = seq['actions']
+
+        start_idx, goal_idx = self.sample_indices(states)
+
+
+        reward = - 1 if goal_idx - start_idx <= 5 else 1
+
+        G = deepcopy(states[goal_idx, :self.n_pos])
+
+        states = seq['obs'][start_idx, :self.state_dim]
+        next_states = seq['obs'][start_idx + 1, :self.state_dim]
+        actions = actions[start_idx ]
+
+        drw = np.exp(self.discount * (goal_idx - start_idx))
+
+        # 
+        
+
+        # print(output.states.shape)
+        # print(output.actions.shape)
+        # print(output.G.shape)
+
+
+        return edict(
+            states = states,
+            actions = actions, 
+            next_states = next_states,
+            G = G,
+            reward = reward,
+            drw = drw
+        )
+    
+    def __len__(self):
+        return super().__len__() * 10 # skill horizon  # len traj
+
+
+
+
+class Maze_Dataset_Flat_RIS(Maze_Dataset):
+    def __init__(self, cfg, phase):
+        super().__init__(cfg, phase)
+        self.discount = np.log(0.99)
+        
+        self.all_states = np.concatenate([seq['obs'] for seq in self.seqs], axis = 0)
+            
+    
+
+
+    def sample_indices(self, states, min_idx = 0): 
+        """
+        return :
+            - start index of sub-trajectory
+            - goal index for hindsight relabeling
+        """
+
+        goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
+        start_idx = np.random.randint(min_idx, states.shape[0] - 1)
+        
+        goal_index = np.random.randint(start_idx, goal_max_index)
+
+        return start_idx, goal_index
+
+
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        start_idx, goal_idx = self.sample_indices(seq['obs'])
+        # subgoal_index = np.random.randint(start_idx, goal_idx)
+        subgoal_index = np.random.randint(0, len(self.all_states) - 1)
+        G = deepcopy(seq['obs'][goal_idx])[:self.n_pos]
+        G[ : self.n_pos] = 0 # only env state
+        reward = - 1 if goal_idx - start_idx <= 5 else 1
+        
+        # discounted relabeling weight 
+        # drw = np.exp(self.discount * (goal_idx - start_idx))
+        output = edict(
+            states = seq['obs'][start_idx, :self.state_dim],
+            actions = seq['actions'][start_idx],
+            subgoals = self.all_states[subgoal_index, :self.n_pos],
+            next_states = seq['obs'][start_idx + 1, :self.state_dim],
+            G = G,
+            reward = reward,
+            # drw = drw
+            done = 1 if reward else 0
+        )
+
+        return output
+    
+    def __len__(self):
+        return super().__len__() * 10 # skill horizon  # len traj
+
+

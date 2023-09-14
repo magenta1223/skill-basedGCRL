@@ -17,6 +17,19 @@ policy :
   bias : true
   dropout : 0
 
+
+high_level_policy : 
+  n_blocks : 5
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
+  act_cls : torch.nn.Mish
+  tanh : false
+  bias : true
+  dropout : 0
+
+
 q_function : 
   n_blocks : 5
   hidden_dim : 128

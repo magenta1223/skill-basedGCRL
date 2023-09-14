@@ -6,6 +6,9 @@ from ...contrib import TanhNormal
 from easydict import EasyDict as edict
 from copy import deepcopy
 
+
+
+
 class RIS_Prior(ContextPolicyMixin, BaseModule):
     """
     TODO 
@@ -17,6 +20,7 @@ class RIS_Prior(ContextPolicyMixin, BaseModule):
         super().__init__(submodules)
 
         self.prior_policy = deepcopy(self.policy)
+        # self.high_level_policy = deepcopy(self.policy)
 
 
     def forward(self, batch, mode = "default" , *args, **kwargs):
@@ -44,16 +48,13 @@ class RIS_Prior(ContextPolicyMixin, BaseModule):
         # 혼합
 
         if mode == "default":
+
             policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))
             policy_action = policy_action_dist.rsample()
 
             subgoal_dist = self.high_level_policy.dist( torch.cat((states, G), dim = -1))
             subgoal = subgoal_dist.sample()
             subgoal_action_dist = self.prior_policy.dist(torch.cat((states, subgoal), dim = -1))
-
-
-
-
 
             return edict(
                 states = states,
@@ -66,6 +67,7 @@ class RIS_Prior(ContextPolicyMixin, BaseModule):
 
         else:
 
+            subgoal_dist = self.high_level_policy.dist( torch.cat((states, G), dim = -1))
             return edict(
                 subgoal_dist = subgoal_dist,
             )

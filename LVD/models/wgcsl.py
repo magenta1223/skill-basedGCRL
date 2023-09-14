@@ -68,7 +68,7 @@ class WGCSL(BaseModel):
 
             "value" : {
                 "optimizer" : RAdam( self.q_function.parameters(), lr = self.lr ),
-                "metric" : "value_error"
+                "metric" : None
             }, 
 
         }
@@ -172,7 +172,7 @@ class WGCSL(BaseModel):
             self.optimizers['value']['optimizer'].step()
         
         # advantage 계산
-        weights, exp_adv = self.calcualate_advantage(target_q, batch)
+        weights, exp_adv = self.calcualate_advantage(batch)
         self.adv_que.enqueue(exp_adv.detach().cpu().numpy().tolist())
 
         eps_adv = exp_adv.clone()

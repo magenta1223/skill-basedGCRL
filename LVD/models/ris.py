@@ -22,6 +22,7 @@ class RIS(BaseModel):
         # highlevel_policy = SequentialBuilder(cfg.high_policy)
         
         policy = SequentialBuilder(cfg.policy)
+        high_level_policy = SequentialBuilder(cfg.high_level_policy)
         self.q_function = SequentialBuilder(cfg.q_function)
         self.target_q_function = SequentialBuilder(cfg.q_function)
 
@@ -31,6 +32,7 @@ class RIS(BaseModel):
         self.prior_policy = PRIOR_WRAPPERS['ris'](
             # skill_prior = prior,
             policy = policy,
+            high_level_policy = high_level_policy,
             tanh = False,
             cfg = cfg,
         )
@@ -38,15 +40,21 @@ class RIS(BaseModel):
         # optimizer
 
         self.optimizers = {
-            "prior_policy" : {
-                "optimizer" : RAdam( self.prior_policy.parameters(), lr = self.lr ),
+            "policy" : {
+                "optimizer" : RAdam( self.prior_policy.policy.parameters(), lr = self.lr ),
                 "metric" : "Rec_skill"
             }, 
 
             "value" : {
                 "optimizer" : RAdam( self.q_function.parameters(), lr = self.lr ),
-                "metric" : "value_error"
+                "metric" : None
             }, 
+
+            "subgoal" : {
+                "optimizer" : RAdam( self.prior_policy.high_level_policy.parameters(), lr = self.lr ),
+                "metric" : None
+            }, 
+
 
         }
 
@@ -58,14 +66,18 @@ class RIS(BaseModel):
         self.loss_fns['recon_orig'] = ['mse', torch.nn.MSELoss()]
 
         self.step = 0
+        self.scale_lambda = 0.1
+        self.alpha = 0.1
 
     @torch.no_grad()
     def get_metrics(self, batch):
         """
         Metrics
         """
-        self.loss_dict['recon'] = self.loss_fn('recon')(self.outputs['policy_action'], batch.actions)
-        self.loss_dict['metric'] = self.loss_dict['Rec_skill']
+        # self.loss_dict['recon'] = self.loss_fn('recon')(self.outputs['policy_action'], batch.actions)
+        # self.loss_dict['metric'] = self.loss_dict['Rec_skill']
+
+        self.loss_dict['metric'] = 0
 
         
 
@@ -108,7 +120,7 @@ class RIS(BaseModel):
         q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
         target_q = self.target_q_function(q_input).squeeze(-1) 
 
-        return batch.reward + (1 - batch.dones) * self.discount * target_q 
+        return batch.reward + (1 - batch.done) * self.discount * target_q 
     
     def forward_value(self, batch, mode = "default", subgoal = None ):
         assert mode in ['default', 'to_subgoal', 'to_goal'], "Invalid mode"
@@ -117,16 +129,16 @@ class RIS(BaseModel):
             q_input = torch.cat((batch.states, batch.actions, batch.G))
         elif mode == "to_subgoal":
             if subgoal is not None:
-                q_input = torch.cat((batch.states, batch.actions, subgoal))
+                q_input = torch.cat((batch.states, batch.actions, subgoal), dim = -1)
             else:
-                q_input = torch.cat((batch.states, batch.actions, batch.subgoals))
+                q_input = torch.cat((batch.states, batch.actions, batch.subgoals), dim = -1)
         else: # to_goal
             # assert subgoal is not None, "to goal but subgoal is None"
             if subgoal is not None:                
-                q_input = torch.cat((subgoal, batch.actions, batch.G))
+                q_input = torch.cat((subgoal, batch.actions, batch.G),dim = -1)
 
             else:
-                q_input = torch.cat((batch.subgoal, batch.actions, batch.G))
+                q_input = torch.cat((batch.subgoal, batch.actions, batch.G), dim = -1)
 
 
         value = self.q_function(q_input).squeeze(-1)
@@ -141,7 +153,7 @@ class RIS(BaseModel):
     def calcualate_advantage(self, batch, predicted_subgoal):
         # cost function 
 
-        cost = self.get_cost(batch, batch.subgoal)
+        cost = self.get_cost(batch, batch.subgoals)
         cost_pred = self.get_cost(batch, predicted_subgoal)
 
         adv = torch.exp((cost_pred - cost) * self.scale_lambda)
@@ -178,11 +190,11 @@ class RIS(BaseModel):
 
         # advantage 계산
         adv = self.calcualate_advantage(batch, subgoal_dist.sample())
-        subgoal_loss = subgoal_dist.log_prob(batch.subgoal).mean() * adv
+        subgoal_loss = - subgoal_dist.log_prob(batch.subgoals) * adv
 
         if not validate:
             self.optimizers['subgoal']['optimizer'].zero_grad()
-            subgoal_loss.backward()
+            subgoal_loss.mean().backward()
             self.optimizers['subgoal']['optimizer'].step()
         # ----------------------------------------------------------- #
 
@@ -192,24 +204,19 @@ class RIS(BaseModel):
         # Outputs
         self.outputs['actions'] = batch.actions
 
-        q_input = torch.cat((batch.states, self.outputs.policy_actions, batch.G))
+        q_input = torch.cat((batch.states, self.outputs.policy_action, batch.G), dim = -1)
         value = self.q_function(q_input).squeeze(-1)
 
-        prior_regularize = self.loss_fn("reg")( self.outputs.policy_action_dist, self.outputs.subgoal_action_dist ).mean()
+        prior_regularize = self.loss_fn("reg")( self.outputs.policy_action_dist, self.outputs.subgoal_action_dist )
 
         policy_loss = (-value + self.alpha * prior_regularize)
 
 
         # loss = self.compute_loss(batch)
-
         if not validate:
-            for _, optimizer in self.optimizers.items():
-                optimizer['optimizer'].zero_grad()
-                
-            policy_loss.backward()
-
-            for _, optimizer in self.optimizers.items():
-                optimizer['optimizer'].step()
+            self.optimizers['policy']['optimizer'].zero_grad()
+            policy_loss.mean().backward()
+            self.optimizers['policy']['optimizer'].step()
 
 
         self.loss_dict['value_error'] = value_loss.item()

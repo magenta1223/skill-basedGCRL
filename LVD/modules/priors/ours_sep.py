@@ -168,6 +168,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
     # def forward_invD(self, hts):
     def forward_invD(self, start, subgoal, use_target = False):
         # subgoal = subgoal.clone().detach()
+        # start = start.clone().detach()
 
         if not self.cfg.grad_pass.invD:
             start = start.clone().detach()

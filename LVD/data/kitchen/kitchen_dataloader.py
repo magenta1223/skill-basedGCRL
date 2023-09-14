@@ -540,13 +540,12 @@ class Kitchen_Dataset_Flat_RIS(Kitchen_Dataset):
 
         G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
         G[ : self.n_pos] = 0 # only env state
-        reward = - 1 if goal_idx - start_idx < 1 else 1
+        reward =  1 if goal_idx - start_idx < 3 else 0 
         
         # discounted relabeling weight 
         # drw = np.exp(self.discount * (goal_idx - start_idx))
 
-        
-        
+    
         output = edict(
             states = seq.states[start_idx, :self.n_pos + self.n_env],
             actions = seq.actions[start_idx],
@@ -555,7 +554,7 @@ class Kitchen_Dataset_Flat_RIS(Kitchen_Dataset):
             G = G,
             reward = reward,
             # drw = drw
-            done = True if reward else False
+            done = 1 if reward else 0
         )
 
         return output

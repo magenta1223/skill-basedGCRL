@@ -325,22 +325,55 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         )         
 
         # ----------- subgoal generator -------------- #         
-
-        # reg_term 쓰지말고, r_int의 advantage로 
         if self.advantage:
-            reg_term = 0
-            # 아무 subgoal이나 생성해보고
-            # 그중에 진짜 아닌것만 쳐내 
-            skill_diff = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights)
-            advantage = torch.softmax(- skill_diff, dim = 0).clone().detach()
+            # # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
+            # agg_dims = list(range(1, len(self.outputs['subgoal_D'].shape)))            
+            # _r_int = torch.pow(self.outputs['subgoal_D'] - self.outputs['subgoal_D_target'], 2).mean(dim = agg_dims)
+            # with torch.no_grad():
+            #     mse = torch.pow(self.outputs['subgoal_f'] - self.outputs['subgoal_f_target'], 2).mean(dim = agg_dims)
+            #     # adv = torch.exp( - mse * 1000) * weights
+            #     adv = torch.softmax( - mse * 1000, dim = 0) * weights
+
+                
+
+            # # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            # F_loss = (adv * _r_int).mean()
+            # # F_loss = _r_int.mean()
+            # r_int = _r_int.mean()
+
+            # 직접 제어 : 3.4 / 2.8
+            # r_int = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+            # F_loss = r_int
+
+            # 개구림 
+            # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * 0.01
+            # F_loss = r_int + reg_term
+
+
+            # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
+            # F_loss = r_int * 1000 #+ reg_term
             
-            # 너무 작음. 
-            subgoal_weights = skill_diff.shape[0] * (weights * advantage)
-    
-            r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], subgoal_weights) * self.weight.D
+            # adv : 2.9 / 2.6
+            # agg_dims = list(range(1, len(self.outputs['subgoal_D'].shape)))            
+            # _r_int = torch.pow(self.outputs['subgoal_D'] - self.outputs['subgoal_D_target'], 2).mean(dim = agg_dims)
+            # with torch.no_grad():
+            #     adv = torch.exp( - _r_int * 1000) * weights
 
-            F_loss = r_int 
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            
+            # F_loss = (_r_int + adv * reg_term).mean()
+            # r_int = _r_int.mean()
 
+            # 
+
+            
+            sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
+            subgoal_state_loss =  self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights)
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+
+            F_loss = sanity_check + subgoal_state_loss #+ reg_term
+            r_int = self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
 
         else:
             r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
@@ -388,6 +421,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "Rec_goal" : goal_recon.item(),
         }       
 
+        # if self.advantage:
+        #     self.loss_dict['adv'] = adv.mean()
 
 
 
