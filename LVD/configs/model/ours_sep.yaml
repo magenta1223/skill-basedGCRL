@@ -26,7 +26,7 @@ weight :
   invD : 1
 
 skill_trainer : LVD.runner.Diversity_Trainer
-rl_trainer : LVD.rl.GCRL_Skill_Trainer
+rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 rlAgentCls : LVD.rl.agent.sac.SAC
 consistency_update : true
 model_update : true

@@ -129,12 +129,12 @@ class RIS(BaseModel):
             q_input = torch.cat((batch.states, batch.actions, batch.G))
         elif mode == "to_subgoal":
             if subgoal is not None:
-                q_input = torch.cat((batch.states, batch.actions, subgoal), dim = -1)
+                q_input = torch.cat((batch.states, batch.actions, subgoal[..., :self.n_pos]), dim = -1)
             else:
                 q_input = torch.cat((batch.states, batch.actions, batch.subgoals), dim = -1)
         else: # to_goal
             # assert subgoal is not None, "to goal but subgoal is None"
-            if subgoal is not None:                
+            if subgoal is not None:        
                 q_input = torch.cat((subgoal, batch.actions, batch.G),dim = -1)
 
             else:
@@ -248,3 +248,23 @@ class RIS(BaseModel):
         self.get_metrics(batch)
 
         return self.loss_dict
+    
+    # for rl
+    def get_policy(self):
+        return self.prior_policy.policy
+    
+    def set_buffer(self, buffer):
+        self.buffer= buffer
+
+    def update(self, step_inputs):
+        batch = self.buffer.sample(self.rl_batch_size)
+        batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
+        self.episode = step_inputs['episode']
+        self.n_step += 1
+
+        
+        # batch = edict({  k : v.cuda()  for k, v in batch.items()})
+
+        self.__main_network__(batch)
+        self.stat = edict()
+

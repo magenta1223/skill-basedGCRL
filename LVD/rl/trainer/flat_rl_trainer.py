@@ -81,9 +81,12 @@ class Flat_RL_Trainer:
 
         rl_agent_config['target_kl_start'] = np.log(self.cfg.action_dim).astype(np.float32)
         rl_agent_config['target_kl_end'] = np.log(self.cfg.action_dim).astype(np.float32)
-
-
-        agent = Flat_GCSL(rl_agent_config).cuda()
+        
+        if "flat_gcsl" in self.cfg.structure:
+            agent = Flat_GCSL(rl_agent_config).cuda()
+        else:
+            agent = model
+            agent.set_buffer(buffer)
 
         self.collector, self.agent = collector, agent
 

@@ -289,7 +289,16 @@ class GC_Buffer(Buffer):
             prev_i = next_i
         
         self.device = None
+        
+        # relabeling을 위해 
+        # self.episodes가 있음. ep_index만 저장하면 된다. 
+        # popleft 할 때 마다 -> 전체 ep_index 하나씩 빼주면 됨. 
+        # 바뀜.
 
+        # transition 만들 때 ep index 하나 만들고
+        # ep 하나 추가할 때 마다 
+        # 0에서 시작 -> popleft 안하면 +1 
+        # 
 
 
     @property
@@ -555,3 +564,263 @@ class Offline_Buffer:
         self.states = torch.empty(self.max_size, self.trajectory_length + 1, self.state_dim)
         self.actions = torch.empty(self.max_size, self.trajectory_length, self.action_dim)
         print(  "Buffer Reset. Size : ", self.size)
+
+
+
+
+class GC_Buffer_WGCSL(Buffer):
+    """
+    """
+    # def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+        self.state_processor = StateProcessor(cfg.env_name)
+        self.env_name = cfg.env_name
+        
+
+        if "flat" in cfg.structure:
+            action_dim = cfg.action_dim
+        else:
+            action_dim = cfg.skill_dim
+
+        self.tanh = cfg.tanh
+        if self.tanh:
+            action_dim *= 2
+        self.hindsight_relabel = cfg.hindsight_relabel
+
+        self.state_dim = cfg.state_dim
+        self.action_dim = action_dim
+        self.max_size = cfg.buffer_size
+        
+        self.ptr = 0
+        self.size = 0
+        
+        self.episodes = deque()
+        self.episode_ptrs = deque()
+        # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
+
+
+        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal + 3) # rwd, relabeled rwd, dones
+        # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
+
+
+        dims = OrderedDict([
+            ('state', cfg.state_dim),
+            ('action', action_dim),
+            ('reward', 1),
+            ('done', 1),
+            ('next_state', cfg.state_dim),
+            ('goal', cfg.n_goal),
+            ('state_index', 1), # state index for relabeling 
+            ('ep_index', 1), # episode index for relabeling 
+        ])
+        self.layout = dict()
+        prev_i = 0
+        for k, v in dims.items():
+            next_i = prev_i + v
+            self.layout[k] = slice(prev_i, next_i)
+            prev_i = next_i
+        
+        self.device = None
+        
+        # relabeling을 위해 
+        # self.episodes가 있음. ep_index만 저장하면 된다. 
+        # popleft 할 때 마다 -> 전체 ep_index 하나씩 빼주면 됨. 
+        # 바뀜.
+
+        # transition 만들 때 ep index 하나 만들고
+        # ep 하나 추가할 때 마다 
+        # 0에서 시작 -> popleft 안하면 +1 
+        self.ep_index = 0
+
+
+    @property
+    def goal(self):
+        return self.transitions[:, self.layout['goal']]
+
+    @property
+    def ep_index(self):
+        return self.transitions[:, self.layout['ep_index']]
+
+
+    def ep_to_transtions(self, episode):
+        len_ep = len(episode.states[:-1])
+
+        # last state = goal로 변경
+        # relabeled reward 추가
+
+        return torch.as_tensor(np.concatenate([
+            episode.states[:-1],
+            episode.actions,
+            np.array(episode.rewards)[:, None],
+            np.array(episode.dones)[:, None],
+            episode.states[1:],
+            episode.goals,
+            np.array(list(range(len(episode.states) - 1)))
+        ], axis=-1))
+
+    def enqueue(self, episode):
+        # ep_index 로직
+        # 일단 0에서 시작
+        # episodes에서 제거 안했으면 -> ep_index += 1
+        # 제거 했으면 -> 
+
+        ep_delta = 0
+        # 에피소드 길이가 0 이 될 때 까지
+        while len(self.episodes) > 0:
+            # 가장 앞의 에피소드와
+            old_episode = self.episodes[0]
+            # 그 ptr을 가져옴
+            ptr = self.episode_ptrs[0]
+            # ptr - self.ptr을 최대크기 (20000) 으로 나눈 몫임. 
+            dist = (ptr - self.ptr) % self.max_size
+
+            # 꽉 찰때 까지는 dist가 max_size부터 0까지 계속 작아짐.
+            # 따라서 이 조건에 안걸림.
+            # 꽉 찰 즈음 되면 이 조건에 걸린다. 
+            if dist < len(episode):
+                self.episodes.popleft()
+                self.episode_ptrs.popleft()
+                # 뺄 때 마다 ep_index도 변경 
+                ep_delta +=  1
+            else:
+                break
+
+        ep_index = len(self.episodes) - 1
+
+        # self.ptr을 더한 후 
+        self.episodes.append(episode)
+        self.episode_ptrs.append(self.ptr)
+
+ 
+        
+        # transition으로 만듬
+        # transitions = torch.as_tensor(np.concatenate([
+        #     episode.states[:-1], episode.actions,
+        #     np.array(episode.rewards)[:, None], np.array(episode.dones)[:, None],
+        #     episode.states[1:]
+        # ], axis=-1))
+
+        self.transitions[:, self.layout['ep_index']] -= ep_delta
+
+        transitions = self.ep_to_transtions(episode)
+        transitions = torch.cat((transitions, torch.full(transitions.shape[0], ep_index)), dim = -1)
+
+        
+        # self.ptr + 에피소드 길이가 최대 크기 이하
+        # 즉, 처음부터 채우고 있는 과정임.
+        if self.ptr + len(episode) <= self.max_size:
+            # 빈 곳에 할당
+            self.transitions[self.ptr:self.ptr+len(episode)] = transitions
+        # 만약 1배 이상 2배 이하라면? 
+        elif self.ptr + len(episode) < 2*self.max_size:
+            # 잘라서 앞에넣고 뒤에넣고
+            self.transitions[self.ptr:] = transitions[:self.max_size-self.ptr]
+            self.transitions[:len(episode)-self.max_size+self.ptr] = transitions[self.max_size-self.ptr:]
+        else:
+            raise NotImplementedError
+
+        # 즉, ptr은 현재 episode를 더하고 난 후의 위치임. 
+        self.ptr = (self.ptr + len(episode)) % self.max_size
+        self.size = min(self.size + len(episode), self.max_size)
+
+    def sample(self, n):
+        indices = torch.randint(self.size, size=[n])
+        transitions = self.transitions[indices]
+        batch = GC_Batch2(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device).parse()
+        
+        relabeled_goals = []
+        relabeled_rewards = []
+        drws = []
+        # ep index로 relabeling 
+        for state_index, ep_index in zip(batch.state_index, batch.ep_index):
+            ep = self.episodes[ep_index]
+            # 현재 state 이후의 것을 골라야 함. 
+            # 그러면 state의 index도 저장해야.. 하는게 아닐까용 
+            goal_index = np.random.randint(state_index, len(ep.states), 1)[0]
+
+            relabeled_goal = ep.states[goal_index]
+            relabeled_goals.append(relabeled_goal)
+
+            drw = np.exp(np.log(0.99) * (goal_index - state_index))
+            drws.append(drw)
+
+            # 
+            if self.cfg.structrue == "flat_wgcsl":
+                if goal_index - state_index < self.cfg.reward_threshold:
+                    relabeled_rewards.append(1)
+                else:
+                    relabeled_rewards.append(-1)
+            else: # flat_ris 
+                if goal_index - state_index < self.cfg.reward_threshold:
+                    relabeled_rewards.append(1)
+                else:
+                    relabeled_rewards.append(0)
+
+
+        
+        # goal로 바꿔줘야 함. 
+        batch['drw'] = torch.stack(drws, dim = 0)
+        batch["G"] = torch.stack(relabeled_goals, dim = 0)
+        batch['reward'] = torch.stack(relabeled_rewards, dim = 0)
+
+        if self.cfg.structure == "flat_ris":
+            # subgoal sample 
+            states =  self.transitions[:, self.layout['states']]
+            subgoal_indices = torch.randint(self.size, size=[n])
+            batch['subgoal'] = states[subgoal_indices]
+
+
+        return batch
+
+
+class GC_Batch2(Batch):
+    def __init__(self, states, actions, rewards, dones, next_states, goals, state_index, ep_index, transitions=None, tanh = False, hindsight_relabel = False):
+        # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
+        super().__init__(states, actions, rewards, dones, next_states, transitions)
+
+        self.data['goals'] = goals
+        self.data['state_index'] = state_index
+        self.data['ep_index'] = ep_index
+
+        self.tanh = tanh
+        self.hindsight_relabel = hindsight_relabel
+
+    @property
+    def goals(self):
+        return self.data['goals']
+    
+    @property
+    def state_index(self):
+        return self.data['state_index']
+        
+    @property
+    def ep_index(self):
+        return self.data['ep_index']
+    
+    def parse(self):    
+        if self.hindsight_relabel:
+            # sample별로 해야 함. 
+            # indices = torch.randn(len(self.states), 1).cuda()
+            # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
+            indices = torch.zeros(len(self.states), 1).cuda() # relabeled 0% 
+
+        else:
+            indices = torch.zeros(len(self.states), 1).cuda()
+
+        batch_dict = edict(
+            states = self.states,
+            next_states = self.next_states,
+            rewards = self.rewards,
+            G = self.goals,
+            done = self.dones,
+            state_index = self.state_index,
+            ep_index = self.ep_index
+        )
+        if self.tanh:
+            batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)
+        else:
+            batch_dict['actions'] = self.actions
+
+        return batch_dict

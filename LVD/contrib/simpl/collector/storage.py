@@ -113,6 +113,7 @@ class Buffer:
             prev_i = next_i
         
         self.device = None
+        
   
     def __repr__(self):
         return f'Buffer(max_size={self.max_size}, self.size={self.size})'

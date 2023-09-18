@@ -485,7 +485,12 @@ class Kitchen_Dataset_Flat_WGCSL(Kitchen_Dataset):
 
         G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
         G[ : self.n_pos] = 0 # only env state
-        reward =  1 if goal_idx - start_idx < 3 else 0 
+
+
+        if goal_idx - start_idx < self.reward_threshold:
+            reward, done = 1, 1
+        else:
+            reward, done = -1, 0 
         
         # discounted relabeling weight 
         drw = np.exp(self.discount * (goal_idx - start_idx))
@@ -496,6 +501,7 @@ class Kitchen_Dataset_Flat_WGCSL(Kitchen_Dataset):
             next_states = seq.states[start_idx + 1, :self.n_pos + self.n_env],
             G = G,
             reward = reward,
+            done = done,
             drw = drw
         )
 
@@ -540,7 +546,7 @@ class Kitchen_Dataset_Flat_RIS(Kitchen_Dataset):
 
         G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
         G[ : self.n_pos] = 0 # only env state
-        reward =  1 if goal_idx - start_idx < 3 else 0 
+        reward =  1 if goal_idx - start_idx < self.reward_threshold else 0 
         
         # discounted relabeling weight 
         # drw = np.exp(self.discount * (goal_idx - start_idx))

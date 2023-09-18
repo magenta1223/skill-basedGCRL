@@ -399,7 +399,10 @@ class Maze_Dataset_Flat_WGCSL(Maze_Dataset):
         start_idx, goal_idx = self.sample_indices(states)
 
 
-        reward = - 1 if goal_idx - start_idx <= 5 else 1
+        if goal_idx - start_idx < self.reward_threshold:
+            reward, done = 1, 1
+        else:
+            reward, done = -1, 0 
 
         G = deepcopy(states[goal_idx, :self.n_pos])
 
@@ -423,6 +426,7 @@ class Maze_Dataset_Flat_WGCSL(Maze_Dataset):
             next_states = next_states,
             G = G,
             reward = reward,
+            done = done,
             drw = drw
         )
     
@@ -464,14 +468,14 @@ class Maze_Dataset_Flat_RIS(Maze_Dataset):
         subgoal_index = np.random.randint(0, len(self.all_states) - 1)
         G = deepcopy(seq['obs'][goal_idx])[:self.n_pos]
         G[ : self.n_pos] = 0 # only env state
-        reward = - 1 if goal_idx - start_idx <= 5 else 1
+        reward = 1 if goal_idx - start_idx < self.reward_threshold else 0
         
         # discounted relabeling weight 
         # drw = np.exp(self.discount * (goal_idx - start_idx))
         output = edict(
             states = seq['obs'][start_idx, :self.state_dim],
             actions = seq['actions'][start_idx],
-            subgoals = self.all_states[subgoal_index, :self.n_pos],
+            subgoals = self.all_states[subgoal_index, :self.state_dim],
             next_states = seq['obs'][start_idx + 1, :self.state_dim],
             G = G,
             reward = reward,

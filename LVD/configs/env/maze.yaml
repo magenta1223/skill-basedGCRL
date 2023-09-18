@@ -2,6 +2,11 @@ env_name : maze
 manipulation : false
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 
+# Skimo
+# WGCSL / RIS
+
+reward_threshold : 5
+
 
 state_dim : 4
 # n_obj : 4

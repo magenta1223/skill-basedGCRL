@@ -72,10 +72,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         if self.cfg.manipulation:
             # prior, prior_detach = self.skill_prior.dist(ht_pos.view(N, T, -1)[:, 0].clone().detach(), detached = True)
             # prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
-            prior, prior_detach = self.foward_prior(hts)
+            prior, prior_detach = self.forward_prior(hts)
 
         else:
-            prior, prior_detach = self.foward_prior(hts)
+            prior, prior_detach = self.forward_prior(hts)
             # prior, prior_detach = self.skill_prior.dist(hts[:, 0].clone().detach(), detached = True)
 
         # -------------- Inverse Dynamics : Skill Learning -------------- #
@@ -156,7 +156,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         return result
     
-    def foward_prior(self, start):
+    def forward_prior(self, start):
         if len(start.shape) > 2:
             start = start[:, 0]
         
@@ -342,11 +342,11 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         if self.cfg.manipulation:
             # skill = self.skill_prior.dist(ht_pos).sample()
             # skill = self.skill_prior.dist(_ht).sample()
-            skill = self.foward_prior(_ht)[0].sample()
+            skill = self.forward_prior(_ht)[0].sample()
 
         else:
             # skill = self.skill_prior.dist(_ht).sample()
-            skill = self.foward_prior(_ht)[0].sample()
+            skill = self.forward_prior(_ht)[0].sample()
 
         states_rollout = []
         _state = states[:, c]
@@ -359,11 +359,11 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             if (i - c) % 5 == 0:
                 if self.cfg.manipulation:
-                    skill = self.foward_prior(_ht)[0].sample()
+                    skill = self.forward_prior(_ht)[0].sample()
                     # skill = self.skill_prior.dist(ht_pos).sample()
                 else:
                     # skill = self.skill_prior.dist(_ht).sample()
-                    skill = self.foward_prior(_ht)[0].sample()
+                    skill = self.forward_prior(_ht)[0].sample()
 
 
             next_ht, cache = self.forward_flatD(_ht, skill) 
@@ -545,7 +545,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         GCSL_loss_subgoal = weighted_mse(subgoal_f, htH_target, weights) + weighted_mse(subgoal_D, htH_target, weights)
 
-        # 여기에 kl을 해야 함. 
+        # covering 
         GCSL_loss_skill = (nll_dist(
             batch.actions,
             invD_sub,

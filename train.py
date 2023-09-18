@@ -56,6 +56,7 @@ def main(cfg):
 
     config_parser = ConfigParser()
     cfg = config_parser.parse_cfg(cfg)
+    
     trainer = cfg.trainer_cls(cfg)
     trainer.fit()
 

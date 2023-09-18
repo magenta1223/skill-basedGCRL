@@ -54,7 +54,10 @@ class RIS_Prior(ContextPolicyMixin, BaseModule):
 
             subgoal_dist = self.high_level_policy.dist( torch.cat((states, G), dim = -1))
             subgoal = subgoal_dist.sample()
-            subgoal_action_dist = self.prior_policy.dist(torch.cat((states, subgoal), dim = -1))
+            if self.cfg.env_name == "maze":
+                subgoal_action_dist = self.prior_policy.dist(torch.cat((states, subgoal[..., :self.cfg.n_pos]), dim = -1))
+            else:
+                subgoal_action_dist = self.prior_policy.dist(torch.cat((states, subgoal), dim = -1))
 
             return edict(
                 states = states,

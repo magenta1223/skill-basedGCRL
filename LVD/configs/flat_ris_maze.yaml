@@ -14,7 +14,7 @@ model:
 
   high_level_policy:
     in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
-    out_dim : ${multiply:${env.n_pos}, 2}
+    out_dim : ${multiply:${env.state_dim}, 2}
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 

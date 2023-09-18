@@ -5,13 +5,11 @@ manipulation : true
 envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
 
 # Skimo
-cem_iter: 6
-planning_horizon : 3
-num_policy_traj : 25
-num_sample_traj : 512
-num_elites : 64
-cem_temperature : 0.5 
-cem_momentum : 0.1
+
+
+# WGCSL / RIS
+reward_threshold : 3
+
 
 state_dim : 30
 n_pos : 9

@@ -132,7 +132,7 @@ class WGCSL(BaseModel):
         q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
         target_q = self.target_q_function(q_input).squeeze(-1) 
 
-        return batch.reward + (1 - batch.reward) * self.discount * target_q 
+        return batch.reward + (1 - batch.done) * self.discount * target_q 
     
     @torch.no_grad()
     def calcualate_advantage(self, batch):
@@ -140,7 +140,7 @@ class WGCSL(BaseModel):
         target_q = self.compute_target_q(batch)
 
         actions = self.prior_policy(batch).policy_action
-        q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
+        q_input = torch.cat((batch.states, actions, batch.G), dim = -1)
         value = self.q_function(q_input).squeeze(-1) 
 
         adv = target_q - value
@@ -227,3 +227,24 @@ class WGCSL(BaseModel):
         self.get_metrics(batch)
 
         return self.loss_dict
+    
+
+    # for rl
+    # 이것 때문에 ~ 
+    def get_policy(self):
+        return self.prior_policy.policy
+    
+    def set_buffer(self, buffer):
+        self.buffer= buffer
+
+    def update(self, step_inputs):
+        batch = self.buffer.sample(self.rl_batch_size)
+        batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
+        self.episode = step_inputs['episode']
+        self.n_step += 1
+
+        
+        # batch = edict({  k : v.cuda()  for k, v in batch.items()})
+
+        self.__main_network__(batch)
+        self.stat = edict()
