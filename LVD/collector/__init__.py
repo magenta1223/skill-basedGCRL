@@ -9,6 +9,8 @@ __all__  = [
     'GC_Hierarchical_Collector',
     'GC_Buffer',
     'GC_Batch',
+    'GC_Buffer_Relabel',
+    'GC_Batch2',
     'GC_Temporal_Buffer',
     'Offline_Buffer'
 ]

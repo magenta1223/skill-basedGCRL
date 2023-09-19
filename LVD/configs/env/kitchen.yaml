@@ -28,7 +28,7 @@ batch_size : 1024
 mixin_start : 1
 mixin_ratio : 0.1
 plan_H : 160
-epochs : 80
+epochs : 60
 # epochs : 40
 warmup_steps : 10
 
@@ -60,7 +60,7 @@ consistency_lr : 3e-5
 policy_lr : 5e-7
 # policy_lr : 3e-5
 buffer_size : 20000
-n_episode : 300
+n_episode : 150
 kl_decay : 0.99
 
 

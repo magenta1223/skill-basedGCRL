@@ -61,7 +61,7 @@ class Flat_RL_Trainer:
         # action_prior.requires_grad_(False) 
 
         qfs = [SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        buffer = GC_Buffer(self.cfg).to(policy.device)
+        buffer = self.cfg.buffer_cls(self.cfg).to(policy.device)
         collector = GC_Flat_Collector(
             self.env,
             time_limit= self.cfg.time_limit,
@@ -86,6 +86,7 @@ class Flat_RL_Trainer:
             agent = Flat_GCSL(rl_agent_config).cuda()
         else:
             agent = model
+            agent.policy = policy
             agent.set_buffer(buffer)
 
         self.collector, self.agent = collector, agent

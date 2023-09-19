@@ -3,6 +3,8 @@ defaults:
   - model: flat_wgcsl
   - env : maze
 
+
+
 structure : flat_wgcsl
 dataset_cls : LVD.data.Maze_Dataset_Flat_WGCSL
 
@@ -11,6 +13,7 @@ model:
     in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
     out_dim : ${multiply:${env.action_dim}, 2}
     # out_dim : ${env.action_dim}
+    n_blocks : 3
 
 
   q_function:

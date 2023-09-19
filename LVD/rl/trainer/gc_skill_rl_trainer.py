@@ -132,6 +132,13 @@ class GC_Skill_RL_Trainer:
                     df.drop_duplicates(inplace = True)
                     df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
 
+                    if ewm_rwds > self.cfg.max_reward * 0.8:
+                        early_stop += 1
+
+                    if early_stop == 10:
+                        # logger에 logging을 해야 하는데. .
+                        break
+
 
             torch.save({
                 "model" : self.agent,

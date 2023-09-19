@@ -5,7 +5,7 @@ envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 # Skimo
 # WGCSL / RIS
 
-reward_threshold : 5
+reward_threshold : 10
 
 
 state_dim : 4
@@ -30,7 +30,7 @@ mixin_ratio : 0.05
 # plan_H : 100
 plan_H : 1000
 # epochs : 150
-epochs : 140
+epochs : 110
 warmup_steps : 50
 
 skill_dim : 10

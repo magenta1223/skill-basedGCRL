@@ -3,7 +3,7 @@ defaults:
   - model: ris
   - env : kitchen
 
-structure : ris
+structure : flat_ris
 dataset_cls : LVD.data.Kitchen_Dataset_Flat_RIS
 
 model:

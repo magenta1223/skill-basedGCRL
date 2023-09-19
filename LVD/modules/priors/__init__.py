@@ -23,7 +23,7 @@ PRIOR_WRAPPERS = {
     "flat_gcsl" : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Prior,
     "ours" : GoalConditioned_Diversity_Prior,
-    "ris" : RIS_Prior
+    "flat_ris" : RIS_Prior
 
 }
 

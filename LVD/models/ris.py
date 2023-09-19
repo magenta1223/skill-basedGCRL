@@ -29,7 +29,7 @@ class RIS(BaseModel):
         self.target_q_function.load_state_dict(self.q_function.state_dict())
         
 
-        self.prior_policy = PRIOR_WRAPPERS['ris'](
+        self.prior_policy = PRIOR_WRAPPERS['flat_ris'](
             # skill_prior = prior,
             policy = policy,
             high_level_policy = high_level_policy,

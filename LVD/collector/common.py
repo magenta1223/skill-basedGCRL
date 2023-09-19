@@ -568,7 +568,7 @@ class Offline_Buffer:
 
 
 
-class GC_Buffer_WGCSL(Buffer):
+class GC_Buffer_Relabel(Buffer):
     """
     """
     # def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
@@ -601,7 +601,7 @@ class GC_Buffer_WGCSL(Buffer):
         # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
 
 
-        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal + 3) # rwd, relabeled rwd, dones
+        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal + 4) # rwd, relabeled rwd, dones
         # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
 
 
@@ -632,7 +632,6 @@ class GC_Buffer_WGCSL(Buffer):
         # transition 만들 때 ep index 하나 만들고
         # ep 하나 추가할 때 마다 
         # 0에서 시작 -> popleft 안하면 +1 
-        self.ep_index = 0
 
 
     @property
@@ -657,7 +656,7 @@ class GC_Buffer_WGCSL(Buffer):
             np.array(episode.dones)[:, None],
             episode.states[1:],
             episode.goals,
-            np.array(list(range(len(episode.states) - 1)))
+            np.array(list(range(len(episode.states) - 1)))[:, None]
         ], axis=-1))
 
     def enqueue(self, episode):
@@ -705,7 +704,7 @@ class GC_Buffer_WGCSL(Buffer):
         self.transitions[:, self.layout['ep_index']] -= ep_delta
 
         transitions = self.ep_to_transtions(episode)
-        transitions = torch.cat((transitions, torch.full(transitions.shape[0], ep_index)), dim = -1)
+        transitions = torch.cat((transitions, torch.full((transitions.shape[0], 1), ep_index)), dim = -1)
 
         
         # self.ptr + 에피소드 길이가 최대 크기 이하
@@ -735,10 +734,16 @@ class GC_Buffer_WGCSL(Buffer):
         drws = []
         # ep index로 relabeling 
         for state_index, ep_index in zip(batch.state_index, batch.ep_index):
+            state_index = int(state_index.detach().cpu().item())
+            ep_index = int(ep_index.detach().cpu().item())
+
             ep = self.episodes[ep_index]
             # 현재 state 이후의 것을 골라야 함. 
             # 그러면 state의 index도 저장해야.. 하는게 아닐까용 
-            goal_index = np.random.randint(state_index, len(ep.states), 1)[0]
+            try:
+                goal_index = np.random.randint(state_index, len(ep.states) - 1, 1)[0]
+            except:
+                goal_index = -1
 
             relabeled_goal = ep.states[goal_index]
             relabeled_goals.append(relabeled_goal)
@@ -747,7 +752,7 @@ class GC_Buffer_WGCSL(Buffer):
             drws.append(drw)
 
             # 
-            if self.cfg.structrue == "flat_wgcsl":
+            if self.cfg.structure == "flat_wgcsl":
                 if goal_index - state_index < self.cfg.reward_threshold:
                     relabeled_rewards.append(1)
                 else:
@@ -761,9 +766,9 @@ class GC_Buffer_WGCSL(Buffer):
 
         
         # goal로 바꿔줘야 함. 
-        batch['drw'] = torch.stack(drws, dim = 0)
-        batch["G"] = torch.stack(relabeled_goals, dim = 0)
-        batch['reward'] = torch.stack(relabeled_rewards, dim = 0)
+        batch['drw'] = torch.tensor(drws).to(self.device)
+        batch["G"] = torch.tensor(relabeled_goals).to(self.device)
+        batch['reward'] = torch.tensor(relabeled_rewards).to(self.device)
 
         if self.cfg.structure == "flat_ris":
             # subgoal sample 

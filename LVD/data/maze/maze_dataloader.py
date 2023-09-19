@@ -363,7 +363,7 @@ class Maze_Dataset_Flat(Maze_Dataset):
 
 
     def __len__(self):
-        return int(self.SPLIT[self.phase] * self.n_seqs)  * 500 # len traj
+        return super().__len__() * 10 # skill horizon  # len traj
 
 
 
@@ -379,46 +379,36 @@ class Maze_Dataset_Flat_WGCSL(Maze_Dataset):
             - start index of sub-trajectory
             - goal index for hindsight relabeling
         """
-
         goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
         start_idx = np.random.randint(min_idx, states.shape[0] - 1)
-        
         goal_index = np.random.randint(start_idx, goal_max_index)
-
         return start_idx, goal_index
 
 
     def __getitem__(self, index):
         seq = self._sample_seq()
-        # start_idx = np.random.randint(0, seq.states.shape[0] - 1)
-        # goal_idx = -1
-
-        states = seq['obs']
-        actions = seq['actions']
-
-        start_idx, goal_idx = self.sample_indices(states)
-
-
-        if goal_idx - start_idx < self.reward_threshold:
-            reward, done = 1, 1
-        else:
-            reward, done = -1, 0 
-
-        G = deepcopy(states[goal_idx, :self.n_pos])
-
+        start_idx, goal_idx = self.sample_indices(seq['obs'])
+        G = deepcopy(seq['obs'][goal_idx, :self.n_pos])
         states = seq['obs'][start_idx, :self.state_dim]
         next_states = seq['obs'][start_idx + 1, :self.state_dim]
-        actions = actions[start_idx ]
+        actions = seq['actions'][start_idx]
 
         drw = np.exp(self.discount * (goal_idx - start_idx))
 
-        # 
-        
+        # if goal_idx - start_idx < self.reward_threshold:
+        #     reward, done = 1, 1
+        # else:
+        #     reward, done = -1, 0 
+
+        if np.linalg.norm(states[:self.n_pos]- G) < 1:
+            reward, done = 1, 1
+        else:
+            reward, done = 0, 0
+
 
         # print(output.states.shape)
         # print(output.actions.shape)
         # print(output.G.shape)
-
 
         return edict(
             states = states,
@@ -454,15 +444,25 @@ class Maze_Dataset_Flat_RIS(Maze_Dataset):
         """
 
         goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
-        start_idx = np.random.randint(min_idx, states.shape[0] - 1)
-        
-        goal_index = np.random.randint(start_idx, goal_max_index)
+        # start_idx = np.random.randint(min_idx, states.shape[0] - 1)
+        # goal_index = np.random.randint(start_idx, goal_max_index)
+
+        indices = np.random.randint(min_idx, goal_max_index, 2)
+        start_idx, goal_index = indices.min(), indices.max()
+
 
         return start_idx, goal_index
 
 
     def __getitem__(self, index):
-        seq = self._sample_seq()
+        # seq = self._sample_seq()
+        
+        seq_index = index % len(self.seqs)
+
+        print(seq_index)
+
+        seq = self.seqs[seq_index]
+
         start_idx, goal_idx = self.sample_indices(seq['obs'])
         # subgoal_index = np.random.randint(start_idx, goal_idx)
         subgoal_index = np.random.randint(0, len(self.all_states) - 1)

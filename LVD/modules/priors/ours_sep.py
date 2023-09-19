@@ -174,9 +174,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             start = start.clone().detach()
             subgoal = subgoal.clone().detach() 
             
-        # if self.cfg.noisy_subgoal:
-        #     subgoal += torch.rand_like(subgoal) * 0.001
-
         # if use_target:
         #     module = self.target_inverse_dynamics
         # else:
@@ -281,15 +278,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         start_detached = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
         sg_input = self.sg_input(start_detached, G)
 
-        if self.cfg.sg_dist:
-            subgoal_f_dist = self.subgoal_generator.dist(sg_input)
-            subgoal_f = subgoal_f_dist.rsample() + start_detached
-            subgoal_f = subgoal_f_dist.rsample() + start_detached
-
-        else:
-            _subgoal_f = self.subgoal_generator(sg_input)
-            subgoal_f = _subgoal_f + start_detached
-            subgoal_f_dist = None
+        _subgoal_f = self.subgoal_generator(sg_input)
+        subgoal_f = _subgoal_f + start_detached
+        subgoal_f_dist = None
 
         # invD_sub, _ = self.forward_invD(start = start_detached, subgoal= subgoal_f, use_target= True)
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)

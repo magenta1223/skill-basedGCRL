@@ -3,7 +3,7 @@ defaults:
   - model: ris
   - env : maze
 
-structure : ris
+structure : flat_ris
 dataset_cls : LVD.data.Maze_Dataset_Flat_RIS
 
 model:

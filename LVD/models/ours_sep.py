@@ -302,13 +302,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             tanh = self.tanh
         ) * weights).mean()
 
-        if self.invD_only_f:
-            invD_loss = torch.tensor([0]).cuda()
+        if self.mode_drop:
+            invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
         else:
-            if self.mode_drop:
-                invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-            else:
-                invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+            invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
 
 
         # ----------- Dynamics -------------- # 

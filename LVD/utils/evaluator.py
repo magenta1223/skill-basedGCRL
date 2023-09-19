@@ -1,5 +1,5 @@
 from copy import deepcopy
-from LVD.collector import GC_Hierarchical_Collector
+from LVD.collector import GC_Hierarchical_Collector, GC_Flat_Collector
 from easydict import EasyDict as edict 
 import pandas as pd 
 import os 
@@ -22,20 +22,32 @@ class Evaluator:
         except:
             print("No end.")
             model = cfg.skill_trainer.load(cfg.zeroshot_weight_before_rollout, cfg).model
-        self.high_policy = deepcopy(model.prior_policy)
-        # non-learnable
-        low_actor = deepcopy(model.skill_decoder)
-        skill_prior = deepcopy(model.prior_policy.skill_prior)
-        low_actor.eval()
-        low_actor.requires_grad_(False)
-        skill_prior.requires_grad_(False) 
-        
-        self.collector = GC_Hierarchical_Collector(
-            self.env,
-            low_actor,
-            horizon = cfg.subseq_len -1,
-            time_limit= cfg.time_limit,
-        )
+
+        if "flat" in cfg.structure:
+            self.policy = deepcopy(model.prior_policy)
+            # non-learnable
+            
+            self.collector = GC_Flat_Collector(
+                self.env,
+                time_limit= cfg.time_limit,
+            )
+
+        else:
+
+            self.high_policy = deepcopy(model.prior_policy)
+            # non-learnable
+            low_actor = deepcopy(model.skill_decoder)
+            skill_prior = deepcopy(model.prior_policy.skill_prior)
+            low_actor.eval()
+            low_actor.requires_grad_(False)
+            skill_prior.requires_grad_(False) 
+            
+            self.collector = GC_Hierarchical_Collector(
+                self.env,
+                low_actor,
+                horizon = cfg.subseq_len -1,
+                time_limit= cfg.time_limit,
+            )
 
         self.eval_data = []
 
@@ -130,7 +142,6 @@ class Evaluator:
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
 
         if self.env.name == "kitchen":
-            # mode dropping이 훨~씬 좋다 
             easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
         else:
             easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
@@ -172,15 +183,31 @@ class Evaluator:
 
 
     def eval_singleTask(self, seed, task):
-        with self.collector.env.set_task(task):
-            for _ in range(self.cfg.n_eval):
-                with self.high_policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
-                    episode, G = self.collector.collect_episode(self.high_policy, verbose = True)
-                data = edict(
-                    env = self.env.name, 
-                    task = str(task),
-                    seed = seed, 
-                    reward  = sum(episode.rewards),
-                    success = np.array(episode.dones).sum() != 0
-                )
-                self.eval_data.append(data)
+        if "flat" in self.cfg.structure:
+            with self.collector.env.set_task(task):
+                for _ in range(self.cfg.n_eval):
+                    with self.policy.no_expl(): #, collector.env.step_render():
+                        episode, G = self.collector.collect_episode(self.policy, verbose = True)
+                    data = edict(
+                        env = self.env.name, 
+                        task = str(task),
+                        seed = seed, 
+                        reward  = sum(episode.rewards),
+                        success = np.array(episode.dones).sum() != 0
+                    )
+                    self.eval_data.append(data)
+
+
+        else:
+            with self.collector.env.set_task(task):
+                for _ in range(self.cfg.n_eval):
+                    with self.high_policy.no_expl(), self.collector.low_actor.no_expl() : #, collector.env.step_render():
+                        episode, G = self.collector.collect_episode(self.high_policy, verbose = True)
+                    data = edict(
+                        env = self.env.name, 
+                        task = str(task),
+                        seed = seed, 
+                        reward  = sum(episode.rewards),
+                        success = np.array(episode.dones).sum() != 0
+                    )
+                    self.eval_data.append(data)

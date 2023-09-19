@@ -490,7 +490,7 @@ class Kitchen_Dataset_Flat_WGCSL(Kitchen_Dataset):
         if goal_idx - start_idx < self.reward_threshold:
             reward, done = 1, 1
         else:
-            reward, done = -1, 0 
+            reward, done = 0, 0 
         
         # discounted relabeling weight 
         drw = np.exp(self.discount * (goal_idx - start_idx))
