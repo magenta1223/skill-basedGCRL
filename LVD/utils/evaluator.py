@@ -85,6 +85,61 @@ class Evaluator:
         assert self.cfg.eval_mode in self.eval_methods, f"Invalid evaluation methods. Valid choices are {self.eval_methods.keys()}"
         self.eval_methods[self.cfg.eval_mode]()
     
+    def task_mapping(self, df):
+        if self.env.name == "kitchen":
+            # mode dropping이 훨~씬 좋다 
+            task_dict = {
+                # seen tasks 
+                "MKBS" : "seen",
+                "MKSH" : "seen",
+                "KTLS" : "seen",
+                "KBTH" : "seen",
+
+                # "MBTS" : "seen",
+                # "MTLH" : "seen",
+                # "KBLH" : "seen",
+                # "MBTH" : "seen",
+                # "KBTS" : "seen",
+                # "MBTL" : "seen",
+                # "KBTL" : "seen",
+                # "MKTL" : "seen",
+                # "MKLH" : "seen",
+                # "MBLS" : "seen",
+                # "KBTL" : "seen",
+                # "MLSH" : "seen",
+                # "MBTH" : "seen",
+                # "KBSH" : "seen",
+                # "BTLS" : "seen",
+                # "MKLS" : "seen",
+                
+                # unseen and well-algined 
+                'MKBT' : "well-aligned",
+                'MKBL' : "well-aligned",
+                'BLSH' : "well-aligned",
+                'MBLH' : "well-aligned",
+                'KTSH' : "well-aligned",
+
+                # unseen and mis-aligned
+                'KTLH' : 'mis-aligned',
+                'MTSH' : 'mis-aligned',
+                'BTLH' : 'mis-aligned',
+                'MKTS' : 'mis-aligned',
+                'MTLS' : 'mis-aligned'
+            }
+        else:
+            import json 
+            with open('./assets/maze_task.json', 'rb+') as f:
+                task_dict = json.load(f)
+
+        df['task_type'] = df['task'].map(task_dict)
+
+
+        return df 
+        
+
+
+
+
     def eval_zeroshot(self):
         for seed in self.cfg.seeds:
             for task in self.tasks:
@@ -98,13 +153,15 @@ class Evaluator:
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot.csv")
 
 
-        if self.env.name == "kitchen":
-            # mode dropping이 훨~씬 좋다 
-            easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
-        else:
-            easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
+        # if self.env.name == "kitchen":
+        #     # mode dropping이 훨~씬 좋다 
+        #     easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
+        # else:
+        #     easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
 
-        df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
+        # df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
+
+        df = self.task_mapping(df)
 
         df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot_tasktype.csv", index = False)
@@ -142,12 +199,8 @@ class Evaluator:
 
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
 
-        if self.env.name == "kitchen":
-            easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
-        else:
-            easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
+        df = self.task_mapping(df)
 
-        df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
 
         df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/finetune_tasktype.csv", index = False)
