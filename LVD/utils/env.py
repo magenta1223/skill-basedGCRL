@@ -225,7 +225,13 @@ class Colors:
     
 
 
-def coloring(env_name, targetG, achievedG, done):
+def coloring(env_name, targetG, achievedG, done, ep = None):
+    if ep is not None:
+        reward = sum(ep.rewards)
+
+    else:
+        reward = ""
+
     if env_name == "kitchen":
         task_colors = ""
         for subT in achievedG:
@@ -237,7 +243,7 @@ def coloring(env_name, targetG, achievedG, done):
                     task_colors += '\033[94m' + subT + Colors.RESET
                 else:
                     task_colors += '\033[91m' + subT + Colors.RESET
-        print(f"T : {targetG} A : {task_colors}")
+        print(f"T : {targetG} A : {task_colors} R : {reward}")
     else:
         if done :
             print(f"T : {targetG} A : \033[94m{achievedG}")

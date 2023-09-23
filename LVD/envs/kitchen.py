@@ -22,16 +22,17 @@ class KitchenEnv_GC(KitchenEnv):
     render_height = 400
     render_device = -1
     name = "kitchen"
-
-    def __init__(self, *args, **kwargs):
+    
+    def __init__(self, binary_reward = False, *args, **kwargs):
         self.TASK_ELEMENTS = ['top burner']  # for initialization
         self.ALL_SUBTASKS = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
         self.all_subtasks = ['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle']
 
-        
+
+        self.binary_reward = binary_reward
+
         super().__init__(*args, **kwargs)
         
-
         self.task = None
         self.TASK_ELEMENTS = None
     
@@ -70,6 +71,7 @@ class KitchenEnv_GC(KitchenEnv):
         self.task = prev_task
         self.TASK_ELEMENTS = prev_task_elements
 
+
     def compute_relabeled_reward(self, obs_dict):
         reward_dict = {}
         
@@ -99,7 +101,16 @@ class KitchenEnv_GC(KitchenEnv):
     def step(self, a):
         obs, reward, done, env_info = super().step(a)
         relabeled_reward = self.compute_relabeled_reward(self.obs_dict)
+        
+        if self.binary_reward:
+            env_info['orig_return'] = 4 - len(self.tasks_to_complete)
+            # reward = 1 if done else 0 
+            reward = 1 if len(self.tasks_to_complete) == 0 else 0
+            # tasks_to_complete가 없어야 0
+            relabeled_reward = 0 # high-ep로 변환 시 마지막에 1추가 
+            
         env_info['relabeled_reward'] = relabeled_reward
+
         return obs, reward, done, env_info
 
 # for simpl
@@ -133,27 +144,41 @@ meta_train_tasks = np.array([
 
 
 tasks = np.array([
-    # # Well-aligned, Not missing
-    # [5,6,0,3], # MKBS
-    # [5,0,1,3],  # MBTS
-    # # Mis-aligned, Not missing
-    # [6,0,2,4],  # KBLH
-    # [5,1,2,4],  # MTLH
-    # Well-algined, Missing
-    [5,6,0,1], # MKBT
-    [5,6,0,2], # MKBL
-    # Mis-algined, Missing 
+    # seen 
+    [5,6,0,3], # MKBS
+    [5,0,1,3], # MBTS
+    [5,1,2,4], # MTLH
+    [6,0,2,4], # KBLH
+    [5,0,1,4], # MBTH
+    [6,1,2,3], # KTLS
+    [6,0,2,3], # KBTS 
+    [5,6,3,4], # MKSH
+    [5,0,1,3], # MBTL
+    [6,0,1,2], # KBTL 
+    [5,6,1,2], # MKTL
+    [5,6,2,4], # MKLH
+    [5,0,2,3], # MBLS
+    [6,0,1,2], # KBTL
+    [5,2,3,4], # MLSH
+    [5,0,1,4], # MBTH
+    [6,0,3,4], # KBSH
+    [0,1,3,2], # BTLS
+    [5,6,2,3], # MKLS
+    [6,0,1,4], # KBTH
+
+
+
+    # [5,6,0,1], # MKBT
+    # [5,6,0,2], # MKBL
     [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
-    
-    # # newly added 
+
     [0,2,3,4],  # BLSH
     [0,1,2,4],  # BTLH
     [6,1,3,4],  # KTSH
     [5,0,2,4],  # MBLH
-    [5,6,1,3],  # MKTS
-    [5,1,2,3],  # MTLS
-    # [1,2,3,4],  # TLSH # 그에 맞는 transition이 존재하지 않음 
+    # [5,6,1,3],  # MKTS
+    # [5,1,2,3],  # MTLS
 ])
 
 
@@ -168,12 +193,14 @@ kitchen_ablation_tasks = kitchen_subtasks[tasks]
 
 
 
-kitchen_known_tasks = ['KBTS','MKBS','MKLH','KTLS',
+kitchen_known_tasks = [
+                    'KBTS','MKBS','MKLH','KTLS',
                     'BTLS','MTLH','MBTS','KBLH',
                     'MKLS','MBSH','MKBH','KBSH',
                     'MBTH','BTSH','MBLS','MLSH',
                     'KLSH','MBTL','MKTL','MKSH',
-                    'KBTL','KBLS','MKTH','KBTH']
+                    'KBTL','KBLS','MKTH','KBTH'
+                    ]
 
 
 

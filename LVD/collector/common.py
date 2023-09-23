@@ -26,64 +26,12 @@ class Episode_RR(Episode):
         self.relabeled_rewards.append(relabeled_reward)
         self.goals.append(goal)
 
-
-class HierarchicalEpisode_RR(Episode_RR):
-    def __init__(self, init_state):
-        super().__init__(init_state)
-        # self.low_actions = self.actions
-        self.high_actions = []
-    
-    def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):
-        # MDP transitions
-        super().add_step(low_action, next_state, goal, reward, relabeled_reward, done, info)
-        self.high_actions.append(high_action)
-
-    def as_high_episode(self):
-        """
-        high-action은 H-step마다 값이 None 이 아
-        """
-
-        high_episode = Episode_RR(self.states[0])
-
-        prev_t = 0
-        for t in range(1, len(self)):
-            if self.high_actions[t] is not None:
-                # high-action은 H-step마다 값이 None이 아니다.
-                # raw episode를 H-step 단위로 끊고, action을 high-action으로 대체해서 넣음. 
-                high_episode.add_step(
-                    self.high_actions[prev_t],
-                    self.states[t],
-                    self.goals[t],
-                    sum(self.rewards[prev_t:t]),
-                    sum(self.relabeled_rewards[prev_t:t]),
-                    self.dones[t],
-                    self.infos[t]
-                )
-
-                prev_t = t
-        
-        high_episode.add_step(
-            self.high_actions[prev_t],
-            self.states[-1],
-            self.goals[t],
-            sum(self.rewards[prev_t:]), 
-            sum(self.relabeled_rewards[prev_t:]),
-            self.dones[-1], 
-            self.infos[-1]
-        )
-
-        high_episode.raw_episode = self
-
-        return high_episode 
-
-
-
-
 class HierarchicalEpisode_Relabel(Episode_RR):
-    def __init__(self, init_state, env_name = None):
+    def __init__(self, init_state, env_name = None, binary_reward = False):
         super().__init__(init_state, env_name)
         # self.low_actions = self.actions
         self.high_actions = []
+        self.binary_reward = binary_reward
     
     def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):
         # MDP transitions
@@ -128,22 +76,26 @@ class HierarchicalEpisode_Relabel(Episode_RR):
 
         # ----------------------------------------------------------------------------------------------- #
 
-
-        prev_t = 0
-        relabeled_rewards = [ i  for i, r in enumerate(self.relabeled_rewards) if r != 0]
-        if len(relabeled_rewards):
-            maxlen_relabeled = max([ i  for i, r in enumerate(self.relabeled_rewards) if r != 0])
-        else:
-            maxlen_relabeled = None
+        # reward를 받을만한 것이 있었다면 ~ -> 어케암 
+        # relabeled_rewards = [ i  for i, r in enumerate(self.relabeled_rewards) if r != 0]
+        # if len(relabeled_rewards):
+        #     maxlen_relabeled = max([ i  for i, r in enumerate(self.relabeled_rewards) if r != 0])
+        # else:
+        #     maxlen_relabeled = None
         
-        if maxlen_relabeled is not None:
+        # 마지막을 1로
+        if self.binary_reward:
+            # initialize episode
             high_episode_relabel = Episode_RR(self.states[0])
-            relabeled_goal = self.states[maxlen_relabeled]
-            relabeled_goal = self.state_processor.goal_transform(np.array(relabeled_goal))
-            relabeled_dones = [ False for _ in range(maxlen_relabeled)]
-            relabeled_dones[-1] = True
+            prev_t = 0
+        
+            # goal relabeling ~ 을 이렇게 해야 할까? 
+            # transition에서 하는게 나음. 
+            relabeled_goal = self.state_processor.goal_transform(np.array(self.states[-1]))
+            
+            self.relabeled_rewards[-1] = 1
 
-            for t in range(1, maxlen_relabeled):
+            for t in range(1, len(self)):
                 if self.high_actions[t] is not None:
                     high_episode_relabel.add_step(
                         self.high_actions[prev_t],
@@ -151,7 +103,7 @@ class HierarchicalEpisode_Relabel(Episode_RR):
                         relabeled_goal, # relabeled goal로 대체 
                         sum(self.relabeled_rewards[prev_t:t]), 
                         sum(self.rewards[prev_t:t]), # 마찬가지 
-                        relabeled_dones[t],
+                        self.dones[t],
                         self.infos[t]
                     )
 
@@ -163,13 +115,14 @@ class HierarchicalEpisode_Relabel(Episode_RR):
                 relabeled_goal,
                 sum(self.relabeled_rewards[prev_t:]), 
                 sum(self.rewards[prev_t:]), # 마찬가지 
-                relabeled_dones[-1], 
+                self.dones[-1], 
                 self.infos[-1]
             )
             high_episode_relabel.raw_episode = self
-
         else:
             high_episode_relabel = None
+
+
 
 
         return high_episode, high_episode_relabel
@@ -557,16 +510,11 @@ class Offline_Buffer:
         print(f"Buffer Size : {self.size}")
         
     def reset(self):
-        
         self.size = 0 # 현재 buffer에 차 있는 subtrajectories의 전체 길이
         self.pos = 0  # 다음에 어디에 추가할지. 
-
         self.states = torch.empty(self.max_size, self.trajectory_length + 1, self.state_dim)
         self.actions = torch.empty(self.max_size, self.trajectory_length, self.action_dim)
         print(  "Buffer Reset. Size : ", self.size)
-
-
-
 
 class GC_Buffer_Relabel(Buffer):
     """
@@ -688,19 +636,8 @@ class GC_Buffer_Relabel(Buffer):
 
         ep_index = len(self.episodes) - 1
 
-        # self.ptr을 더한 후 
         self.episodes.append(episode)
         self.episode_ptrs.append(self.ptr)
-
- 
-        
-        # transition으로 만듬
-        # transitions = torch.as_tensor(np.concatenate([
-        #     episode.states[:-1], episode.actions,
-        #     np.array(episode.rewards)[:, None], np.array(episode.dones)[:, None],
-        #     episode.states[1:]
-        # ], axis=-1))
-
         self.transitions[:, self.layout['ep_index']] -= ep_delta
 
         transitions = self.ep_to_transtions(episode)
@@ -732,49 +669,72 @@ class GC_Buffer_Relabel(Buffer):
         relabeled_goals = []
         relabeled_rewards = []
         drws = []
-        # ep index로 relabeling 
-        for state_index, ep_index in zip(batch.state_index, batch.ep_index):
-            state_index = int(state_index.detach().cpu().item())
-            ep_index = int(ep_index.detach().cpu().item())
-
-            ep = self.episodes[ep_index]
-            # 현재 state 이후의 것을 골라야 함. 
-            # 그러면 state의 index도 저장해야.. 하는게 아닐까용 
-            try:
-                goal_index = np.random.randint(state_index, len(ep.states) - 1, 1)[0]
-            except:
-                goal_index = -1
-
-            relabeled_goal = ep.states[goal_index]
-            relabeled_goals.append(relabeled_goal)
-
-            drw = np.exp(np.log(0.99) * (goal_index - state_index))
-            drws.append(drw)
-
-            # 
-            if self.cfg.structure == "flat_wgcsl":
-                if goal_index - state_index < self.cfg.reward_threshold:
-                    relabeled_rewards.append(1)
-                else:
-                    relabeled_rewards.append(-1)
-            else: # flat_ris 
-                if goal_index - state_index < self.cfg.reward_threshold:
-                    relabeled_rewards.append(1)
-                else:
-                    relabeled_rewards.append(0)
-
-
         
-        # goal로 바꿔줘야 함. 
-        batch['drw'] = torch.tensor(drws).to(self.device)
-        batch["G"] = torch.tensor(relabeled_goals).to(self.device)
-        batch['reward'] = torch.tensor(relabeled_rewards).to(self.device)
+        if self.cfg.binary_reward:
+            if self.cfg.structure == "flat_wgcsl":
+                # wgcsl은 항상 relabel 
+                relabel = np.where(np.random.rand(len(batch.state_index)) > -1, True, False)
+            else:
+                relabel = np.where(np.random.rand(len(batch.state_index)) > 0.8, True, False)
+            # ep index로 relabeling 
+            for i, (state_index, ep_index) in enumerate(zip(batch.state_index, batch.ep_index)):
+                state_index = int(state_index.detach().cpu().item())
+                ep_index = int(ep_index.detach().cpu().item())
+                ep = self.episodes[ep_index]
 
-        if self.cfg.structure == "flat_ris":
-            # subgoal sample 
-            states =  self.transitions[:, self.layout['states']]
-            subgoal_indices = torch.randint(self.size, size=[n])
-            batch['subgoal'] = states[subgoal_indices]
+                if relabel[i]:
+                    try:
+                        goal_index = np.random.randint(state_index, len(ep.states) - 1, 1)[0]
+                    except:
+                        goal_index = -1
+
+                    # goal relabeling 
+                    relabeled_goal = ep.states[goal_index]
+                    relabeled_goals.append(relabeled_goal)
+                    
+                    # discounted relabeling weight for WGCSL 
+                    drw = np.exp(np.log(0.99) * (goal_index - state_index))
+                    drws.append(drw)
+
+                    # reward relabeling 
+                    if self.cfg.structure == "flat_wgcsl":
+                        if goal_index - state_index < self.cfg.reward_threshold:
+                            relabeled_rewards.append(1)
+                        else:
+                            relabeled_rewards.append(0)
+
+                    elif self.cfg.structure == "flat_ris":
+                        if goal_index - state_index < self.cfg.reward_threshold:
+                            relabeled_rewards.append(1)
+                        else:
+                            relabeled_rewards.append(-1)
+
+                    else: # skill-based  
+                        if goal_index - state_index < 1:
+                            relabeled_rewards.append(1)
+                        else:
+                            relabeled_rewards.append(0)
+
+                else:
+                    relabeled_goals.append(batch.G[i])
+                    relabeled_rewards.append(batch.rewards[i])
+
+
+
+
+            # goal로 바꿔줘야 함. 
+            batch["G"] = torch.tensor(relabeled_goals, dtype = torch.float32).to(self.device)
+            batch['reward'] = torch.tensor(relabeled_rewards, dtype = torch.float32).to(self.device)
+
+
+            
+            batch['drw'] = torch.tensor(drws, dtype = torch.float32).to(self.device)
+
+            if self.cfg.structure == "flat_ris":
+                # subgoal sample 
+                states =  self.transitions[:, self.layout['states']]
+                subgoal_indices = torch.randint(self.size, size=[n])
+                batch['subgoal'] = states[subgoal_indices]
 
 
         return batch
@@ -819,7 +779,7 @@ class GC_Batch2(Batch):
             next_states = self.next_states,
             rewards = self.rewards,
             G = self.goals,
-            done = self.dones,
+            dones = self.dones,
             state_index = self.state_index,
             ep_index = self.ep_index
         )

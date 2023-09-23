@@ -42,6 +42,7 @@ class GC_Skill_RL_Trainer:
 
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
+        envtask_cfg.env_cfg['binary_reward'] = self.cfg.binary_reward 
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
 
@@ -65,6 +66,7 @@ class GC_Skill_RL_Trainer:
         buffer = self.cfg.buffer_cls(self.cfg).to(high_policy.device)
 
         collector = GC_Hierarchical_Collector(
+            self.cfg,
             self.env,
             low_actor,
             horizon = self.cfg.subseq_len -1,
@@ -132,7 +134,7 @@ class GC_Skill_RL_Trainer:
                     df.drop_duplicates(inplace = True)
                     df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
 
-                    if ewm_rwds > self.cfg.max_reward * 0.8:
+                    if ewm_rwds > self.cfg.max_reward * 0.9:
                         early_stop += 1
 
                     if early_stop == 10:
@@ -151,13 +153,20 @@ class GC_Skill_RL_Trainer:
         # ------------- Collect Data ------------- #
         with self.agent.policy.expl(), self.collector.low_actor.expl(): #, collector.env.step_render():
             episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
-
-        if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
-            success = True
-            print(len(episode.states))
-            print("success")
-
-        high_ep, high_ep_relabeled = episode.as_high_episode()
+        
+        if self.cfg.binary_reward:
+            if np.array(episode.rewards).sum() == 1: # success 
+                success = True
+                print(len(episode.states))
+                print("success")
+        else:
+            if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
+                success = True
+                print(len(episode.states))
+                print("success")
+        
+        # buffer에서 sample 시 relabel을 수행함. 
+        high_ep, _ = episode.as_high_episode()
         self.agent.buffer.enqueue(high_ep) 
         # if high_ep_relabeled is not None:
         #     # nothing acheived
@@ -166,6 +175,10 @@ class GC_Skill_RL_Trainer:
         # high_ep = episode.as_high_episode()
         # self.agent.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
+
+        if self.cfg.binary_reward:
+            # 진짜 reward의 총합 
+            log['tr_rewards'] = episode.infos[-1]['orig_return']
 
         # ------------- Logging Data ------------- #
         data = edict(
@@ -229,15 +242,22 @@ class GC_Skill_RL_Trainer:
 
         log['n_ep'] = n_ep
         log[f'{task_name}_return'] = log['tr_return']
-        if 'GCSL_loss' in log.keys():
-            log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
         del log['tr_return']
+        
+        if self.cfg.binary_reward:
+            log[f'{task_name}_rewards'] = log['tr_rewards']
+            del log['tr_rewards']
+    
+        if 'GCSL_loss' in log.keys():
+            log[f'GCSL over return'] = log[f'{task_name}_return'] / log['GCSL_loss'] 
 
         if (n_ep + 1) % self.cfg.render_period == 0:
             log['policy_vis'] = self.visualize()
-
-        ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+        
+        if self.cfg.binary_reward:
+            ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_rewards']
+        else:
+            ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
         log = {f"{task_name}/{k}": log[k] for k in log.keys()}
 
         return log, ewm_rwds
-    

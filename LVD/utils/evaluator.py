@@ -43,6 +43,7 @@ class Evaluator:
             skill_prior.requires_grad_(False) 
             
             self.collector = GC_Hierarchical_Collector(
+                cfg,
                 self.env,
                 low_actor,
                 horizon = cfg.subseq_len -1,

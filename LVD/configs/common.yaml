@@ -37,10 +37,12 @@ hydra:
           - env.D_lr
           - env.f_lr
           - env.q_warmup
+          - env.binary_reward
           # model 
           - model.consistency_update 
           - model.q_function.norm_cls
           - model.with_gcsl
+          - model.buffer_cls
           # eval
           - eval_mode
           - n_eval 
@@ -48,8 +50,8 @@ hydra:
 
 seeds :
   - 222
-  - 444
-  - 666
+  # - 444
+  # - 666
 
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
@@ -101,7 +103,8 @@ rl_cfgs : [
   policy_lr, consistency_lr, qf_lr, alpha_lr, # lrs
   consistency_update, model_update, init_alpha, auto_alpha, increasing_alpha, target_kl_start, target_kl_end, kl_decay, # sac hyper params
   tanh, # distribution   
+  buffer_cls,
   # gc, 
-  with_gcsl,
+  # with_gcsl,
   hindsight_relabel
   ]

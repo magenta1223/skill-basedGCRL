@@ -3,6 +3,7 @@ env_name_offline : kitchen-mixed-v0
 manipulation : true
 
 envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
+binary_reward : false
 
 # Skimo
 

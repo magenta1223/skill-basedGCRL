@@ -19,8 +19,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # prior policy submodules
         inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
 
-        if self.sg_dist:
-            cfg.subgoal_generator.out_dim *= 2 
 
         subgoal_generator = SequentialBuilder(cfg.subgoal_generator)
 
@@ -322,62 +320,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         )         
 
         # ----------- subgoal generator -------------- #         
-        if self.advantage:
-            # # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
-            # agg_dims = list(range(1, len(self.outputs['subgoal_D'].shape)))            
-            # _r_int = torch.pow(self.outputs['subgoal_D'] - self.outputs['subgoal_D_target'], 2).mean(dim = agg_dims)
-            # with torch.no_grad():
-            #     mse = torch.pow(self.outputs['subgoal_f'] - self.outputs['subgoal_f_target'], 2).mean(dim = agg_dims)
-            #     # adv = torch.exp( - mse * 1000) * weights
-            #     adv = torch.softmax( - mse * 1000, dim = 0) * weights
+        sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
+        subgoal_state_loss =  self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights)
+        # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
 
-                
-
-            # # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            # F_loss = (adv * _r_int).mean()
-            # # F_loss = _r_int.mean()
-            # r_int = _r_int.mean()
-
-            # 직접 제어 : 3.4 / 2.8
-            # r_int = self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-            # F_loss = r_int
-
-            # 개구림 
-            # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * 0.01
-            # F_loss = r_int + reg_term
-
-
-            # r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights) * self.weight.D
-            # F_loss = r_int * 1000 #+ reg_term
-            
-            # adv : 2.9 / 2.6
-            # agg_dims = list(range(1, len(self.outputs['subgoal_D'].shape)))            
-            # _r_int = torch.pow(self.outputs['subgoal_D'] - self.outputs['subgoal_D_target'], 2).mean(dim = agg_dims)
-            # with torch.no_grad():
-            #     adv = torch.exp( - _r_int * 1000) * weights
-
-            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            
-            # F_loss = (_r_int + adv * reg_term).mean()
-            # r_int = _r_int.mean()
-
-            # 
-
-            
-            sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
-            subgoal_state_loss =  self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights)
-            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-
-            F_loss = sanity_check + subgoal_state_loss #+ reg_term
-            r_int = self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
-
-        else:
-            r_int = self.loss_fn("recon")(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights) * self.weight.D
-            reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-            F_loss = r_int + reg_term 
-    
-        
+        F_loss = sanity_check + subgoal_state_loss #+ reg_term
+        r_int = self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
@@ -444,41 +392,15 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         N, T, _ = dec_inputs.shape
         actions_rollout = self.skill_decoder(dec_inputs.view(N * T, -1)).view(N, T, -1)
         
-        states_novel = torch.cat((rollout_batch.states[:, :c+1], states_rollout), dim = 1).detach().cpu()
-        actions_novel = torch.cat((rollout_batch.actions[:, :c], actions_rollout), dim = 1).detach().cpu()
-        seq_indices = rollout_batch.seq_index.detach().cpu()
-        start_indices = rollout_batch.start_idx.detach().cpu()
+        states_novel = torch.cat((rollout_batch.states[:, :c+1], states_rollout), dim = 1)
+        actions_novel = torch.cat((rollout_batch.actions[:, :c], actions_rollout), dim = 1)
+        seq_indices = rollout_batch.seq_index
+        start_indices = rollout_batch.start_idx
+
+
 
         # filter 
-        goals = rollout_batch.G
-        rollout_goals = self.state_processor.goal_transform(states_rollout[:, -1])
-        
-        # RND를 기준으로 
-
-
-        known_goals_score = self.loopMI(goals)
-        rollout_goals_score = self.loopMI(rollout_goals)
-
-        goal_emb = self.goal_encoder(goals)
-        goal_emb_random = self.random_goal_encoder(goals)
-        known_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
-        
-        goal_emb = self.goal_encoder(rollout_goals)
-        goal_emb_random = self.random_goal_encoder(rollout_goals)
-        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
-
-
-
-        # known goal에서 나올 수 있는 수준의 MI는? -> 
-        log_score = known_goals_score.log()
-        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
-        min_value, max_value = torch.quantile(log_score, qauntile)
-        truncated = log_score[(min_value < log_score) & (log_score < max_value)]
-
-        mu, std = truncated.mean(), truncated.std()
-        threshold = (mu + std * 1.35).exp()
-        indices = rollout_goals_score > threshold
-        indices = indices.detach().cpu()
+   
 
 
         # print(rollout_goals_score, threshold, indices)
@@ -525,12 +447,17 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         #     self.loss_dict['seq_indices'] = seq_indices
         #     self.c = c
         #     self.loss_dict['c'] = start_indices + c
+        
+        if self.filter_default:
+            indices = self.filter_rollout(result, rollout_batch)
+        else:
+            indices = self.filter_rollout2(result, rollout_batch)
 
-        self.loss_dict['states_novel'] = states_novel[indices]
-        self.loss_dict['actions_novel'] = actions_novel[indices]
-        self.loss_dict['seq_indices'] = seq_indices[indices]
+        self.loss_dict['states_novel'] = states_novel[indices].detach().cpu()
+        self.loss_dict['actions_novel'] = actions_novel[indices].detach().cpu()
+        self.loss_dict['seq_indices'] = seq_indices[indices].detach().cpu()
         self.c = c
-        self.loss_dict['c'] = start_indices[indices] + c
+        self.loss_dict['c'] = (start_indices[indices] + c).detach().cpu()
 
         # analysis
         # rollout_goals = self.state_processor.goal_transform(states_rollout[:, -1])
@@ -698,3 +625,139 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         scores = self.loss_fn("reg")(goal_dist, goal_reDist)
 
         return scores
+    
+
+    def filter_rollout(self, result, rollout_batch):
+        goals = rollout_batch.G
+        rollout_goals = self.state_processor.goal_transform(result.states_rollout[:, -1])
+        
+        # Random Network distillation 
+        goal_emb = self.goal_encoder(goals)
+        goal_emb_random = self.random_goal_encoder(goals)
+        known_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+        
+        goal_emb = self.goal_encoder(rollout_goals)
+        goal_emb_random = self.random_goal_encoder(rollout_goals)
+        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+
+        # known goal에서 나올 수 있는 수준의 MI는? -> 
+        log_score = known_goals_score.log()
+        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        min_value, max_value = torch.quantile(log_score, qauntile)
+        truncated = log_score[(min_value < log_score) & (log_score < max_value)]
+
+        mu, std = truncated.mean(), truncated.std()
+        threshold = (mu + std * 1.35).exp()
+        indices = rollout_goals_score > threshold
+        indices = indices.detach().cpu()
+        
+
+        return indices
+    
+    @torch.no_grad()
+    def filter_rollout2(self, result, rollout_batch):
+        
+        # copy 
+        result = edict(**result)
+        rollout_batch = edict(**rollout_batch)
+
+        # 1. tau_im의 latent state
+        states_rollout = result.states_rollout 
+        latent_state_rollout = result.latent_states_rollout
+
+        # 2. get branching point 
+        branching_point=  result.c
+        
+        # 3. get final state of rollout 
+        start_indices = rollout_batch.start_idx
+        # max_len - start_indices 
+        # start + branching + plan_H > max_len일 때 
+        # trajectory의 최대길이에 해당하는 state의 index 
+        max_indices_rollout = torch.minimum(- start_indices + self.max_seq_len - branching_point, torch.full_like(start_indices, self.plan_H - 1))
+        max_indices_rollout = max_indices_rollout.to(dtype = torch.int)
+
+        sample_indices = list(range(len(states_rollout)))
+
+        G = self.state_processor.goal_transform(states_rollout[sample_indices, max_indices_rollout])
+        # policy를 이용해 검증 
+        
+
+        # validation_batch = edict(
+        #     ht = latent_state_rollout[:, 0], # branching point부터 시작 ? 아니면 subtraj 처음부터 시작? 
+        #     G =  G
+        # )
+
+        # validation_states = []
+        
+        # # rollout horizon  // H 만큼 반복
+        # for _ in range(self.plan_H // self.Hsteps):
+        #     ht = self.prior_policy.dist(validation_batch, mode = "rollout").ht
+        #     validation_batch['ht'] = ht
+        #     validation_states.append(ht)
+        
+        # validation_states = torch.stack(validation_states, dim = 1)
+        # validation_indices = max_indices_rollout // self.Hsteps
+
+        # # 시점을 skill 종료 지점으로 맞춰주기 
+        # sample_indices_skill_level = list(range(len(validation_states)))
+        # latent_G = latent_state_rollout[sample_indices, validation_indices * 10]
+
+        # diffs = torch.pow(validation_states[sample_indices_skill_level, validation_indices] - latent_G, 2).mean(dim = -1)
+
+        validation_batch = edict(
+            ht = latent_state_rollout[:, 0], # branching point부터 시작 ? 아니면 subtraj 처음부터 시작? 
+            G =  G
+        )
+
+        validation_states = []
+        
+        error = 0
+        # rollout horizon  // H 만큼 반복
+        for i in range(self.plan_H // self.Hsteps):
+            validation_batch['ht'] = latent_state_rollout[:, i]
+            ht_executed = self.prior_policy.dist(validation_batch, mode = "rollout").ht
+
+            error += torch.pow(validation_batch.ht - ht_executed, 2).mean(dim = -1)
+        
+        # validation_states = torch.stack(validation_states, dim = 1)
+        # validation_indices = max_indices_rollout // self.Hsteps
+
+        # 시점을 skill 종료 지점으로 맞춰주기 
+        # sample_indices_skill_level = list(range(len(validation_states)))
+        # latent_G = latent_state_rollout[sample_indices, validation_indices * 10]
+
+        # diffs = torch.pow(validation_states[sample_indices_skill_level, validation_indices] - latent_G, 2).mean(dim = -1)
+        diffs = error / max_indices_rollout * 0.1
+
+
+                
+        qauntile = torch.tensor([0.05, 0.95], dtype= diffs.dtype, device= diffs.device)
+        min_value, max_value = torch.quantile(diffs, qauntile)
+        diffs_trunc = diffs[(min_value < diffs) & (diffs < max_value)]
+        
+        # outlier threshold 
+        threshold = (diffs_trunc.mean() + diffs_trunc.std() * 1.1)
+        indices = diffs > threshold
+
+        # 특정 task
+
+        # print(indices.sum().item() / len(indices))
+        print(diffs_trunc.mean().item())
+
+        return indices
+
+    @torch.no_grad()
+    def filter_rollout3(self, result, rollout_batch):
+        # RND score 
+        goals = rollout_batch.G
+        N = goals.shape[0]
+        rollout_goals = self.state_processor.goal_transform(result.states_rollout[:, -1])
+        
+        # Random Network distillation         
+        goal_emb = self.goal_encoder(rollout_goals)
+        goal_emb_random = self.random_goal_encoder(rollout_goals)
+        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+
+        rollout_goals_prob = torch.softmax(rollout_goals_score, dim = 0)
+        indices = torch.multinomial(rollout_goals_prob, N, replacement=True)
+        return indices

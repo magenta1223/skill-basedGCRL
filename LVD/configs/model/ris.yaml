@@ -4,7 +4,7 @@ with_gcsl: true
 
 consistency_update : true
 model_update : false
-
+binary_reward : true
 
 policy : 
   n_blocks : 5
