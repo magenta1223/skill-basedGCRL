@@ -50,8 +50,8 @@ hydra:
 
 seeds :
   - 222
-  # - 444
-  # - 666
+  - 444
+  - 666
 
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
