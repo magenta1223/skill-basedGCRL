@@ -4,12 +4,15 @@ manipulation : true
 
 envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
 binary_reward : false
+std_factor : 1.35
+
 
 # Skimo
 
 
 # WGCSL / RIS
 reward_threshold : 3
+
 
 
 state_dim : 30

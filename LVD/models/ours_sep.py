@@ -122,10 +122,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "goal" : {
                 "optimizer" : RAdam([
                     {'params' : self.goal_encoder.parameters()},
-                    {'params' : self.goal_decoder.parameters()},
+                    # {'params' : self.goal_decoder.parameters()},
                 ], lr = self.lr
                 ),
-                "metric" : "Rec_goal",
+                "metric" : None,
                 "wo_warmup" : True
             },
         }
@@ -135,6 +135,13 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.c = 0
         self.render = False
         self.do_rollout = False
+
+        self.rnd_mu = None
+        self.rnd_std = None
+        
+        self.g_mu = None
+        self.g_std = None
+
 
     def denormalize(self, x):
         """
@@ -206,22 +213,26 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # self.loss_dict['MI_skill'] = self.loss_fn('reg')(self.outputs['post_detach'], prev_post).mean()
         self.loss_dict['MI_skill'] = self.loss_fn('reg')(prev_post, self.outputs['post_detach']).mean()
 
-        goals = batch.G
-        known_goals_score = self.loopMI(goals)
+        # goals = batch.G
+        # known_goals_score = self.loopMI(goals)
 
-        # known goal에서 나올 수 있는 수준의 MI는? -> 
-        # known은 log취하면 normal임 -> mu + std * 1.35 -> exp -> threshold로 
+        # # known goal에서 나올 수 있는 수준의 MI는? -> 
+        # # known은 log취하면 normal임 -> mu + std * 1.35 -> exp -> threshold로 
 
-        # MI scale이 개큼.. 
-        log_score = known_goals_score.log()
+        # # MI scale이 개큼.. 
+        # log_score = known_goals_score.log()
 
-        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
-        min_value, max_value = torch.quantile(log_score, qauntile)
-        truncated = log_score[(min_value < log_score) & (log_score < max_value)].exp()
-        self.loss_dict['MI_goal_mean'] = truncated.mean()
-        self.loss_dict['MI_goal_std'] = truncated.std()
-
-
+        # qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        # min_value, max_value = torch.quantile(log_score, qauntile)
+        # truncated = log_score[(min_value < log_score) & (log_score < max_value)].exp()
+        # self.loss_dict['MI_goal_mean'] = truncated.mean()
+        # self.loss_dict['MI_goal_std'] = truncated.std()
+    
+    @torch.no_grad()
+    def normalize_G(self, G):
+        # g_mu, g_std = G.mean(dim = 0), G.std(dim = 0)
+        normalized = (G - self.g_mu) / (self.g_std + 1e-5)
+        return torch.clamp(normalized, -5, 5)
 
 
 
@@ -277,8 +288,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # self.outputs['G_hat'] = goal_hat
         # self.outputs['goal_dist'] = goal_dist
 
-        goal_embedding = self.goal_encoder(batch.G)
-        target_goal_embedding = self.random_goal_encoder(batch.G)
+        # obs norm 
+        # only known goal 
+        normalized_G = self.normalize_G(batch.G[batch.rollout])
+
+        goal_embedding = self.goal_encoder(normalized_G)
+        target_goal_embedding = self.random_goal_encoder(normalized_G)
 
         self.outputs['goal_embedding'] = goal_embedding
         self.outputs['target_goal_embedding'] = target_goal_embedding
@@ -451,7 +466,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         if self.filter_default:
             indices = self.filter_rollout(result, rollout_batch)
         else:
-            indices = self.filter_rollout2(result, rollout_batch)
+            indices = self.filter_rollout3(result, rollout_batch)
 
         self.loss_dict['states_novel'] = states_novel[indices].detach().cpu()
         self.loss_dict['actions_novel'] = actions_novel[indices].detach().cpu()
@@ -554,11 +569,50 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 self.train()
 
     def optimize(self, batch, e):
+
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
+
+
+        if e < 1:
+            # goal mu, std 계산 
+            g_mu, g_std = batch.G.mean(dim = 0), batch.G.std(dim = 0)
+
+            if self.g_mu is None:
+                self.g_mu = g_mu 
+                self.g_std = g_std
+            else:
+                ratio = 1e-3
+                self.g_mu = self.g_mu * (1 - ratio) + g_mu * ratio
+                self.g_std = self.g_std * (1 - ratio) + g_std * ratio             
+
+
+
+
 
         self.__main_network__(batch)
         self.get_metrics(batch)
         self.prior_policy.soft_update()
+
+        # rnd threshold 
+        goal_recon_errors = torch.pow(self.outputs['target_goal_embedding'] - self.outputs['goal_embedding'], 2).mean(dim = -1)
+        
+        mu, std = goal_recon_errors.mean().item(), goal_recon_errors.std().item()
+
+
+        if self.rnd_mu is None:
+            self.rnd_mu = mu 
+            self.rnd_std = std
+        else:
+            ratio = 1e-3
+            self.rnd_mu = self.rnd_mu * (1 - ratio) + mu * ratio
+            self.rnd_std = self.rnd_std * (1 - ratio) + std * ratio 
+
+
+
+
+        
+        # print(f"{self.rnd_mu:.5f}, {self.rnd_std:.5f}")
+
         return self.loss_dict
     
     @torch.no_grad()
@@ -626,11 +680,28 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         return scores
     
-
+    @torch.no_grad()
     def filter_rollout(self, result, rollout_batch):
         goals = rollout_batch.G
-        rollout_goals = self.state_processor.goal_transform(result.states_rollout[:, -1])
+        N = goals.shape[0]
+      
+        # 2. get branching point 
+        branching_point=  result.c
         
+        # 3. get final state of rollout 
+        start_indices = rollout_batch.start_idx
+        # max_len - start_indices 
+        # start + branching + plan_H > max_len일 때 
+        # trajectory의 최대길이에 해당하는 state의 index 
+        max_indices_rollout = torch.minimum(- start_indices + self.max_seq_len - branching_point, torch.full_like(start_indices, self.plan_H - 1))
+        max_indices_rollout = max_indices_rollout.to(dtype = torch.int)
+        rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
+
+        
+        goals = self.normalize_G(goals)
+        rollout_goals = self.normalize_G(rollout_goals)
+  
+
         # Random Network distillation 
         goal_emb = self.goal_encoder(goals)
         goal_emb_random = self.random_goal_encoder(goals)
@@ -748,16 +819,40 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
     @torch.no_grad()
     def filter_rollout3(self, result, rollout_batch):
-        # RND score 
         goals = rollout_batch.G
         N = goals.shape[0]
-        rollout_goals = self.state_processor.goal_transform(result.states_rollout[:, -1])
+      
+        # 2. get branching point 
+        branching_point=  result.c
         
+        # 3. get final state of rollout 
+        start_indices = rollout_batch.start_idx
+        # max_len - start_indices 
+        # start + branching + plan_H > max_len일 때 
+        # trajectory의 최대길이에 해당하는 state의 index 
+        max_indices_rollout = torch.minimum(- start_indices + self.max_seq_len - branching_point, torch.full_like(start_indices, self.plan_H - 1))
+        max_indices_rollout = max_indices_rollout.to(dtype = torch.int)
+        rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
+
+
+        goals = self.normalize_G(goals)
+        rollout_goals = self.normalize_G(rollout_goals)
+
+
         # Random Network distillation         
         goal_emb = self.goal_encoder(rollout_goals)
         goal_emb_random = self.random_goal_encoder(rollout_goals)
         rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
 
-        rollout_goals_prob = torch.softmax(rollout_goals_score, dim = 0)
-        indices = torch.multinomial(rollout_goals_prob, N, replacement=True)
+        # known goal에서 나올 수 있는 수준의 MI는? -> 
+        
+        # 기준치 테스트 필요 
+        threshold = (self.rnd_mu + self.rnd_std * self.std_factor)
+        indices = rollout_goals_score > threshold
+        indices = indices.detach().cpu()
+
+        
+        print(rollout_goals_score.mean().item(), threshold)
+            
+
         return indices
