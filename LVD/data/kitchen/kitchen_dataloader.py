@@ -98,18 +98,18 @@ class Kitchen_Dataset(Base_Dataset):
         states = deepcopy(seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim])
         actions = deepcopy(seq.actions[start_idx:start_idx+self.subseq_len-1])
 
-        seg_points = deepcopy(seq.points)
-        seg_points = sorted( seg_points + [start_idx])
-        start_pos = seg_points.index(start_idx)
-        # a가 seg_points의 마지막이라면 -> last state 를 goal로
-        # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
-        if start_pos == (len(seg_points) - 1):
-            g_index = len(seq.states) - 1
-        else:
-            # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
-            g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+        # seg_points = deepcopy(seq.points)
+        # seg_points = sorted( seg_points + [start_idx])
+        # start_pos = seg_points.index(start_idx)
+        # # a가 seg_points의 마지막이라면 -> last state 를 goal로
+        # # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
+        # if start_pos == (len(seg_points) - 1):
+        #     g_index = len(seq.states) - 1
+        # else:
+        #     # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
+        #     g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.state_dim]
+        G = deepcopy(seq.states[goal_idx])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
 
 
@@ -185,18 +185,18 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
         # hindsight relabeling 
 
-        seg_points = seq.points
-        seg_points = sorted( seg_points + [start_idx])
-        start_pos = seg_points.index(start_idx)
-        # a가 seg_points의 마지막이라면 -> last state 를 goal로
-        # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
-        if start_pos == (len(seg_points) - 1):
-            g_index = len(seq.states) - 1
-        else:
-            # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
-            g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+        # seg_points = seq.points
+        # seg_points = sorted( seg_points + [start_idx])
+        # start_pos = seg_points.index(start_idx)
+        # # a가 seg_points의 마지막이라면 -> last state 를 goal로
+        # # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
+        # if start_pos == (len(seg_points) - 1):
+        #     g_index = len(seq.states) - 1
+        # else:
+        #     # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
+        #     g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.n_pos + self.n_env]
+        G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
         G[ : self.n_pos] = 0 # only env state
 
         output = dict(
@@ -381,18 +381,18 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
         # hindsight relabeling 
 
 
-        seg_points = deepcopy(seq.points)
-        seg_points = sorted( seg_points + [start_idx])
-        start_pos = seg_points.index(start_idx)
-        # a가 seg_points의 마지막이라면 -> last state 를 goal로
-        # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
-        if start_pos == (len(seg_points) - 1):
-            g_index = len(seq.states) - 1
-        else:
-            # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
-            g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+        # seg_points = deepcopy(seq.points)
+        # seg_points = sorted( seg_points + [start_idx])
+        # start_pos = seg_points.index(start_idx)
+        # # a가 seg_points의 마지막이라면 -> last state 를 goal로
+        # # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
+        # if start_pos == (len(seg_points) - 1):
+        #     g_index = len(seq.states) - 1
+        # else:
+        #     # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
+        #     g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
-        G = deepcopy(seq.states[g_index])[:self.state_dim]
+        G = deepcopy(seq.states[goal_idx])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
 
         output = edict(
