@@ -6,6 +6,10 @@ with_gcsl: false
 skill_trainer : LVD.runner.BaseTrainer
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 rlAgentCls : LVD.rl.agent.sac.SAC # LVD.rl.agent.cql
+
+buffer_cls : LVD.collector.GC_Buffer
+
+
 consistency_update : true
 model_update : true
 
