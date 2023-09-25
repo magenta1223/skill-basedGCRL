@@ -254,10 +254,18 @@ class GC_Skill_RL_Trainer:
         if (n_ep + 1) % self.cfg.render_period == 0:
             log['policy_vis'] = self.visualize()
         
-        if self.cfg.binary_reward:
-            ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_rewards']
+        if n_ep > self.cfg.precollect:
+            if self.cfg.binary_reward:
+                ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_rewards']
+            else:
+                ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
         else:
-            ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+            if self.cfg.binary_reward:
+                ewm_rwds += log[f'{task_name}_rewards'] / self.cfg.precollect
+            else:
+                ewm_rwds += log[f'{task_name}_return'] / self.cfg.precollect
+
+
         log = {f"{task_name}/{k}": log[k] for k in log.keys()}
 
         return log, ewm_rwds

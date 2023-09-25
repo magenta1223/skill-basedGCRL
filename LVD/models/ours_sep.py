@@ -59,7 +59,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         self.goal_encoder = SequentialBuilder(cfg.goal_encoder)
-        self.goal_decoder = SequentialBuilder(cfg.goal_decoder)
         
         self.prev_goal_encoder = deepcopy(self.goal_encoder)
         self.random_goal_encoder = SequentialBuilder(cfg.goal_encoder)
@@ -290,10 +289,31 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         # obs norm 
         # only known goal 
-        normalized_G = self.normalize_G(batch.G[batch.rollout])
+        # if self.manipulation:
+        #     normalized_G = self.normalize_G(batch.G[batch.rollout])
+        # else:
+        #     # 
+        #     states = batch.states[batch.rollout][:, 0]
+        #     mu, std = states.mean(dim = 0), states.std(dim = 0)
+        #     normalized_states = (states - mu) / (std + 1e-5)
+        #     normalized_G = self.normalize_G(batch.G[batch.rollout])
+        #     normalized_G = torch.cat((normalized_states, normalized_G), dim = -1)
 
-        goal_embedding = self.goal_encoder(normalized_G)
-        target_goal_embedding = self.random_goal_encoder(normalized_G)
+
+        # goal_embedding = self.goal_encoder(normalized_G)
+        # target_goal_embedding = self.random_goal_encoder(normalized_G)
+
+        
+        if self.manipulation:
+            goal_embedding = self.goal_encoder(batch.G)
+            target_goal_embedding = self.random_goal_encoder(batch.G)
+        else:
+            ge_input = torch.cat((batch.states[:, 0], batch.G), dim = -1)
+            goal_embedding = self.goal_encoder(ge_input)
+            target_goal_embedding = self.random_goal_encoder(ge_input)
+
+
+
 
         self.outputs['goal_embedding'] = goal_embedding
         self.outputs['target_goal_embedding'] = target_goal_embedding
@@ -336,7 +356,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         # ----------- subgoal generator -------------- #         
         sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
-        subgoal_state_loss =  self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f_target'], weights)
+        subgoal_state_loss =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
         # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
 
         F_loss = sanity_check + subgoal_state_loss #+ reg_term
@@ -594,7 +614,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.prior_policy.soft_update()
 
         # rnd threshold 
-        goal_recon_errors = torch.pow(self.outputs['target_goal_embedding'] - self.outputs['goal_embedding'], 2).mean(dim = -1)
+        goal_recon_errors = torch.pow(self.outputs['target_goal_embedding'] - self.outputs['goal_embedding'], 2).mean(dim = -1).log()
         
         mu, std = goal_recon_errors.mean().item(), goal_recon_errors.std().item()
 
@@ -668,18 +688,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             smooth_actions.append(skill_hat)
         
         return torch.cat(smooth_actions, dim = 0).detach().cpu().numpy()
-    
-    @torch.no_grad()
-    def loopMI(self, goals):
-        # self.goal_encoder(goals)
-        goal_dist = self.goal_encoder.dist(goals)
-        goal_emb = goal_dist.sample()
-        goal_recon = self.goal_decoder(goal_emb)
-        goal_reDist = self.goal_encoder.dist(goal_recon)
-        scores = self.loss_fn("reg")(goal_dist, goal_reDist)
-
-        return scores
-    
+        
     @torch.no_grad()
     def filter_rollout(self, result, rollout_batch):
         goals = rollout_batch.G
@@ -698,9 +707,21 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
 
         
-        goals = self.normalize_G(goals)
-        rollout_goals = self.normalize_G(rollout_goals)
+        # goals = self.normalize_G(goals)
+        # rollout_goals = self.normalize_G(rollout_goals)
   
+        
+        if self.manipulation:
+            goal_emb = self.goal_encoder(goals)
+            goal_emb_random = self.random_goal_encoder(goals)
+
+        else:
+            ge_input = torch.cat((rollout_batch.states[:, 0], rollout_batch.goals), dim = -1)
+            rnd_ge_input = torch.cat((rollout_batch.states[:, 0], rollout_goals), dim = -1)
+
+            goal_emb = self.goal_encoder(ge_input)
+            goal_emb_random = self.random_goal_encoder(rnd_ge_input)
+
 
         # Random Network distillation 
         goal_emb = self.goal_encoder(goals)
@@ -835,14 +856,42 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
 
 
-        goals = self.normalize_G(goals)
-        rollout_goals = self.normalize_G(rollout_goals)
+        # if self.manipulation:
+        #     goals = self.normalize_G(goals)
+        #     rollout_goals = self.normalize_G(rollout_goals)
+
+        # else:
+        #     # 
+        #     states = rollout_batch.states[:, 0]
+        #     mu, std = states.mean(dim = 0), states.std(dim = 0)
+        #     normalized_states = (states - mu) / (std + 1e-5)
+
+        #     goals = self.normalize_G(goals)
+        #     rollout_goals = self.normalize_G(rollout_goals)
+
+        #     goals = torch.cat((normalized_states, goals), dim = -1)
+        #     rollout_goals = torch.cat((normalized_states, rollout_goals), dim = -1)
+
+
+
 
 
         # Random Network distillation         
-        goal_emb = self.goal_encoder(rollout_goals)
-        goal_emb_random = self.random_goal_encoder(rollout_goals)
-        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+        # goal_emb = self.goal_encoder(rollout_goals)
+        # goal_emb_random = self.random_goal_encoder(rollout_goals)
+
+        if self.manipulation:
+            goal_emb = self.goal_encoder(rollout_goals)
+            goal_emb_random = self.random_goal_encoder(rollout_goals)
+
+        else:
+            ge_input = torch.cat((rollout_batch.states[:, 0], rollout_goals), dim = -1)
+
+            goal_emb = self.goal_encoder(ge_input)
+            goal_emb_random = self.random_goal_encoder(ge_input)
+
+
+        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1).log()
 
         # known goal에서 나올 수 있는 수준의 MI는? -> 
         

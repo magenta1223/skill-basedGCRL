@@ -50,7 +50,6 @@ model:
     # in_feature : ${divide:${env.latent_state_dim},2}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
-
   skill_encoder:
     in_feature: ${add:${env.state_dim}, ${env.action_dim}}
     # in_feature: ${add:${env.n_nonPos}, ${env.action_dim}}
@@ -63,6 +62,10 @@ model:
     state_dim : ${env.state_dim}
     # state_dim : ${get_statedim:${env.manipulation}, ${env.state_dim}, ${env.n_pos}}
     z_dim  : ${env.skill_dim}
+
+  goal_encoder:
+    in_feature: ${add:${env.n_goal}, ${env.state_dim}} 
+    out_dim : 1024 
 
   q_function:
     in_feature: ${add:${env.latent_state_dim}, ${env.n_goal}, ${env.skill_dim}} 

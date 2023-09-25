@@ -316,7 +316,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
 
         policy_skill =  self.highlevel_policy.dist(torch.cat((ht.clone().detach(), relabeled_G), dim = -1))
 
-        # 여기에 kl을 해야 함. 
         GCSL_loss = nll_dist(
             batch.actions,
             policy_skill,
