@@ -1,6 +1,7 @@
 env_name : maze
 manipulation : false
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
+binary_reward : false
 
 # Skimo
 # WGCSL / RIS

@@ -357,7 +357,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
         # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
 
-        goal_recon = self.loss_fn("recon")(self.outputs['target_goal_embedding'], self.outputs['goal_embedding'], weights)
+        goal_recon = self.loss_fn("recon_orig")(self.outputs['target_goal_embedding'], self.outputs['goal_embedding'])
 
         loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
         # loss = recon + reg * self.reg_beta + prior + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
