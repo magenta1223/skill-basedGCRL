@@ -98,12 +98,16 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         flat_D, cache = self.forward_flatD(hts, batch.skill)
         # flat_D, cache = self.forward_flatD(hts, skill)
         D = self.forward_D(hts[:, 0], skill)
+        
+        if self.cfg.manipulation:
+            diff_nonPos_latent = cache[-1].view(N, T-1, -1)
+            diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
+            diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
+        else:
+            diff = None
+            diff_target = None
 
-        diff_nonPos_latent = cache[-1].view(N, T-1, -1)
-        diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
-        diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
-
-        # # -------------- Subgoal Generator -------------- #
+        # -------------- Subgoal Generator -------------- #
         invD_sub, skill_sub, skill_sub_normal, subgoal_D, subgoal_f, subgoal_f_dist = self.forward_subgoal_G(hts[:, 0], G)
 
         result = edict(
@@ -160,10 +164,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         if len(start.shape) > 2:
             start = start[:, 0]
         
-        start = start.chunk(2, -1)[0].clone().detach()
+        if self.cfg.manipulation:
+            start = start.chunk(2, -1)[0].clone().detach()
+            return self.skill_prior.dist(start, detached = True)
+        else:
+            # 
+            return self.skill_prior.dist(start.clone().detach(), detached = True)
 
-        # return self.skill_prior.dist(start.clone().detach(), detached = True)
-        return self.skill_prior.dist(start, detached = True)
 
     # def forward_invD(self, hts):
     def forward_invD(self, start, subgoal, use_target = False):
@@ -193,10 +200,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             pos, nonPos = start, None
 
         if len(pos.shape) < 3:
-            # if self.cfg.diff.flat:
-            #     flat_dynamics_input = torch.cat((pos, skill), dim=-1)
-            # else:
-            #     flat_dynamics_input = torch.cat((start, skill), dim=-1)
             flat_dynamics_input = torch.cat((start, skill), dim=-1)
 
             flat_D = self.flat_dynamics(flat_dynamics_input)

@@ -32,6 +32,10 @@ model:
     in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
     out_dim : ${env.latent_state_dim} 
   
+  flat_dynamics :
+    in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
+    out_dim : ${env.latent_state_dim} 
+
   # not used in non-manipulation env 
   diff_decoder:
     in_feature : ${divide:${env.latent_state_dim}, 2}

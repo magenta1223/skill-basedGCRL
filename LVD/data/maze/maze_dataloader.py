@@ -205,8 +205,10 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
         }
 
         
-        self.max_generated_seqs = 10000
-        self.generated_seqs = []
+        self.buffer_size = cfg.offline_buffer_size 
+        
+        self.prev_buffer = []
+        self.now_buffer = []
 
         self.discount_lambda = np.log(0.99)
 
@@ -237,12 +239,14 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 seq_index = seq_idx.item()
             )
 
-            self.generated_seqs.append(new_seq)
+            self.prev_buffer.append(new_seq)
 
-            if len(self.generated_seqs) > self.max_generated_seqs:
-                self.generated_seqs = self.generated_seqs[1:]
+            if len(self.prev_buffer) > self.buffer_size:
+                self.prev_buffer = self.prev_buffer[1:]
 
     def update_buffer(self):
+        self.now_buffer = deepcopy(self.prev_buffer)
+        self.prev_buffer = []
         pass
 
     def __getitem__(self, index):
@@ -285,8 +289,8 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
 
         if np.random.rand() < self.mixin_ratio:
             # hindsight relabeling 
-            _seq_index = np.random.randint(0, len(self.generated_seqs), 1)[0]
-            seq = deepcopy(self.generated_seqs[_seq_index])
+            _seq_index = np.random.randint(0, len(self.now_buffer), 1)[0]
+            seq = deepcopy(self.now_buffer[_seq_index])
             states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
             start_idx, goal_idx = self.sample_indices(states)
 
@@ -313,7 +317,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 G = G,
                 finalG = G,
                 rollout = False,
-                weights = discount_start * discount_G,
+                weights = 1, #1 discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx,
 
