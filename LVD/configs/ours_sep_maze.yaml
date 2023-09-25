@@ -67,5 +67,9 @@ model:
     in_feature: ${add:${env.n_goal}, ${env.state_dim}} 
     out_dim : 1024 
 
+  goal_decoder:
+    in_feature: 8
+    out_dim : ${env.n_goal}
+
   q_function:
     in_feature: ${add:${env.latent_state_dim}, ${env.n_goal}, ${env.skill_dim}} 
