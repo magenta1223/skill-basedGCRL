@@ -35,7 +35,7 @@ class MazeTask_GC:
 class Maze_GC(MazeEnv):
     name = "maze"
 
-    def __init__(self, size, seed, reward_type, done_on_completed, relative = False, visual_encoder = None):
+    def __init__(self, size, seed, reward_type, done_on_completed, relative = False, visual_encoder = None, *args, **kwargs):
         if reward_type not in self.reward_types:
             raise f'reward_type should be one of {self.reward_types}, but {reward_type} is given'
         # self.viewer_setup()
