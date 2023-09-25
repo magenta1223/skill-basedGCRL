@@ -29,7 +29,7 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
 
         # -------------- State Enc / Dec -------------- #
         if self.cfg.manipulation:
-            prior = self.skill_prior.dist(states[:, 0, :self.n_pos])
+            prior = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos])
         else:
             prior = self.skill_prior.dist(states[:, 0])
 
@@ -77,7 +77,7 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
 
             with torch.no_grad():
                 if self.cfg.manipulation:
-                    prior = self.skill_prior.dist(states[:, :self.n_pos])
+                    prior = self.skill_prior.dist(states[:, :self.cfg.n_pos])
                 else:
                     prior = self.skill_prior.dist(states)
 
@@ -126,7 +126,7 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
 
         with torch.no_grad():
             if self.cfg.manipulation:
-                prior = self.skill_prior.dist(states[:, :self.n_pos])
+                prior = self.skill_prior.dist(states[:, :self.cfg.n_pos])
             else:
                 prior = self.skill_prior.dist(states)
 
