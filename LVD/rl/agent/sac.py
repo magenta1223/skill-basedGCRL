@@ -256,9 +256,7 @@ class SAC(BaseModel):
             batch = self.buffer.sample(self.rl_batch_size)
             self.update_qs(batch)
         
-        if self.consistency_update:
-            for _ in range(int(self.q_warmup)):
-                batch = self.buffer.sample(self.rl_batch_size)
+            if self.consistency_update:
                 self.update_consistency(batch)
         
         # # orig : 200 
