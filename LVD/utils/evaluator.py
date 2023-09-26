@@ -20,7 +20,7 @@ class Evaluator:
         try:
             model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
         except:
-            print("No end.")
+            print(f"{cfg.zeroshot_weight} No end.")
             model = cfg.skill_trainer.load(cfg.zeroshot_weight_before_rollout, cfg).model
 
         if "flat" in cfg.structure:

@@ -20,17 +20,20 @@
         "hinge cabinet": 0.23954372623574144,
         "slide cabinet": 0.7566539923954373, 
         "microwave": 0.0038022813688212928
-    }, "kettle": {
+    }, 
+    "kettle": {
         "top burner": 0.1831831831831832,
         "light switch": 0.17717717717717718,
         "bottom burner": 0.5645645645645646,
         "slide cabinet": 0.07507507507507508
-    }, "bottom burner": {
+    }, 
+    "bottom burner": {
         "light switch": 0.28640776699029125,
         "hinge cabinet": 0.04611650485436893,
         "top burner": 0.46116504854368934, 
         "slide cabinet": 0.20631067961165048
-    }, "slide cabinet": {
+    },
+    "slide cabinet": {
         "hinge cabinet": 1.0
     }
 }

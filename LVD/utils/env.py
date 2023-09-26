@@ -240,12 +240,12 @@ def coloring(env_name, targetG, achievedG, done, ep = None):
             else:
                 all_done_untilNow = sum([subT_todo not in achievedG for subT_todo in targetG[:targetG.index(subT)]]) == 0
                 if all_done_untilNow:
-                    task_colors += '\033[94m' + subT + Colors.RESET
+                    task_colors += Colors.BLUE + subT + Colors.RESET
                 else:
-                    task_colors += '\033[91m' + subT + Colors.RESET
+                    task_colors += Colors.BLUE + subT + Colors.RESET
         print(f"T : {targetG} A : {task_colors} R : {reward}")
     else:
         if done :
-            print(f"T : {targetG} A : \033[94m{achievedG}")
+            print(f"T : {targetG} A : {Colors.BLUE}{achievedG}{Colors.RESET}")
         else:
-            print(f"T : {targetG} A : {achievedG}")
+            print(f"T : {targetG} A : {achievedG}{Colors.RESET}")

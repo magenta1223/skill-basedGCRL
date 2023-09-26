@@ -59,6 +59,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         self.goal_encoder = SequentialBuilder(cfg.goal_encoder)
+        self.goal_decoder = SequentialBuilder(cfg.goal_decoder)
+
         
         self.prev_goal_encoder = deepcopy(self.goal_encoder)
         self.random_goal_encoder = SequentialBuilder(cfg.goal_encoder)
@@ -121,7 +123,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "goal" : {
                 "optimizer" : RAdam([
                     {'params' : self.goal_encoder.parameters()},
-                    # {'params' : self.goal_decoder.parameters()},
+                    {'params' : self.goal_decoder.parameters()},
                 ], lr = self.lr
                 ),
                 "metric" : None,
@@ -595,10 +597,16 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.prior_policy.soft_update()
 
         # rnd threshold 
-        goal_recon_errors = torch.pow(self.outputs['target_goal_embedding'] - self.outputs['goal_embedding'], 2).mean(dim = -1).log()
+        log_score = torch.pow(self.outputs['target_goal_embedding'] - self.outputs['goal_embedding'], 2).mean(dim = -1).log()
         
-        mu, std = goal_recon_errors.mean().item(), goal_recon_errors.std().item()
+        mu, std = log_score.mean().item(), log_score.std().item()
 
+        # known goal에서 나올 수 있는 수준의 MI는? -> 
+        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        min_value, max_value = torch.quantile(log_score, qauntile)
+        truncated = log_score[(min_value < log_score) & (log_score < max_value)]
+
+        mu, std = truncated.mean(), truncated.std()
 
         if self.rnd_mu is None:
             self.rnd_mu = mu 
@@ -714,13 +722,14 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         # known goal에서 나올 수 있는 수준의 MI는? -> 
-        log_score = known_goals_score.log()
-        qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
-        min_value, max_value = torch.quantile(log_score, qauntile)
-        truncated = log_score[(min_value < log_score) & (log_score < max_value)]
+        # log_score = known_goals_score.log()
+        # qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
+        # min_value, max_value = torch.quantile(log_score, qauntile)
+        # truncated = log_score[(min_value < log_score) & (log_score < max_value)]
 
-        mu, std = truncated.mean(), truncated.std()
-        threshold = (mu + std * self.std_factor).exp()
+        # mu, std = truncated.mean(), truncated.std()
+        # threshold = (mu + std * self.std_factor).exp()
+        threshold = (self.rnd_mu + self.rnd_std * self.std_factor).exp()        
         indices = rollout_goals_score > threshold
         indices = indices.detach().cpu()
         
