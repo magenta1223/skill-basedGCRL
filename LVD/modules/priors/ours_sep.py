@@ -605,6 +605,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         
         # 
         
+        if not self.cfg.consistency_update:
+            state_consistency = state_consistency.detach()
+            skill_consistency = skill_consistency.detach()
+        
         return  edict(
             state_consistency = state_consistency,
             skill_consistency = skill_consistency,
