@@ -60,9 +60,7 @@ class GC_Skill_RL_Trainer:
         low_actor.requires_grad_(False)
         skill_prior.requires_grad_(False) 
 
-        qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
-        # buffer = GC_Buffer(self.cfg.state_dim, self.cfg.skill_dim, self.cfg.n_goal, self.cfg.buffer_size, self.env.name, model.tanh, self.cfg.hindsight_relabel).to(high_policy.device)
-        
+        qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]        
         buffer = self.cfg.buffer_cls(self.cfg).to(high_policy.device)
 
         collector = GC_Hierarchical_Collector(
@@ -86,8 +84,6 @@ class GC_Skill_RL_Trainer:
         rl_agent_config.update(sac_modules)
 
         agent = self.cfg.rlAgentCls(rl_agent_config).cuda()
-        # sac = SAC(rl_config).cuda()
-
         self.collector, self.agent = collector, agent
 
     def fit(self):
@@ -98,7 +94,6 @@ class GC_Skill_RL_Trainer:
     def __fit__(self, seed):
         seed_everything(seed)
 
-        # for task_obj in self.tasks:
         for task_obj in self.tasks:
             task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
@@ -107,15 +102,25 @@ class GC_Skill_RL_Trainer:
                 "model" : self.agent,
             }, f"{self.cfg.weights_path}/{task_name}.bin")   
             
-            # TODO : collector.env로 통일. ㅈㄴ헷갈림. 
-
             with self.collector.env.set_task(task_obj):
                 self.collector.env.reset()
 
                 ewm_rwds = 0
                 early_stop = 0
+                precollect_rwds = 0
+
                 for n_ep in range(self.cfg.n_episode+1):                    
+
+                    threshold = self.cfg.max_reward * 0.9  
+
+                    # ep 종료 지점에서               
+                    if n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > threshold: # success 
+                        print("early stop!!!")
+                        break 
                     log = self.train_policy(n_ep, seed)
+    
+                    precollect_rwds += log['tr_rewards']
+
 
                     log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
                     wandb.log(log)
@@ -156,12 +161,10 @@ class GC_Skill_RL_Trainer:
         
         if self.cfg.binary_reward:
             if np.array(episode.rewards).sum() == 1: # success 
-                success = True
                 print(len(episode.states))
                 print("success")
         else:
             if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
-                success = True
                 print(len(episode.states))
                 print("success")
         

@@ -230,8 +230,13 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     @torch.no_grad()
     def normalize_G(self, G):
         # g_mu, g_std = G.mean(dim = 0), G.std(dim = 0)
-        normalized = (G - self.g_mu) / (self.g_std + 1e-5)
-        return torch.clamp(normalized, -5, 5)
+        if self.norm_G:
+            return (G- self.g_mu) / (self.g_std + 1e-5)
+        else:
+            return G
+
+        # normalized = (G - self.g_mu) / (self.g_std + 1e-5)
+        # return torch.clamp(normalized, -5, 5)
 
 
 
@@ -305,10 +310,24 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         
         if self.manipulation:
-            goal_embedding = self.goal_encoder(batch.G)
-            target_goal_embedding = self.random_goal_encoder(batch.G)
+            G = self.normalize_G(batch.G)
+
+            # goal_embedding = self.goal_encoder(normalized_G)
+            # target_goal_embedding = self.random_goal_encoder(normalized_G)
+
+            goal_embedding = self.goal_encoder(G)
+            target_goal_embedding = self.random_goal_encoder(G)
+
         else:
-            ge_input = torch.cat((batch.states[:, 0], batch.G), dim = -1)
+            # normalized_G = self.normalize_G(batch.G)
+            # ge_input = torch.cat((batch.states[:, 0],normalized_G), dim = -1)
+            # goal_embedding = self.goal_encoder(ge_input)
+            # target_goal_embedding = self.random_goal_encoder(ge_input)
+            G = self.normalize_G(batch.G)
+
+
+
+            ge_input = torch.cat((batch.states[:, 0],batch.G), dim = -1)
             goal_embedding = self.goal_encoder(ge_input)
             target_goal_embedding = self.random_goal_encoder(ge_input)
 
@@ -707,30 +726,30 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
 
         
-        # goals = self.normalize_G(goals)
-        # rollout_goals = self.normalize_G(rollout_goals)
+        goals = self.normalize_G(goals)
+        rollout_goals = self.normalize_G(rollout_goals)
   
-        
         if self.manipulation:
+            # Random Network distillation 
             goal_emb = self.goal_encoder(goals)
             goal_emb_random = self.random_goal_encoder(goals)
-
+            known_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+            
+            goal_emb = self.goal_encoder(rollout_goals)
+            goal_emb_random = self.random_goal_encoder(rollout_goals)
+            rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
         else:
             ge_input = torch.cat((rollout_batch.states[:, 0], rollout_batch.goals), dim = -1)
             rnd_ge_input = torch.cat((rollout_batch.states[:, 0], rollout_goals), dim = -1)
 
             goal_emb = self.goal_encoder(ge_input)
+            goal_emb_random = self.random_goal_encoder(ge_input)
+
+            goal_emb = self.goal_encoder(rnd_ge_input)
             goal_emb_random = self.random_goal_encoder(rnd_ge_input)
+            rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
 
 
-        # Random Network distillation 
-        goal_emb = self.goal_encoder(goals)
-        goal_emb_random = self.random_goal_encoder(goals)
-        known_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
-        
-        goal_emb = self.goal_encoder(rollout_goals)
-        goal_emb_random = self.random_goal_encoder(rollout_goals)
-        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
 
         # known goal에서 나올 수 있는 수준의 MI는? -> 
         log_score = known_goals_score.log()
@@ -739,105 +758,13 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         truncated = log_score[(min_value < log_score) & (log_score < max_value)]
 
         mu, std = truncated.mean(), truncated.std()
-        threshold = (mu + std * 1.35).exp()
+        threshold = (mu + std * self.std_factor).exp()
         indices = rollout_goals_score > threshold
         indices = indices.detach().cpu()
         
 
         return indices
     
-    @torch.no_grad()
-    def filter_rollout2(self, result, rollout_batch):
-        
-        # copy 
-        result = edict(**result)
-        rollout_batch = edict(**rollout_batch)
-
-        # 1. tau_im의 latent state
-        states_rollout = result.states_rollout 
-        latent_state_rollout = result.latent_states_rollout
-
-        # 2. get branching point 
-        branching_point=  result.c
-        
-        # 3. get final state of rollout 
-        start_indices = rollout_batch.start_idx
-        # max_len - start_indices 
-        # start + branching + plan_H > max_len일 때 
-        # trajectory의 최대길이에 해당하는 state의 index 
-        max_indices_rollout = torch.minimum(- start_indices + self.max_seq_len - branching_point, torch.full_like(start_indices, self.plan_H - 1))
-        max_indices_rollout = max_indices_rollout.to(dtype = torch.int)
-
-        sample_indices = list(range(len(states_rollout)))
-
-        G = self.state_processor.goal_transform(states_rollout[sample_indices, max_indices_rollout])
-        # policy를 이용해 검증 
-        
-
-        # validation_batch = edict(
-        #     ht = latent_state_rollout[:, 0], # branching point부터 시작 ? 아니면 subtraj 처음부터 시작? 
-        #     G =  G
-        # )
-
-        # validation_states = []
-        
-        # # rollout horizon  // H 만큼 반복
-        # for _ in range(self.plan_H // self.Hsteps):
-        #     ht = self.prior_policy.dist(validation_batch, mode = "rollout").ht
-        #     validation_batch['ht'] = ht
-        #     validation_states.append(ht)
-        
-        # validation_states = torch.stack(validation_states, dim = 1)
-        # validation_indices = max_indices_rollout // self.Hsteps
-
-        # # 시점을 skill 종료 지점으로 맞춰주기 
-        # sample_indices_skill_level = list(range(len(validation_states)))
-        # latent_G = latent_state_rollout[sample_indices, validation_indices * 10]
-
-        # diffs = torch.pow(validation_states[sample_indices_skill_level, validation_indices] - latent_G, 2).mean(dim = -1)
-
-        validation_batch = edict(
-            ht = latent_state_rollout[:, 0], # branching point부터 시작 ? 아니면 subtraj 처음부터 시작? 
-            G =  G
-        )
-
-        validation_states = []
-        
-        error = 0
-        # rollout horizon  // H 만큼 반복
-        for i in range(self.plan_H // self.Hsteps):
-            validation_batch['ht'] = latent_state_rollout[:, i]
-            ht_executed = self.prior_policy.dist(validation_batch, mode = "rollout").ht
-
-            error += torch.pow(validation_batch.ht - ht_executed, 2).mean(dim = -1)
-        
-        # validation_states = torch.stack(validation_states, dim = 1)
-        # validation_indices = max_indices_rollout // self.Hsteps
-
-        # 시점을 skill 종료 지점으로 맞춰주기 
-        # sample_indices_skill_level = list(range(len(validation_states)))
-        # latent_G = latent_state_rollout[sample_indices, validation_indices * 10]
-
-        # diffs = torch.pow(validation_states[sample_indices_skill_level, validation_indices] - latent_G, 2).mean(dim = -1)
-        diffs = error / max_indices_rollout * 0.1
-
-
-                
-        qauntile = torch.tensor([0.05, 0.95], dtype= diffs.dtype, device= diffs.device)
-        min_value, max_value = torch.quantile(diffs, qauntile)
-        diffs_trunc = diffs[(min_value < diffs) & (diffs < max_value)]
-        
-        # outlier threshold 
-        threshold = (diffs_trunc.mean() + diffs_trunc.std() * 1.1)
-        indices = diffs > threshold
-
-        # 특정 task
-
-        # print(indices.sum().item() / len(indices))
-        print(diffs_trunc.mean().item())
-
-        return indices
-
     @torch.no_grad()
     def filter_rollout3(self, result, rollout_batch):
         goals = rollout_batch.G

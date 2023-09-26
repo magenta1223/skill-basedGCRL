@@ -120,8 +120,7 @@ class SAC(BaseModel):
 
         self.update_qs(batch)
 
-        if self.model_update:
-            self.update_networks(batch)
+        self.update_networks(batch)
         # ------------------- Alpha ------------------- # 
         self.update_alpha()
 

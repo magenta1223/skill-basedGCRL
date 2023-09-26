@@ -381,16 +381,16 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
         # hindsight relabeling 
 
 
-        # seg_points = deepcopy(seq.points)
-        # seg_points = sorted( seg_points + [start_idx])
-        # start_pos = seg_points.index(start_idx)
-        # # a가 seg_points의 마지막이라면 -> last state 를 goal로
-        # # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
-        # if start_pos == (len(seg_points) - 1):
-        #     g_index = len(seq.states) - 1
-        # else:
-        #     # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
-        #     g_index = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+        seg_points = deepcopy(seq.points)
+        seg_points = sorted( seg_points + [start_idx])
+        start_pos = seg_points.index(start_idx)
+        # a가 seg_points의 마지막이라면 -> last state 를 goal로
+        # 아니라면 -> 가장 가까운 미래의 seg_points부터 끝까지
+        if start_pos == (len(seg_points) - 1):
+            goal_idx = len(seq.states) - 1
+        else:
+            # print(f"low : {seg_points[start_pos+1]} high : {len(seq.states)}")
+            goal_idx = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
         G = deepcopy(seq.states[goal_idx])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
