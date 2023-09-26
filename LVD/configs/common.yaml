@@ -6,6 +6,7 @@ hydra:
       override_dirname:
         exclude_keys:
           # common 
+          - seeds 
           - seed 
           - phase
           - rl_batch_size
