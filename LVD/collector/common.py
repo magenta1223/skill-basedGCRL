@@ -689,7 +689,7 @@ class GC_Buffer_Relabel(Buffer):
                         goal_index = -1
 
                     # goal relabeling 
-                    relabeled_goal = ep.states[goal_index]
+                    relabeled_goal = self.state_processor.goal_transform(ep.states[goal_index])
                     relabeled_goals.append(relabeled_goal)
                     
                     # discounted relabeling weight for WGCSL 
@@ -716,9 +716,14 @@ class GC_Buffer_Relabel(Buffer):
                             relabeled_rewards.append(0)
 
                 else:
-                    relabeled_goals.append(batch.G[i])
-                    relabeled_rewards.append(batch.rewards[i])
+                    relabeled_goals.append(batch.G[i].detach().cpu().numpy())
+                    relabeled_rewards.append(batch.rewards[i].detach().cpu().numpy()[0])
+                    
+                    goal_index = len(ep.states)
+            
+                    drw = np.exp(np.log(0.99) * (goal_index - state_index))
 
+                    drws.append(drw)
 
 
 

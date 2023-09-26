@@ -38,6 +38,7 @@ hydra:
           - env.f_lr
           - env.q_warmup
           - env.binary_reward
+          - env.precollect
           # model 
           - model.consistency_update 
           - model.q_function.norm_cls
