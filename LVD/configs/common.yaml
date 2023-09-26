@@ -106,6 +106,6 @@ rl_cfgs : [
   tanh, # distribution   
   buffer_cls,
   # gc, 
-  # with_gcsl,
+  with_gcsl,
   hindsight_relabel
   ]

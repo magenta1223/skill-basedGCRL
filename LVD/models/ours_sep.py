@@ -308,25 +308,14 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # goal_embedding = self.goal_encoder(normalized_G)
         # target_goal_embedding = self.random_goal_encoder(normalized_G)
 
+
+        G = self.normalize_G(batch.G)
         
         if self.manipulation:
-            G = self.normalize_G(batch.G)
-
-            # goal_embedding = self.goal_encoder(normalized_G)
-            # target_goal_embedding = self.random_goal_encoder(normalized_G)
-
             goal_embedding = self.goal_encoder(G)
             target_goal_embedding = self.random_goal_encoder(G)
 
         else:
-            # normalized_G = self.normalize_G(batch.G)
-            # ge_input = torch.cat((batch.states[:, 0],normalized_G), dim = -1)
-            # goal_embedding = self.goal_encoder(ge_input)
-            # target_goal_embedding = self.random_goal_encoder(ge_input)
-            G = self.normalize_G(batch.G)
-
-
-
             ge_input = torch.cat((batch.states[:, 0],batch.G), dim = -1)
             goal_embedding = self.goal_encoder(ge_input)
             target_goal_embedding = self.random_goal_encoder(ge_input)
@@ -455,33 +444,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         # filter 
    
-
-
-        # print(rollout_goals_score, threshold, indices)
-
-
-
-        # known_goals_score = self.loopMI(goals)
-        # rollout_goals_score = self.loopMI(rollout_goals)
-
-        # # known goal에서 나올 수 있는 수준의 MI는? -> 
-        # log_score = known_goals_score.log()
-        # qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
-        # min_value, max_value = torch.quantile(log_score, qauntile)
-        # truncated = log_score[(min_value < log_score) & (log_score < max_value)]
-
-        # mu, std = truncated.mean(), truncated.std()
-        # threshold = (mu + std * 1.35).exp()
-        # indices = rollout_goals_score > threshold
-        # indices = indices.detach().cpu()
-        
-        # scores = known_goals_score.softmax(dim = 0)
-
-
-
-        # score 기반으로 sampling
-        # indices = torch_dist.Categorical(rollout_goals_score).sample((100, )).detach().cpu()
-
         # if self.only_unseen and self.seen_tasks is not None:
         #     # only for check whether unseen goal in the robotics env is generated. 
         #     # not used for performance measure. 
@@ -782,30 +744,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         max_indices_rollout = max_indices_rollout.to(dtype = torch.int)
         rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
 
-
-        # if self.manipulation:
-        #     goals = self.normalize_G(goals)
-        #     rollout_goals = self.normalize_G(rollout_goals)
-
-        # else:
-        #     # 
-        #     states = rollout_batch.states[:, 0]
-        #     mu, std = states.mean(dim = 0), states.std(dim = 0)
-        #     normalized_states = (states - mu) / (std + 1e-5)
-
-        #     goals = self.normalize_G(goals)
-        #     rollout_goals = self.normalize_G(rollout_goals)
-
-        #     goals = torch.cat((normalized_states, goals), dim = -1)
-        #     rollout_goals = torch.cat((normalized_states, rollout_goals), dim = -1)
-
-
-
-
-
-        # Random Network distillation         
-        # goal_emb = self.goal_encoder(rollout_goals)
-        # goal_emb_random = self.random_goal_encoder(rollout_goals)
+        goals = self.normalize_G(goals)
+        rollout_goals = self.normalize_G(rollout_goals)
 
         if self.manipulation:
             goal_emb = self.goal_encoder(rollout_goals)

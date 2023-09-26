@@ -1,7 +1,7 @@
 subseq_len : 11
 tanh : true
 gc : true
-# with_gcsl: false
+with_gcsl: false
 # sg_dist : false
 # negativeSamples : false
 # noisy_subgoal : false

@@ -592,6 +592,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
         GCSL_loss = F.mse_loss(subgoal_D, htH_target) + F.mse_loss(subgoal_f, subgoal_D)
 
+        if not self.cfg.with_gcsl:
+            GCSL_loss = GCSL_loss.detach()
+
         # covering 
         # GCSL_loss_skill = nll_dist(
         #     batch.actions,
@@ -627,16 +630,16 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                     "metric" : None,
                     # "metric" : "state_consistency"
                     },
-                "f" : {
-                    "params" :  self.subgoal_generator.parameters(), 
-                    "lr" : self.cfg.f_lr, 
-                    # "metric" : "GCSL_loss"
-                    "metric" : None,
-                }
-
             }
                 
         )
-
-
+        
+        if self.cfg.with_gcsl:
+            rl_params['consistency']['f'] = {
+                "params" :  self.subgoal_generator.parameters(), 
+                "lr" : self.cfg.f_lr, 
+                # "metric" : "GCSL_loss"
+                "metric" : None,
+            }
+            
         return rl_params
