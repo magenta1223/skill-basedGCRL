@@ -242,7 +242,7 @@ def coloring(env_name, targetG, achievedG, done, ep = None):
                 if all_done_untilNow:
                     task_colors += Colors.BLUE + subT + Colors.RESET
                 else:
-                    task_colors += Colors.BLUE + subT + Colors.RESET
+                    task_colors += Colors.RED + subT + Colors.RESET
         print(f"T : {targetG} A : {task_colors} R : {reward}")
     else:
         if done :

@@ -266,6 +266,7 @@ class SAC(BaseModel):
             self.episode = step_inputs['episode']
             # self.n_step += 1
             self.update_networks(batch)
+            self.update_consistency(batch) # consistent 
             # ------------------- Alpha ------------------- # 
 
 
