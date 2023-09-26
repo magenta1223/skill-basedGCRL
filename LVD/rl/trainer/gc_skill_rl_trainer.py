@@ -179,9 +179,8 @@ class GC_Skill_RL_Trainer:
         # self.agent.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
 
-        if self.cfg.binary_reward:
-            # 진짜 reward의 총합 
-            log['tr_rewards'] = episode.infos[-1]['orig_return']
+        # 진짜 reward의 총합 
+        log['tr_rewards'] = episode.infos[-1]['orig_return']
 
         # ------------- Logging Data ------------- #
         data = edict(
