@@ -60,7 +60,7 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
         """
         """
         if mode == "consistency":
-            states, G = batch.states, batch.relabeled_G
+            states, G = batch.states, batch.G
 
 
             policy_action_dist = self.policy.dist(torch.cat((states, G), dim = -1))

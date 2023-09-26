@@ -581,7 +581,6 @@ class GC_Buffer_Relabel(Buffer):
         # ep 하나 추가할 때 마다 
         # 0에서 시작 -> popleft 안하면 +1 
 
-
     @property
     def goal(self):
         return self.transitions[:, self.layout['goal']]
@@ -699,9 +698,9 @@ class GC_Buffer_Relabel(Buffer):
                     # reward relabeling 
                     if self.cfg.structure == "flat_wgcsl":
                         if goal_index - state_index < self.cfg.reward_threshold:
-                            relabeled_rewards.append(1)
+                            relabeled_rewards.append(np.array([1]))
                         else:
-                            relabeled_rewards.append(0)
+                            relabeled_rewards.append(np.array([0]))
 
                     elif self.cfg.structure == "flat_ris":
                         if goal_index - state_index < self.cfg.reward_threshold:
@@ -717,9 +716,12 @@ class GC_Buffer_Relabel(Buffer):
 
                 else:
                     relabeled_goals.append(batch.G[i].detach().cpu().numpy())
-                    relabeled_rewards.append(batch.rewards[i].detach().cpu().numpy()[0])
                     
-                    goal_index = len(ep.states)
+                    rr = batch.rewards[i].detach().cpu().numpy()
+                    
+                    relabeled_rewards.append(batch.rewards[i].detach().cpu().item())
+                    
+                    goal_index = len(ep.states) - 1
             
                     drw = np.exp(np.log(0.99) * (goal_index - state_index))
 
@@ -729,6 +731,7 @@ class GC_Buffer_Relabel(Buffer):
 
             # goal로 바꿔줘야 함. 
             batch["G"] = torch.tensor(relabeled_goals, dtype = torch.float32).to(self.device)
+                        
             batch['reward'] = torch.tensor(relabeled_rewards, dtype = torch.float32).to(self.device)
 
 
