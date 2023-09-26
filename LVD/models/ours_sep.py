@@ -59,7 +59,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         self.goal_encoder = SequentialBuilder(cfg.goal_encoder)
-        self.goal_decoder = SequentialBuilder(cfg.goal_decoder)
+        # self.goal_decoder = SequentialBuilder(cfg.goal_decoder)
 
         
         self.prev_goal_encoder = deepcopy(self.goal_encoder)
@@ -123,7 +123,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "goal" : {
                 "optimizer" : RAdam([
                     {'params' : self.goal_encoder.parameters()},
-                    {'params' : self.goal_decoder.parameters()},
+                    # {'params' : self.goal_decoder.parameters()},
                 ], lr = self.lr
                 ),
                 "metric" : None,
