@@ -101,9 +101,11 @@ class KitchenEnv_GC(KitchenEnv):
     def step(self, a):
         obs, reward, done, env_info = super().step(a)
         relabeled_reward = self.compute_relabeled_reward(self.obs_dict)
-        
+
+
+        env_info['orig_return'] = 4 - len(self.tasks_to_complete)
+
         if self.binary_reward:
-            env_info['orig_return'] = 4 - len(self.tasks_to_complete)
             # reward = 1 if done else 0 
             reward = 1 if len(self.tasks_to_complete) == 0 else 0
             # tasks_to_complete가 없어야 0

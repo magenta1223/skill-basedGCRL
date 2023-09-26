@@ -166,6 +166,10 @@ class Maze_GC(MazeEnv):
         
         env_info = {}
         env_info['relabeled_reward'] = 0 
+
+        env_info['orig_return'] = reward
+
+
         # GC buffer에서 조절
         
 
