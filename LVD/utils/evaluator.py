@@ -127,9 +127,28 @@ class Evaluator:
                 'MTLS' : 'mis-aligned'
             }
         else:
-            import json 
-            with open('./assets/maze_task.json', 'rb+') as f:
-                task_dict = json.load(f)
+            task_dict = {
+               
+            #    [{x+1}. {y+1}.]
+                
+                '[22. 23.]' : "short", 
+                '[1. 17.]' : "short", 
+                '[13. 9.]' : "short", 
+
+                '[23. 14.]' : "middle", 
+                '[18. 8.]' : "middle", 
+                '[24. 34.]' : "middle", 
+
+                '[24. 39.]' : "extended", 
+                '[15. 40.]' : "extended", 
+                '[36. 21.]' : "extended", 
+
+
+                '[35. 5.]' : "toofar", 
+                '[39. 26.]' : "toofar", 
+                '[39. 5.]' : "toofar", 
+
+            }
 
         df['task_type'] = df['task'].map(task_dict)
 
