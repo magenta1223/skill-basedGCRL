@@ -354,20 +354,12 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         return result 
 
     def encode(self, states, keep_grad = False, prior = False):
-        if keep_grad:
+        with torch.no_grad():
             if prior:
                 ht, ht_pos, ht_nonPos = self.state_encoder(states)
                 ht = ht_pos
             else:
                 ht, _, _ = self.state_encoder(states)
-
-        else:
-            with torch.no_grad():
-                if prior:
-                    ht, ht_pos, ht_nonPos = self.state_encoder(states)
-                    ht = ht_pos
-                else:
-                    ht, _, _ = self.state_encoder(states)
 
         return ht
 
