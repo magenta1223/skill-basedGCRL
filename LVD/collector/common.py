@@ -668,6 +668,7 @@ class GC_Buffer_Relabel(Buffer):
         relabeled_goals = []
         relabeled_rewards = []
         drws = []
+        relabeled_dones = []
         
         if self.cfg.binary_reward:
             if self.cfg.structure == "flat_wgcsl":
@@ -699,20 +700,27 @@ class GC_Buffer_Relabel(Buffer):
                     if self.cfg.structure == "flat_wgcsl":
                         if goal_index - state_index < self.cfg.reward_threshold:
                             relabeled_rewards.append(np.array([1]))
+                            relabeled_dones.append(1)
                         else:
                             relabeled_rewards.append(np.array([0]))
+                            relabeled_dones.append(0)
 
                     elif self.cfg.structure == "flat_ris":
                         if goal_index - state_index < self.cfg.reward_threshold:
                             relabeled_rewards.append(1)
+                            relabeled_dones.append(1)
+                            
                         else:
                             relabeled_rewards.append(-1)
+                            relabeled_dones.append(0)
 
                     else: # skill-based  
                         if goal_index - state_index < 1:
                             relabeled_rewards.append(1)
+                            relabeled_dones.append(1)
                         else:
                             relabeled_rewards.append(0)
+                            relabeled_dones.append(0)
 
                 else:
                     relabeled_goals.append(batch.G[i].detach().cpu().numpy())
@@ -726,6 +734,7 @@ class GC_Buffer_Relabel(Buffer):
                     drw = np.exp(np.log(0.99) * (goal_index - state_index))
 
                     drws.append(drw)
+                    relabeled_dones.append(batch.done[i].detach().cpu().numpy())
 
 
 
@@ -737,6 +746,8 @@ class GC_Buffer_Relabel(Buffer):
 
             
             batch['drw'] = torch.tensor(drws, dtype = torch.float32).to(self.device)
+            batch['done'] = torch.tensor(relabeled_dones, dtype = torch.float32).to(self.device)
+
 
             if self.cfg.structure == "flat_ris":
                 # subgoal sample 
@@ -787,7 +798,7 @@ class GC_Batch2(Batch):
             next_states = self.next_states,
             rewards = self.rewards,
             G = self.goals,
-            dones = self.dones,
+            done = self.dones,
             state_index = self.state_index,
             ep_index = self.ep_index
         )
