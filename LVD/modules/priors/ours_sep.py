@@ -22,7 +22,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # self.target_state_decoder = deepcopy(self.state_decoder)
         self.target_inverse_dynamics = deepcopy(self.inverse_dynamics)
         self.target_dynamics = deepcopy(self.dynamics)
-        self.target_flat_dynamics = deepcopy(self.flat_dynamics)
+            
+        if self.cfg.only_flatD:
+            self.target_flat_dynamics = deepcopy(self.flat_dynamics)
 
 
         self.n_soft_update = 1
@@ -43,7 +45,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # update_moving_average(self.target_state_decoder, self.state_decoder, 1)
         update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
         update_moving_average(self.target_dynamics, self.dynamics, 1)
-        update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
+        if self.cfg.only_flatD:
+            update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
 
         # update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics)
         # update_moving_average(self.target_dynamics, self.dynamics)
