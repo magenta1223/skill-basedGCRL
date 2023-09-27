@@ -33,6 +33,9 @@ grad_pass:
   skill_D : true # diff=false면 무의미 
   skill : true
 
+
+only_flatD : false
+
 skill_trainer : LVD.runner.Diversity_Trainer
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
 rlAgentCls : LVD.rl.agent.sac.SAC

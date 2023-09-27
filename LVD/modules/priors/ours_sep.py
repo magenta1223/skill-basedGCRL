@@ -22,7 +22,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # self.target_state_decoder = deepcopy(self.state_decoder)
         self.target_inverse_dynamics = deepcopy(self.inverse_dynamics)
         self.target_dynamics = deepcopy(self.dynamics)
-        # self.target_flat_dynamics = deepcopy(self.flat_dynamics)
+        self.target_flat_dynamics = deepcopy(self.flat_dynamics)
 
 
         self.n_soft_update = 1
@@ -43,7 +43,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         # update_moving_average(self.target_state_decoder, self.state_decoder, 1)
         update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
         update_moving_average(self.target_dynamics, self.dynamics, 1)
-        # update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
+        update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
 
         # update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics)
         # update_moving_average(self.target_dynamics, self.dynamics)
@@ -159,32 +159,38 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         
         return inverse_dynamics, inverse_dynamics_detach
     
-    def forward_flatD(self, start, skill):
-        start = start.clone().detach()
+    def forward_flatD(self, start, skill, use_target = False):
+        
+        if not self.cfg.only_flatD:
+            start = start.clone().detach()
 
         # rollout / check 
         if self.cfg.manipulation:
             pos, nonPos = start.chunk(2, -1)
         else:
             pos, nonPos = start, None
-
+        
+        # rollout 
         if len(pos.shape) < 3:
             flat_dynamics_input = torch.cat((start, skill), dim=-1)
-
-            flat_D = self.flat_dynamics(flat_dynamics_input)
+            
+            if use_target:
+                flat_D = self.target_flat_dynamics(flat_dynamics_input)                
+            else:
+                flat_D = self.flat_dynamics(flat_dynamics_input)
+                
             pos_now, nonPos_now = flat_D.chunk(2, -1)
 
             if self.cfg.diff:
-                if self.cfg.grad_pass.flat_D:
-                    flat_D = start + flat_D
-                else:
-                    flat_D = start.clone().detach() + flat_D
+                flat_D = start + flat_D
 
+        # learning. 
         else:
             N, T = pos.shape[:2]
             skill_length = T- 1
+            
+            # skill 
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-
             flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
 
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
@@ -199,10 +205,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 pos_now, nonPos_now = None, flat_D.chunk(2, -1)[1] - nonPos[:, :-1]
 
             if self.cfg.diff.flat:
-                if self.cfg.grad_pass.flat_D:
-                    flat_D = start[:,:-1] + flat_D
-                else:
-                    flat_D = start[:,:-1].clone().detach() + flat_D
+                flat_D = start[:,:-1] + flat_D
+
 
         cache = pos, nonPos, pos_now, nonPos_now
 
@@ -238,7 +242,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)
 
         _, skill_sub = invD_sub.rsample_with_pre_tanh_value()
-        subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
+            
+        if self.cfg.only_flatD:
+            for _ in range(self.cfg.subseq_len - 1):
+                start_detached, _ = self.forward_flatD(start_detached, skill_sub, use_target= True)
+            subgoal_D = start_detached 
+        else:
+            subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
 
         return invD_sub, subgoal_D, subgoal_f
 

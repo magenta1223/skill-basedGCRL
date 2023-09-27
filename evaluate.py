@@ -32,7 +32,7 @@ def main(cfg):
     with open_dict(cfg):
         cfg.run_name = config_path(hydra_config.job.override_dirname)
         cfg.job_name = config_path(hydra_config.job.name)
-        cfg.rl_overrides = rl_overrides
+        cfg.rl_overrides = config_path(rl_overrides)
 
         if rl_overrides:
             cfg.eval_data_prefix = f"logs/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/{cfg.rl_overrides}/"
@@ -47,7 +47,7 @@ def main(cfg):
         cfg.zeroshot_weight_before_rollout = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/orig_skill.bin"
 
         # finetune 
-        cfg.finetune_weight_prefix = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{rl_overrides}"
+        cfg.finetune_weight_prefix = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{cfg.rl_overrides}"
         cfg.project_name = cfg.structure
         cfg.wandb_run_name = f"{cfg.env.env_name}_{cfg.run_name}_{rl_overrides}"
 

@@ -27,6 +27,7 @@ class Kitchen_Dataset(Base_Dataset):
         self.seqs = []
         for end_idx in seq_end_idxs:
             if end_idx+1 - start < self.subseq_len:
+                start = end_idx -1
                 continue    # skip too short demos
 
             states=self.dataset['observations'][start:end_idx+1]
@@ -66,10 +67,6 @@ class Kitchen_Dataset(Base_Dataset):
         self.n_seqs = len(self.seqs)
         self.shuffle = self.phase == "train"
         random.shuffle(self.seqs)
-
-
-
-
 
         if self.phase == "train":
             self.start = 0
@@ -403,6 +400,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
             weights = 1,
             seq_index = index,
             start_idx = start_idx,
+            seq_len = len(seq.states)
             # g_s_diff = goal_idx - start_idx
         )
 
@@ -448,6 +446,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 weights = 1, #discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx,
+                seq_len = len(seq.states)                
                 # g_s_diff = goal_idx - start_idx
                 # start_idx = 999 #self.novel
             )
