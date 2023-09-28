@@ -25,7 +25,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
         prior = SequentialBuilder(cfg.prior)
         if cfg.manipulation:
-            cfg.flat_dynamics.in_feature = cfg.flat_dynamics.in_feature // 2
+            cfg.flat_dynamics.in_feature = cfg.latent_state_dim //2  + cfg.skill_dim
         flat_dynamics = SequentialBuilder(cfg.flat_dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
