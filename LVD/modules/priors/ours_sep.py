@@ -241,7 +241,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         sg_input = self.sg_input(start_detached, G)
 
         _subgoal_f = self.subgoal_generator(sg_input)
-        subgoal_f = _subgoal_f + start_detached
+        if self.cfg.sg_residual:
+            subgoal_f = _subgoal_f + start_detached
+        else:
+            subgoal_f = _subgoal_f
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)
 
         _, skill_sub = invD_sub.rsample_with_pre_tanh_value()

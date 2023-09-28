@@ -358,11 +358,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "Rec_goal" : goal_recon.item(),
         }       
 
-        # if self.advantage:
-        #     self.loss_dict['adv'] = adv.mean()
-
-
-
         return loss
     
     @torch.no_grad()
