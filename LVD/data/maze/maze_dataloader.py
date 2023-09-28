@@ -282,7 +282,8 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             rollout = True,
             weights = 1,
             seq_index = index,
-            start_idx = start_idx
+            start_idx = start_idx,
+            seq_len = len(seq['obs'])
         )
 
     def __skill_learning_with_buffer__(self, index):
@@ -320,6 +321,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 weights = 1, #1 discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx,
+                seq_len = 1,
 
                 # rollout = True if start_idx < 280 - self.plan_H else False
             )
