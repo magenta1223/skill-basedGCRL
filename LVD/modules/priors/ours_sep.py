@@ -165,7 +165,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
     
     def forward_flatD(self, start, skill, use_target = False):
         
-        if not self.cfg.only_flatD:
+        # if not self.cfg.only_flatD:
+        #     start = start.clone().detach()
+
+        if not self.cfg.grad_pass.flat_D:
             start = start.clone().detach()
 
         # rollout / check 
@@ -403,9 +406,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             # forward subgoal generator 
             sg_input = self.sg_input(ht, G)
-
-            subgoal_f = self.subgoal_generator(sg_input)
-            subgoal_f = subgoal_f + ht
+            
+            if self.cfg.sg_residual:
+                subgoal_f = self.subgoal_generator(sg_input)
+                subgoal_f = subgoal_f + ht
             
             # skill inference 
             invD, _ = self.forward_invD(ht, subgoal_f)
