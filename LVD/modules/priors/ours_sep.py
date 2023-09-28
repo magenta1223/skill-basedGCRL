@@ -107,6 +107,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # State Auto-Encoder
             states = states,
             states_hat = states_hat,
+            states_repr = states_repr,
 
             # Skills 
             prior = prior,
