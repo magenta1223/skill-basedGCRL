@@ -3,6 +3,7 @@ manipulation : false
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 binary_reward : false
 std_factor : 1.35
+norm_G : false
 
 # Skimo
 # WGCSL / RIS
