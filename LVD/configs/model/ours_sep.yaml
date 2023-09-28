@@ -21,7 +21,7 @@ weight :
 
 grad_pass:
   invD: false
-  flat_D : true
+  flat_D : false
   skill_D : true # diff=false면 무의미 
   skill : true
 
