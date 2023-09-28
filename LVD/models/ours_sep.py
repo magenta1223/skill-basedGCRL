@@ -5,7 +5,7 @@ from ..utils import *
 from .base import BaseModel
 from easydict import EasyDict as edict
 from copy import deepcopy
-
+import math 
 
 class GoalConditioned_Diversity_Sep_Model(BaseModel):
     """
@@ -541,14 +541,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # rnd threshold 
         log_score = torch.pow(self.outputs['target_goal_embedding'] - self.outputs['goal_embedding'], 2).mean(dim = -1).log()
         
-        mu, std = log_score.mean().item(), log_score.std().item()
-
         # known goal에서 나올 수 있는 수준의 MI는? -> 
         qauntile = torch.tensor([0.05, 0.95], dtype= log_score.dtype, device= log_score.device)
         min_value, max_value = torch.quantile(log_score, qauntile)
         truncated = log_score[(min_value < log_score) & (log_score < max_value)]
 
-        mu, std = truncated.mean(), truncated.std()
+        mu, std = truncated.mean().item(), truncated.std().item()
 
         if self.rnd_mu is None:
             self.rnd_mu = mu 
@@ -648,7 +646,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         goal_emb_random = self.random_goal_encoder(rollout_goals)
         rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
 
-        threshold = (self.rnd_mu + self.rnd_std * self.std_factor).exp()        
+        threshold = math.exp(self.rnd_mu + self.rnd_std * self.std_factor)        
         indices = rollout_goals_score > threshold
         indices = indices.detach().cpu()
         
