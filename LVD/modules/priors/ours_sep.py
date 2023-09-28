@@ -172,14 +172,15 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             start = start.clone().detach()
 
         # rollout / check 
-        if self.cfg.manipulation:
-            pos, nonPos = start.chunk(2, -1)
-        else:
-            pos, nonPos = start, None
+        pos, nonPos = start.chunk(2, -1)
+
         
         # rollout 
         if len(pos.shape) < 3:
-            flat_dynamics_input = torch.cat((start, skill), dim=-1)
+            if self.cfg.manipulation:
+                flat_dynamics_input = torch.cat((start, skill), dim=-1)
+            else:
+                flat_dynamics_input = torch.cat((pos, skill), dim=-1)
             
             if use_target:
                 flat_D = self.target_flat_dynamics(flat_dynamics_input)                
@@ -198,7 +199,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             
             # skill 
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-            flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
+            if self.cfg.manipulation:
+                flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
+            else:
+                flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
 
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
             
@@ -206,7 +210,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 if self.cfg.manipulation:
                     pos_now, nonPos_now = flat_D.chunk(2, -1)
                 else:
-                    pos_now, nonPos_now = flat_D, None
+                    # pos_now, nonPos_now = flat_D, None
+                    pos_now, nonPos_now = flat_D.chunk(2, -1)
 
             else:
                 pos_now, nonPos_now = None, flat_D.chunk(2, -1)[1] - nonPos[:, :-1]
@@ -334,6 +339,14 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
 
             else:
                 _state, pos_raw_state, _ = self.state_decoder(next_ht)
+                
+                # _, _, _, diff_nonPos_latent = cache
+                # diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+                # _, pos_raw_state, _ = self.state_decoder(next_ht)
+                # nonPos_raw_state = nonPos_raw_state + diff_nonPos
+                # _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+                
+                
             
             # append 
             states_rollout.append(_state)
