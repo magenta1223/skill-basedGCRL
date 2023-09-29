@@ -219,9 +219,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             #     flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
             
             if self.cfg.testtest:
-                flat_dynamics_input = torch.cat((pos, skill), dim=-1)
+                flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
             else:
-                flat_dynamics_input = torch.cat((start, skill), dim=-1)
+                flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
             
 
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
