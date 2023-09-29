@@ -97,8 +97,16 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
             diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
         else:
-            diff = None
-            diff_target = None
+            if self.cfg.use_dd:
+                diff_nonPos_latent = cache[-1].view(N, T-1, -1)
+                diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
+                diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
+
+            else:
+                diff = None
+                diff_target = None
+
+
 
         # -------------- Subgoal Generator -------------- #
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
@@ -338,7 +346,15 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
 
             else:
-                _state, pos_raw_state, _ = self.state_decoder(next_ht)
+                if self.cfg.use_dd:
+                    _, _, _, diff_nonPos_latent = cache
+                    diff_nonPos = self.diff_decoder(diff_nonPos_latent)
+                    _, pos_raw_state, _ = self.state_decoder(next_ht)
+                    nonPos_raw_state = nonPos_raw_state + diff_nonPos
+                    _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
+                    
+                else:
+                    _state, pos_raw_state, _ = self.state_decoder(next_ht)
                 
                 # _, _, _, diff_nonPos_latent = cache
                 # diff_nonPos = self.diff_decoder(diff_nonPos_latent)

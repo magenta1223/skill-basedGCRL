@@ -32,7 +32,11 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         if cfg.manipulation:
             diff_decoder = SequentialBuilder(cfg.diff_decoder)
         else:
-            diff_decoder = torch.nn.Identity()
+            if cfg.use_dd:
+                diff_decoder = SequentialBuilder(cfg.diff_decoder)
+            else:
+                diff_decoder = torch.nn.Identity()
+
      
         self.prior_policy = PRIOR_WRAPPERS['ours_sep'](
             # components  
@@ -329,7 +333,17 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 weights
             )
         else:
-            diff_loss = torch.tensor([0]).cuda()
+            if self.use_dd:
+                diff_loss = self.loss_fn("recon")(
+                    self.outputs['diff'], 
+                    self.outputs['diff_target'], 
+                    weights
+                )
+
+            else:
+                diff_loss = torch.tensor([0]).cuda()
+
+        
         
         # tanh라서 logprob에 normal 필요할 수도
         # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
@@ -649,7 +663,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # Random Network distillation 
         goal_emb = self.goal_encoder(rollout_goals)
         goal_emb_random = self.random_goal_encoder(rollout_goals)
-        rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+        # rollout_goals_score = ((goal_emb - goal_emb_random) ** 2).mean(dim = -1)
+        rollout_goals_score = torch.pow(goal_emb - goal_emb_random, 2).mean(dim = -1)
 
         threshold = math.exp(self.rnd_mu + self.rnd_std * self.std_factor)        
         indices = rollout_goals_score > threshold
