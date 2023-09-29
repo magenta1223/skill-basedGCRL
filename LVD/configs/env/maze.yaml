@@ -5,6 +5,10 @@ binary_reward : false
 std_factor : 1.35
 norm_G : false
 
+# flat_Dtest 
+testtest : false
+
+
 # Skimo
 # WGCSL / RIS
 
