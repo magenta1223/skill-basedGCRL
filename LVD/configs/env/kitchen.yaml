@@ -26,7 +26,6 @@ n_nonPos : 0
 n_env : 21
 n_goal : 30
 action_dim : 9
-normalize : false
 
 subseq_len : 11
 max_seq_len : 280
