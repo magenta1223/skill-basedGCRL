@@ -67,7 +67,7 @@ zeroshot : false
 hindsight_relabel : true
 
 save_ckpt : 50
-early_stop_rounds : 100
+early_stop_rounds : 999
 n_rollout_steps : 10
 workers : 16
 dataset_size : -1
