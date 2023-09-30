@@ -304,10 +304,18 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             # states = states[:self.subseq_len]
 
             if start_idx > c :
-                discount_start = np.exp(self.discount_lambda * (start_idx - c))
+                discount_start = np.exp(self.discount *  max((start_idx - c), 0))
             else:
                 discount_start = 1
+
+            # discount_G = np.exp(self.discount_lambda * (goal_idx - c))
             discount_G = 1
+            if goal_idx > c :
+                discount_G = np.exp(self.discount *  max((goal_idx - c), 0))
+
+            
+            else:
+                discount_G = 1
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
             actions = actions[start_idx:start_idx+self.subseq_len-1]
@@ -318,7 +326,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 G = G,
                 finalG = G,
                 rollout = False,
-                weights = 1, #1 discount_start * discount_G,
+                weights = discount_start * discount_G,
                 seq_index = seq_index,
                 start_idx = start_idx,
                 seq_len = 1,
