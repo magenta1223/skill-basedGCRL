@@ -5,7 +5,7 @@ manipulation : true
 envtask_cfg : LVD.envs.Kitchen_EnvTaskConfig
 binary_reward : false
 std_factor : 1.35
-norm_G : false
+norm_G : true
 
 # flat_Dtest 
 testtest : false
