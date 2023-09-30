@@ -300,7 +300,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
             start_idx, goal_idx = self.sample_indices(states)
 
-            goal_idx = -1
+            # goal_idx = -1
             G = deepcopy(states[goal_idx, :self.n_pos])
 
             # # relative position 
