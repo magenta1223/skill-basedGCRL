@@ -143,17 +143,21 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         self.g_mu = None
         self.g_std = None
 
+    def normalize(self, x):
+        if self.env_name == "maze" and self.normalize_state:
+            x[..., :2] = (x[..., :2] / 40) - 0.5
+            x[..., 2:] = x[..., 2:] / 10
+        return x
 
     def denormalize(self, x):
         """
         Restore for maze and carla
         """
-        if self.env_name == "maze":
+        if self.env_name == "maze" and self.normalize_state:
             x[..., :2] = (x[..., :2] + 0.5) * 40
             x[..., 2:] = x[..., 2:]  * 10
-        else:
-            pass
         return x
+
 
     @torch.no_grad()
     def get_metrics(self, batch):
@@ -431,6 +435,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             indices = self.filter_rollout(result, rollout_batch)
         else:
             indices = self.filter_rollout3(result, rollout_batch)
+        
+        states_novel = self.denormalize(states_novel)
 
         self.loss_dict['states_novel'] = states_novel[indices].detach().cpu()
         self.loss_dict['actions_novel'] = actions_novel[indices].detach().cpu()
@@ -441,12 +447,10 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         # analysis
         # rollout_goals = self.state_processor.goal_transform(states_rollout[:, -1])
 
-        
-
-
+    
         if sum(indices):
-            if self.normalize:
-                self.loss_dict['states_novel'] = self.denormalize(self.loss_dict['states_novel'])
+            # if self.normalize:
+            #     self.loss_dict['states_novel'] = self.denormalize(self.loss_dict['states_novel'])
 
             if not self.render:
                 if self.env.name == "kitchen":
@@ -535,8 +539,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     def optimize(self, batch, e):
 
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-
-
+            
+        batch['states'] = self.normalize(batch['states'])
+            
         if e < 1:
             # goal mu, std 계산 
             g_mu, g_std = batch.G.mean(dim = 0), batch.G.std(dim = 0)
@@ -586,6 +591,8 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     @torch.no_grad()
     def validate(self, batch, e):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
+        batch['states'] = self.normalize(batch['states'])
+        
         self.__main_network__(batch, validate= True)
         self.get_metrics(batch)
         return self.loss_dict

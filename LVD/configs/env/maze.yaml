@@ -5,6 +5,7 @@ binary_reward : false
 std_factor : 1.35
 norm_G : true
 discount : false
+normalize_state : false
 
 # flat_Dtest 
 testtest : false

@@ -248,6 +248,9 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
         self.now_buffer = deepcopy(self.prev_buffer)
         self.prev_buffer = []
         pass
+    
+    
+
 
     def __getitem__(self, index):
         # mode에 따라 다른 sampl 
