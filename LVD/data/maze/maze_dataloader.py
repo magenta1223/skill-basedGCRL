@@ -324,7 +324,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 G = G,
                 finalG = G,
                 rollout = False,
-                weights = discount_start * discount_G if self.cfg.discount else 1,
+                weights = discount_start * discount_G if self.discount else 1,
                 seq_index = seq_index,
                 start_idx = start_idx,
                 seq_len = 1,
