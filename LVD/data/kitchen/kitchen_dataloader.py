@@ -443,7 +443,7 @@ class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
                 actions=actions,
                 G=G,
                 rollout = False,
-                weights = 1, #discount_start * discount_G,
+                weights = discount_start * discount_G if self.cfg.discount else 1,
                 seq_index = seq_index,
                 start_idx = start_idx,
                 seq_len = len(seq.states)                

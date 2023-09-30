@@ -312,8 +312,6 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
             discount_G = 1
             if goal_idx > c :
                 discount_G = np.exp(self.discount *  max((goal_idx - c), 0))
-
-            
             else:
                 discount_G = 1
 
@@ -326,7 +324,7 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
                 G = G,
                 finalG = G,
                 rollout = False,
-                weights = discount_start * discount_G,
+                weights = discount_start * discount_G if self.cfg.discount else 1,
                 seq_index = seq_index,
                 start_idx = start_idx,
                 seq_len = 1,
