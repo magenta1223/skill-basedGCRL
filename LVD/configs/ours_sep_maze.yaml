@@ -32,6 +32,7 @@ model:
     nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.state_dim}
 
+
   dynamics :
     in_feature : ${add:${env.latent_state_dim}, ${env.skill_dim}}
     out_dim : ${env.latent_state_dim} 
