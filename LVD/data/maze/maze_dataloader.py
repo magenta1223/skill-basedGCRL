@@ -22,17 +22,19 @@ class Maze_Dataset(Base_Dataset):
             seqs = pickle.load(f)
         
         
-        if self.normalize:
-            for i in range(len(seqs)):
-                seq = seqs[i]
-                obs = deepcopy(seq['obs'])
-                obs[:, :2] = obs[:, :2] / 40 - 0.5
-                obs[:, 2:] = obs[:, 2:] / 10 
-                seq['obs'] = obs
+        # if self.normalize:
+        #     for i in range(len(seqs)):
+        #         seq = seqs[i]
+        #         obs = deepcopy(seq['obs'])
+        #         obs[:, :2] = obs[:, :2] / 40 - 0.5
+        #         obs[:, 2:] = obs[:, 2:] / 10 
+        #         seq['obs'] = obs
             
-            self.seqs = seqs 
-        else:
-            self.seqs = seqs 
+        #     self.seqs = seqs 
+        # else:
+        #     self.seqs = seqs 
+
+        self.seqs = seqs 
 
 
 
