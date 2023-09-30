@@ -190,12 +190,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         subgoal_recon_f = self.outputs['subgoal_recon_f']
         subgoal_recon_D = self.outputs['subgoal_recon_D']
 
-        if self.normalize:
-            states = self.denormalize(states)
-            reconstructed_subgoal = self.denormalize(reconstructed_subgoal)
-            states_hat = self.denormalize(states_hat)
-            subgoal_recon_f = self.denormalize(subgoal_recon_f)
-            subgoal_recon_D = self.denormalize(subgoal_recon_D)
+        # if self.normalize:
+        states = self.denormalize(states)
+        reconstructed_subgoal = self.denormalize(reconstructed_subgoal)
+        states_hat = self.denormalize(states_hat)
+        subgoal_recon_f = self.denormalize(subgoal_recon_f)
+        subgoal_recon_D = self.denormalize(subgoal_recon_D)
 
         if self.env_name == "maze":
             self.loss_dict['Rec_flatD_pos'] = self.loss_fn('recon')(reconstructed_subgoal[:, :self.n_pos], states[:, -1, :self.n_pos], weights).item()
