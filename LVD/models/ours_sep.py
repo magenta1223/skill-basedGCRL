@@ -321,11 +321,15 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         )         
 
         # ----------- subgoal generator -------------- #         
-        sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
-        subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
-        # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
-
-        F_loss = sanity_check + subgoal_bc #+ reg_term
+        if self.sanity_check:
+            sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
+            subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            F_loss = sanity_check + subgoal_bc #+ reg_term
+        else:
+            subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+            F_loss = subgoal_bc
+        
         r_int = self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
 
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 

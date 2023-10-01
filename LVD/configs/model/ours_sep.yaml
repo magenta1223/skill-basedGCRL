@@ -5,7 +5,7 @@ with_gcsl: false
 sg_residual : true
 filter_default : true
 use_dd : false
-
+sanity_check : true
 buffer_cls : LVD.collector.GC_Buffer
 
 mode_drop : false
