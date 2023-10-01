@@ -12,7 +12,7 @@ class Evaluator:
     def __init__(self, cfg):
         self.cfg = cfg 
 
-        if not cfg.eval_mode == "rearrnage":
+        if not cfg.eval_mode == "rearrange":
             # env
             envtask_cfg = cfg.envtask_cfg
             self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
