@@ -12,44 +12,45 @@ class Evaluator:
     def __init__(self, cfg):
         self.cfg = cfg 
 
-        # env
-        envtask_cfg = cfg.envtask_cfg
-        self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
-        
-        # model 
-        try:
-            model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
-        except:
-            print(f"{cfg.zeroshot_weight} No end.")
-            model = cfg.skill_trainer.load(cfg.zeroshot_weight_before_rollout, cfg).model
-
-        if "flat" in cfg.structure:
-            self.policy = deepcopy(model.prior_policy)
-            # non-learnable
+        if not cfg.eval_mode == "rearrnage":
+            # env
+            envtask_cfg = cfg.envtask_cfg
+            self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
             
-            self.collector = GC_Flat_Collector(
-                self.env,
-                time_limit= cfg.time_limit,
-            )
+            # model 
+            try:
+                model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
+            except:
+                print(f"{cfg.zeroshot_weight} No end.")
+                model = cfg.skill_trainer.load(cfg.zeroshot_weight_before_rollout, cfg).model
 
-        else:
+            if "flat" in cfg.structure:
+                self.policy = deepcopy(model.prior_policy)
+                # non-learnable
+                
+                self.collector = GC_Flat_Collector(
+                    self.env,
+                    time_limit= cfg.time_limit,
+                )
 
-            self.high_policy = deepcopy(model.prior_policy)
-            # non-learnable
-            low_actor = deepcopy(model.skill_decoder)
-            skill_prior = deepcopy(model.prior_policy.skill_prior)
-            low_actor.eval()
-            low_actor.requires_grad_(False)
-            skill_prior.requires_grad_(False) 
-            
-            self.collector = GC_Hierarchical_Collector(
-                cfg,
-                self.env,
-                low_actor,
-                horizon = cfg.subseq_len -1,
-                time_limit= cfg.time_limit,
-            )
+            else:
+
+                self.high_policy = deepcopy(model.prior_policy)
+                # non-learnable
+                low_actor = deepcopy(model.skill_decoder)
+                skill_prior = deepcopy(model.prior_policy.skill_prior)
+                low_actor.eval()
+                low_actor.requires_grad_(False)
+                skill_prior.requires_grad_(False) 
+                
+                self.collector = GC_Hierarchical_Collector(
+                    cfg,
+                    self.env,
+                    low_actor,
+                    horizon = cfg.subseq_len -1,
+                    time_limit= cfg.time_limit,
+                )
 
         self.eval_data = []
 
