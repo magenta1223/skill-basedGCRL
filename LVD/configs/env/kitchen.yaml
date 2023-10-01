@@ -38,8 +38,6 @@ action_dim : 9
 skill_dim : 10
 latent_state_dim : 256
 
-
-
 # pretrain params
 epoch_cycles_train : 100
 offline_buffer_size : 10000
@@ -74,13 +72,14 @@ early_stop_threshold : ${multiply:4, 0.8}
 max_reward : 4
 use_hidden : true # use latent state for Q 
 consistency_lr : 3e-5
+buffer_size : 20000
+n_episode : 150
+kl_decay : 0.99
 
 # min_lr * 0.05
 policy_lr : 5e-7
 # policy_lr : 3e-5
-buffer_size : 20000
-n_episode : 150
-kl_decay : 0.99
+
 
 
 # invD_lr : 1e-6
