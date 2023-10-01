@@ -114,7 +114,7 @@ class GC_Skill_RL_Trainer:
                     threshold = self.cfg.max_reward * 0.9  
 
                     # ep 종료 지점에서               
-                    if n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > threshold: # success 
+                    if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > threshold: # success 
                         print("early stop!!!")
                         break 
                     log = self.train_policy(n_ep, seed)

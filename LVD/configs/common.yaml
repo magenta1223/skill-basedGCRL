@@ -14,6 +14,7 @@ hydra:
           - hindsight_relabel
           - resume
           - resume_ckpt 
+          - no_early_stop_online
           # rl 
           - rl.q_warmup
           - rl.discount
@@ -60,6 +61,8 @@ phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 eval_mode : false
 n_eval : 19
+no_early_stop_online : false 
+# if true, earlystop will be not allowed in online adaptation
 
 resume : false 
 resume_ckpt : 0
