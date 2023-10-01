@@ -2,9 +2,9 @@ env_name : maze
 manipulation : false
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 binary_reward : false
-std_factor : 1.35
+std_factor : 1.1
 norm_G : true
-discount : false
+discount : true
 normalize_state : false
 
 # flat_Dtest 
@@ -40,7 +40,7 @@ mixin_ratio : 0.05
 # plan_H : 100
 plan_H : 1000
 # epochs : 150
-epochs : 110
+epochs : 140
 warmup_steps : 50
 
 skill_dim : 10
