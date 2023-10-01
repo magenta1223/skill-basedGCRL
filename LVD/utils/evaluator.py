@@ -6,6 +6,7 @@ import os
 import numpy as np
 import torch
 from .general_utils import *
+import json 
 
 class Evaluator:
     def __init__(self, cfg):
@@ -57,7 +58,8 @@ class Evaluator:
         self.eval_methods = edict(
             zeroshot = self.eval_zeroshot,
             finetuned = self.eval_finetuned,
-            learningGraph = self.eval_learningGraph
+            learningGraph = self.eval_learningGraph,
+            rearrange = self.rearrange_taskgroup
         )
 
         self.set_logger()
@@ -86,69 +88,72 @@ class Evaluator:
         self.eval_methods[self.cfg.eval_mode]()
     
     def task_mapping(self, df):
-        if self.env.name == "kitchen":
-            # mode dropping이 훨~씬 좋다 
-            task_dict = {
-                # seen tasks 
-                "MKBS" : "seen",
-                "MKSH" : "seen",
-                "KTLS" : "seen",
-                "KBTH" : "seen",
+        # if self.env.name == "kitchen":
+        #     # mode dropping이 훨~씬 좋다 
+        #     # task_dict = {
+        #     #     # seen tasks 
+        #     #     "MKBS" : "seen",
+        #     #     "MKSH" : "seen",
+        #     #     "KTLS" : "seen",
+        #     #     "KBTH" : "seen",
 
-                # "MBTS" : "seen",
-                # "MTLH" : "seen",
-                # "KBLH" : "seen",
-                # "MBTH" : "seen",
-                # "KBTS" : "seen",
-                # "MBTL" : "seen",
-                # "KBTL" : "seen",
-                # "MKTL" : "seen",
-                # "MKLH" : "seen",
-                # "MBLS" : "seen",
-                # "KBTL" : "seen",
-                # "MLSH" : "seen",
-                # "MBTH" : "seen",
-                # "KBSH" : "seen",
-                # "BTLS" : "seen",
-                # "MKLS" : "seen",
+        #     #     # "MBTS" : "seen",
+        #     #     # "MTLH" : "seen",
+        #     #     # "KBLH" : "seen",
+        #     #     # "MBTH" : "seen",
+        #     #     # "KBTS" : "seen",
+        #     #     # "MBTL" : "seen",
+        #     #     # "KBTL" : "seen",
+        #     #     # "MKTL" : "seen",
+        #     #     # "MKLH" : "seen",
+        #     #     # "MBLS" : "seen",
+        #     #     # "KBTL" : "seen",
+        #     #     # "MLSH" : "seen",
+        #     #     # "MBTH" : "seen",
+        #     #     # "KBSH" : "seen",
+        #     #     # "BTLS" : "seen",
+        #     #     # "MKLS" : "seen",
                 
-                # unseen and well-algined 
-                'MKBT' : "well-aligned",
-                'MKBL' : "well-aligned",
-                'BLSH' : "well-aligned",
-                'MBLH' : "well-aligned",
-                'KTSH' : "well-aligned",
+        #     #     # unseen and well-algined 
+        #     #     'MKBT' : "well-aligned",
+        #     #     'MKBL' : "well-aligned",
+        #     #     'BLSH' : "well-aligned",
+        #     #     'MBLH' : "well-aligned",
+        #     #     'KTSH' : "well-aligned",
 
-                # unseen and mis-aligned
-                'KTLH' : 'mis-aligned',
-                'MTSH' : 'mis-aligned',
-                'BTLH' : 'mis-aligned',
-                'MKTS' : 'mis-aligned',
-                'MTLS' : 'mis-aligned'
-            }
-        else:
-            task_dict = {
-               
-            #    [{x+1}. {y+1}.]
-                
-                '[22. 23.]' : "short", 
-                '[1. 17.]' : "short", 
-                '[13. 9.]' : "short", 
+        #     #     # unseen and mis-aligned
+        #     #     'KTLH' : 'mis-aligned',
+        #     #     'MTSH' : 'mis-aligned',
+        #     #     'BTLH' : 'mis-aligned',
+        #     #     'MKTS' : 'mis-aligned',
+        #     #     'MTLS' : 'mis-aligned'
+        #     # }
+            
+        #     # {
+        #     #     'MKBS': 'seen',
+        #     #     'MKSH': 'seen',
+        #     #     'KTLS': 'seen',
+        #     #     'KBTH': 'seen',
+        #     #     'MKBT': 'small',
+        #     #     'MKBL': 'small',
+        #     #     'BLSH': 'small',
+        #     #     'MBLH': 'middle',
+        #     #     'KTSH': 'middle',
+        #     #     'MKTS': 'middle',
+        #     #     'MTLS': 'middle',
+        #     #     'KTLH': 'large',
+        #     #     'MTSH': 'large',
+        #     #     'BTLH': 'large',
+        #     # }
+        #     with open(f"./assets/{self.env.name}_tasks.json") as f:
+        #         task_dict = json.load(f)
+                        
+        # else:
+        #     with open(f"./assets/kitchen_tasks.json") as f:
+        #         task_dict = json.load(f)
 
-                '[23. 14.]' : "middle", 
-                '[18. 8.]' : "middle", 
-                '[24. 34.]' : "middle", 
-
-                '[24. 39.]' : "extended", 
-                '[15. 40.]' : "extended", 
-                '[36. 21.]' : "extended", 
-
-
-                '[35. 5.]' : "toofar", 
-                '[39. 26.]' : "toofar", 
-                '[39. 5.]' : "toofar", 
-
-            }
+        with open(f"./assets/{self.env.name}_tasks.json") as f:
+            task_dict = json.load(f)
 
         df['task_type'] = df['task'].map(task_dict)
 
@@ -284,3 +289,75 @@ class Evaluator:
                         success = np.array(episode.dones).sum() != 0
                     )
                     self.eval_data.append(data)
+                    
+                    
+    def rearrange_taskgroup(self):
+        # 현재 dataset 내부의 모든 logged data에 대해 다음과 같이 진행. 
+        # 1. [EVAL_METHODS]_tasktype.csv 가 존재하는 모든 폴더를 찾는다. 
+        # 2. 해당 폴더 안에는 [EVAL_METHODS]_rawdata.csv가 존재한다. 이를 다시 task_group에 맞춰 재작성 
+        # 3. task group은 asset에서 불러오기 
+        
+        
+
+        # 현재 디렉토리부터 시작하여 모든 하위 디렉토리를 검색
+
+        target_folders = []
+
+        for root, dirs, files in os.walk('.'):
+            for file in files:
+                folder_path = os.path.abspath(root)
+                if file.endswith('zeroshot_tasktype.csv'):
+                    # print(f"폴더 경로: {folder_path}, 파일명: {file}")
+                    target_folders.append(folder_path)
+        
+        for folder_path in target_folders:
+            rawdata_path = f"{folder_path}/zeroshot_rawdata.csv"
+            if not os.path.exists(rawdata_path):
+                print(f"{folder_path} does not have rawdata")
+                continue
+            
+            # zeroshot !! 
+            df = pd.read_csv(rawdata_path)
+            
+            aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            aggregated.to_csv(f"{folder_path}/zeroshot.csv", index = False)
+
+            self.logger.log(f"Task group rearrange is done : {folder_path}/zeroshot.csv")
+
+            df = self.task_mapping(df)
+
+            df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            df_tasktype.to_csv(f"{folder_path}/zeroshot_tasktype.csv", index = False)
+
+            self.logger.log(f"Done : {folder_path}/zeroshot_tasktype.csv")
+            
+        
+        
+        target_folders = []
+        
+        for root, dirs, files in os.walk('.'):
+            for file in files:
+                folder_path = os.path.abspath(root)
+                if file.endswith('finetune_tasktype.csv'):
+                    # print(f"폴더 경로: {folder_path}, 파일명: {file}")
+                    target_folders.append(folder_path)
+        
+        for folder_path in target_folders:
+            rawdata_path = f"{folder_path}/finetune_rawdata.csv"
+            if not os.path.exists(rawdata_path):
+                print(f"{folder_path} does not have rawdata")
+                continue
+        
+            df = pd.read_csv(rawdata_path)
+            aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            aggregated.to_csv(f"{folder_path}/finetuned.csv", index = False)
+
+            self.logger.log(f"Done : {folder_path}/finetuned.csv")
+
+            df = self.task_mapping(df)
+
+
+            df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            df_tasktype.to_csv(f"{folder_path}/finetune_tasktype.csv", index = False)
+
+            self.logger.log(f"Done : {folder_path}/finetune_tasktype.csv")

@@ -147,10 +147,10 @@ meta_train_tasks = np.array([
 
 tasks = np.array([
     # seen 
-    # [5,6,0,3], # MKBS
-    # [5,6,3,4], # MKSH
-    # [6,1,2,3], # KTLS
-    # [6,0,1,4], # KBTH
+    [5,6,0,3], # MKBS
+    [5,6,3,4], # MKSH
+    [6,1,2,3], # KTLS
+    [6,0,1,4], # KBTH
 
     # 'MKBT' : "well-aligned",
     # 'MKBL' : "well-aligned",
@@ -159,18 +159,18 @@ tasks = np.array([
     # 'KTSH' : "well-aligned",
     
     # well-algiend
-    [5,6,0,1], # MKBT
-    [5,6,0,2], # MKBL
-    [0,2,3,4],  # BLSH
-    [5,0,2,4],  # MBLH
-    [6,1,3,4],  # KTSH
+    # [5,6,0,1], # MKBT
+    # [5,6,0,2], # MKBL
+    # [0,2,3,4],  # BLSH
+    # [5,0,2,4],  # MBLH
+    # [6,1,3,4],  # KTSH
     
-    # mis-aligned
-    [6,1,2,4],  # KTLH
-    [5,1,3,4],  # MTSH
-    [0,1,2,4],  # BTLH
-    [5,6,1,3],  # MKTS
-    [5,1,2,3],  # MTLS
+    # # mis-aligned
+    # [6,1,2,4],  # KTLH
+    # [5,1,3,4],  # MTSH
+    # [0,1,2,4],  # BTLH
+    # [5,6,1,3],  # MKTS
+    # [5,1,2,3],  # MTLS
 ])
 
 
