@@ -12,12 +12,12 @@ class Evaluator:
     def __init__(self, cfg):
         self.cfg = cfg 
 
-        if not cfg.eval_mode == "rearrange":
-            # env
-            envtask_cfg = cfg.envtask_cfg
-            self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
-            
+        # env
+        envtask_cfg = cfg.envtask_cfg
+        self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+
+        if not cfg.eval_mode == "rearrange":            
             # model 
             try:
                 model = cfg.skill_trainer.load(cfg.zeroshot_weight, cfg).model
