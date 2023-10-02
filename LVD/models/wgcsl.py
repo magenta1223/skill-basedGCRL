@@ -51,7 +51,7 @@ class WGCSL(BaseModel):
         self.threshold = 0
         self.eps_min = 0.05
         self.baw_delta= 0.15
-        self.baw_max = 80
+        self.baw_max = cfg.baw_max
 
         self.prior_policy = PRIOR_WRAPPERS['flat_gcsl'](
             # skill_prior = prior,

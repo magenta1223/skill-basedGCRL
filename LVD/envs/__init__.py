@@ -5,23 +5,41 @@ from .maze import *
 
 class Kitchen_EnvTaskConfig:
     name = "kitchen"
+    # env
     env_cls = KitchenEnv_GC
     env_cfg = kitchen_cfg
+    # task 
     task_cls = KitchenTask_GC
+    
+    # tasks 
     meta_tasks = kitchen_meta_tasks
     target_tasks = kitchen_tasks
     ablation_tasks = kitchen_ablation_tasks
+    
+    # 
+    zeroshot_tasks = kitchen_zeroshot_tasks
+    fewshot_tasks = kitchen_fewshot_tasks
+    
     known_tasks = kitchen_known_tasks
     unknown_tasks = kitchen_unseen_tasks
 
 class Maze_EnvTaskConfig:
     name = "maze"
+    # env 
     env_cls = Maze_GC
     env_cfg = maze_cfg
+    # task 
     task_cls = MazeTask_GC
+    
+    # tasks 
     meta_tasks = maze_meta_tasks
     target_tasks = maze_tasks
     ablation_tasks = maze_ablation_tasks
+    
+    # 
+    zeroshot_tasks = maze_zeroshot_tasks
+    fewshot_tasks = maze_fewshot_tasks   
+    
     known_tasks = None
     unknown_tasks = None
 

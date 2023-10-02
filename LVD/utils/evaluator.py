@@ -15,7 +15,11 @@ class Evaluator:
         # env
         envtask_cfg = cfg.envtask_cfg
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+        
+        if cfg.eval_mode == "zeroshot":
+            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.zeroshot_tasks]
+        else:
+            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.fewshot_tasks]
 
         if not cfg.eval_mode == "rearrange":            
             # model 

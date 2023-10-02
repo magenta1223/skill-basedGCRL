@@ -190,10 +190,75 @@ tasks = np.array([
 
 
 
+zeroshot_tasks = np.array([
+    # seen 
+    [5,6,0,3], # MKBS
+    [5,6,3,4], # MKSH
+    [6,1,2,3], # KTLS
+    [6,0,1,4], # KBTH
+    
+    # small
+    [5,6,0,1], # MKBT
+    [5,6,0,2], # MKBL
+    [0,2,3,4],  # BLSH
+
+    # middle
+    [5,0,2,4],  # MBLH
+    [6,1,3,4],  # KTSH
+    [5,6,1,3],  # MKTS
+    [5,1,2,3],  # MTLS
+    
+    # large
+    [6,1,2,4],  # KTLH
+    [5,1,3,4],  # MTSH
+    [0,1,2,4],  # BTLH
+    
+    # "MKBT": "small",
+    # "MKBL": "small",
+    # "BLSH": "small",
+    # "MBLH": "middle",
+    # "KTSH": "middle",
+    # "MKTS": "middle",
+    # "MTLS": "middle",
+    # "KTLH": "large",
+    # "MTSH": "large",
+    # "BTLH": "large"
+])
+
+few_shot_tasks = np.array([
+    # seen 
+    # [5,6,0,3], # MKBS
+    # [5,6,3,4], # MKSH
+    # [6,1,2,3], # KTLS
+    # [6,0,1,4], # KBTH
+    
+    # # small
+    [5,6,0,1], # MKBT
+    [5,6,0,2], # MKBL
+    [0,2,3,4],  # BLSH
+
+    # middle
+    [5,0,2,4],  # MBLH
+    [6,1,3,4],  # KTSH
+    [5,6,1,3],  # MKTS
+    [5,1,2,3],  # MTLS
+    
+    # large
+    [6,1,2,4],  # KTLH
+    [5,1,3,4],  # MTSH
+    [0,1,2,4],  # BTLH
+])
+
+
+
+
 kitchen_subtasks = np.array(['bottom burner', 'top burner', 'light switch', 'slide cabinet', 'hinge cabinet', 'microwave', 'kettle'])
 
 kitchen_cfg = {}
 kitchen_tasks = kitchen_subtasks[tasks]
+kitchen_zeroshot_tasks = kitchen_subtasks[zeroshot_tasks]
+kitchen_fewshot_tasks = kitchen_subtasks[few_shot_tasks]
+
 kitchen_meta_tasks = kitchen_subtasks[meta_train_tasks]
 kitchen_ablation_tasks = kitchen_subtasks[tasks]
 

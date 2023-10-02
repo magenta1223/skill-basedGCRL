@@ -38,11 +38,15 @@ use_dd : false
 
 # acrhitecture 
 
-
+# policy learning 
 # subgoal generator 
 sg_residual : true
-sanity_check : true
+learning_mode : sanity_check
+sanity_check : false
 goal_factor : 1
+# skill_reg : false
+
+
 
 # buffer class 
 buffer_cls : LVD.collector.GC_Buffer
@@ -165,6 +169,17 @@ skill_decoder :
   module_type : linear
   linear_cls : LVD.modules.LinearBlock
   norm_cls : torch.nn.BatchNorm1d
+  act_cls : torch.nn.Mish
+  tanh : true
+  bias : true
+  dropout : 0
+
+high_policy : 
+  n_blocks : 5
+  hidden_dim : 128
+  module_type : linear
+  linear_cls : LVD.modules.base.LinearBlock
+  norm_cls : torch.nn.LayerNorm
   act_cls : torch.nn.Mish
   tanh : true
   bias : true

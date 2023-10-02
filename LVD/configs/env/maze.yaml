@@ -25,7 +25,12 @@ testtest : false
 
 # Skimo
 # Reward relabeling threshold in offline WGCSL / RIS
-reward_threshold : 10
+# Reward relabeling threshold in offline WGCSL / RIS
+reward_threshold : 3
+# maximum value of best advantage threshold for BAW(Best-Advantage-Weight) in WGCSL
+baw_max : 20
+
+
 
 # dimension
 state_dim : 4

@@ -12,6 +12,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     """
     def __init__(self, cfg):
         super().__init__(cfg)
+        learning_mode_choices = ['only_skill', 'sanity_check', 'skill_reg', 'only_bc']
+        assert cfg.learning_mode in learning_mode_choices, f"Invalid learning mode. Valid choices are {learning_mode_choices}"
+        
         # state enc/dec  
         state_encoder = Multisource_Encoder(cfg.state_encoder)
         state_decoder = Multisource_Decoder(cfg.state_decoder)
@@ -32,11 +35,9 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         if cfg.manipulation:
             diff_decoder = SequentialBuilder(cfg.diff_decoder)
         else:
-            if cfg.use_dd:
-                diff_decoder = SequentialBuilder(cfg.diff_decoder)
-            else:
-                diff_decoder = torch.nn.Identity()
+            diff_decoder = torch.nn.Identity()
 
+        high_policy = SequentialBuilder(cfg.high_policy)
      
         self.prior_policy = PRIOR_WRAPPERS['ours_sep'](
             # components  
@@ -48,6 +49,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             dynamics = dynamics,
             flat_dynamics = flat_dynamics,
             diff_decoder = diff_decoder,
+            high_policy= high_policy,
             
             # configures
             cfg = cfg,
@@ -104,6 +106,14 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 ], lr = self.lr ),
                 "metric" : "Rec_skill",
             }, 
+            
+            "high_policy" : {
+                "optimizer" : RAdam( [
+                    {"params" : self.prior_policy.high_policy.parameters()},
+                ], lr = self.lr ),
+                "metric" : "Rec_skill",
+            }, 
+            
             "state" : {
                 "optimizer" : RAdam([
                     {'params' : self.prior_policy.state_encoder.parameters()},
@@ -320,12 +330,25 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             weights
         )         
 
-        # ----------- subgoal generator -------------- #         
-        if self.sanity_check:
+        # ----------- subgoal generator -------------- #  
+        
+        
+        if self.learning_mode ==  "only_skill":
+            # no subgoal generator
+            reg_term = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']) * weights).mean() 
+            F_loss = reg_term
+                   
+        elif self.learning_mode ==  "sanity_check":
             sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
             subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
             # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
             F_loss = sanity_check + subgoal_bc #+ reg_term
+            
+        elif self.learning_mode ==  "skill_reg":
+            subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+            reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() 
+            F_loss = reg_term + subgoal_bc #+ reg_term
+            
         else:
             subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
             F_loss = subgoal_bc
@@ -341,15 +364,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 weights
             )
         else:
-            if self.use_dd:
-                diff_loss = self.loss_fn("recon")(
-                    self.outputs['diff'], 
-                    self.outputs['diff_target'], 
-                    weights
-                )
-
-            else:
-                diff_loss = torch.tensor([0]).cuda()
+            diff_loss = torch.tensor([0]).cuda()
 
         
         

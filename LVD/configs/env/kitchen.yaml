@@ -27,6 +27,8 @@ testtest : false
 
 # Reward relabeling threshold in offline WGCSL / RIS
 reward_threshold : 3
+# best advantage threshold for BAW(Best-Advantage-Weight) in WGCSL
+baw_max : 80
 
 # dimension
 state_dim : 30

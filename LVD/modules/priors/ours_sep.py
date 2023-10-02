@@ -97,19 +97,18 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
             diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
         else:
-            if self.cfg.use_dd:
-                diff_nonPos_latent = cache[-1].view(N, T-1, -1)
-                diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
-                diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
-
-            else:
-                diff = None
-                diff_target = None
+            diff = None
+            diff_target = None
 
 
 
         # -------------- Subgoal Generator -------------- #
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
+        
+        # -------------- High Policy -------------- #
+        policy_skill = self.high_policy.dist(torch.cat((hts[:, 0].clone().detach(), G), dim = -1))
+
+
 
         result = edict(
             # State Auto-Encoder
@@ -135,6 +134,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             subgoal_f = subgoal_f,
             subgoal_D_target =  subgoal_f,
             subgoal_f_target =  subgoal_target,
+            
+            # high_policy
+            policy_skill = policy_skill,
 
             # Difference Decoder for manipulation task 
             diff = diff,
@@ -357,24 +359,8 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
 
             else:
-                if self.cfg.use_dd:
-                    _, _, _, diff_nonPos_latent = cache
-                    diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-                    _, pos_raw_state, _ = self.state_decoder(next_ht)
-                    nonPos_raw_state = nonPos_raw_state + diff_nonPos
-                    _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-                    
-                else:
-                    _state, pos_raw_state, _ = self.state_decoder(next_ht)
+                _state, pos_raw_state, _ = self.state_decoder(next_ht)
                 
-                # _, _, _, diff_nonPos_latent = cache
-                # diff_nonPos = self.diff_decoder(diff_nonPos_latent)
-                # _, pos_raw_state, _ = self.state_decoder(next_ht)
-                # nonPos_raw_state = nonPos_raw_state + diff_nonPos
-                # _state = torch.cat((pos_raw_state, nonPos_raw_state), dim = -1)
-                
-                
-            
             # append 
             states_rollout.append(_state)
             latent_states_rollout.append(_ht)
@@ -383,9 +369,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # next state
             _ht = next_ht
 
-
-
-            
         states_rollout = torch.stack(states_rollout, dim = 1)
         latent_states_rollout = torch.stack(latent_states_rollout, dim = 1)
         skills = torch.stack(skills, dim = 1)
