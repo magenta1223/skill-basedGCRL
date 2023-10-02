@@ -367,13 +367,18 @@ class Evaluator:
                 print(f"{folder_path} does not have rawdata")
                 continue
         
+            if "maze" in rawdata_path:
+                env_name = "maze"
+            else:
+                env_name = "kitchen"
+        
             df = pd.read_csv(rawdata_path)
             aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
             aggregated.to_csv(f"{folder_path}/finetuned.csv", index = False)
 
             self.logger.log(f"Done : {folder_path}/finetuned.csv")
 
-            df = self.task_mapping(df)
+            df = self.task_mapping(df, env_name )
 
 
             df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
