@@ -13,6 +13,8 @@ env:
   reg_beta : 1e-4
   auto_alpha : true
   init_alpha : 0.01
+  policy_lr : 3e-5
+
 model:
   state_encoder :
     in_feature : ${env.state_dim} 

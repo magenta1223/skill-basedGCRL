@@ -12,6 +12,7 @@ scheduler_params:
 env:
   auto_alpha : true
   init_alpha : 0.01
+  policy_lr : 3e-5
   
 model:
   prior:

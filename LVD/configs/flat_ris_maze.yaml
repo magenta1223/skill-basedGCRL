@@ -5,7 +5,8 @@ defaults:
 
 structure : flat_ris
 dataset_cls : LVD.data.Maze_Dataset_Flat_RIS
-
+env:
+  policy_lr : 3e-5
 model:
   policy:
     in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
