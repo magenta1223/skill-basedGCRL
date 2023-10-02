@@ -36,9 +36,12 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             diff_decoder = SequentialBuilder(cfg.diff_decoder)
         else:
             diff_decoder = torch.nn.Identity()
-
-        high_policy = SequentialBuilder(cfg.high_policy)
-     
+        
+        if cfg.only_skill:
+            high_policy = SequentialBuilder(cfg.high_policy)
+        else:
+            high_policy = None
+            
         self.prior_policy = PRIOR_WRAPPERS['ours_sep'](
             # components  
             skill_prior = prior,
@@ -107,13 +110,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 "metric" : "Rec_skill",
             }, 
             
-            "high_policy" : {
-                "optimizer" : RAdam( [
-                    {"params" : self.prior_policy.high_policy.parameters()},
-                ], lr = self.lr ),
-                "metric" : "Rec_skill",
-            }, 
-            
             "state" : {
                 "optimizer" : RAdam([
                     {'params' : self.prior_policy.state_encoder.parameters()},
@@ -140,6 +136,15 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                 "wo_warmup" : True
             },
         }
+        
+        if cfg.only_skill:
+            self.optimizers["high_policy"] ={
+                "optimizer" : RAdam( [
+                    {"params" : self.prior_policy.high_policy.parameters()},
+                ], lr = self.lr ),
+                "metric" : "Rec_skill",
+            }, 
+        
 
         self.loss_fns['recon'] = ['mse', weighted_mse]
         self.loss_fns['recon_orig'] = ['mse', torch.nn.MSELoss()]
