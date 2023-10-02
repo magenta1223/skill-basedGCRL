@@ -92,7 +92,7 @@ class Evaluator:
         assert self.cfg.eval_mode in self.eval_methods, f"Invalid evaluation methods. Valid choices are {self.eval_methods.keys()}"
         self.eval_methods[self.cfg.eval_mode]()
     
-    def task_mapping(self, df):
+    def task_mapping(self, df, env_name = None):
         # if self.env.name == "kitchen":
         #     # mode dropping이 훨~씬 좋다 
         #     # task_dict = {
@@ -156,9 +156,16 @@ class Evaluator:
         # else:
         #     with open(f"./assets/kitchen_tasks.json") as f:
         #         task_dict = json.load(f)
+        
+        if env_name is not None:
+            with open(f"./assets/{env_name}_tasks.json") as f:
+                task_dict = json.load(f)
 
-        with open(f"./assets/{self.env.name}_tasks.json") as f:
-            task_dict = json.load(f)
+        else:
+            with open(f"./assets/{self.env.name}_tasks.json") as f:
+                task_dict = json.load(f)
+
+
 
         df['task_type'] = df['task'].map(task_dict)
 
@@ -305,7 +312,6 @@ class Evaluator:
         
 
         # 현재 디렉토리부터 시작하여 모든 하위 디렉토리를 검색
-
         target_folders = []
 
         for root, dirs, files in os.walk('.'):
@@ -321,6 +327,11 @@ class Evaluator:
                 print(f"{folder_path} does not have rawdata")
                 continue
             
+            if "maze" in rawdata_path:
+                env_name = "maze"
+            else:
+                env_name = "kitchen"
+            
             # zeroshot !! 
             df = pd.read_csv(rawdata_path)
             
@@ -329,9 +340,12 @@ class Evaluator:
 
             self.logger.log(f"Task group rearrange is done : {folder_path}/zeroshot.csv")
 
-            df = self.task_mapping(df)
+
+            df = self.task_mapping(df, env_name)
 
             df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            
+
             df_tasktype.to_csv(f"{folder_path}/zeroshot_tasktype.csv", index = False)
 
             self.logger.log(f"Done : {folder_path}/zeroshot_tasktype.csv")
@@ -362,7 +376,7 @@ class Evaluator:
             df = self.task_mapping(df)
 
 
-            df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
             df_tasktype.to_csv(f"{folder_path}/finetune_tasktype.csv", index = False)
 
             self.logger.log(f"Done : {folder_path}/finetune_tasktype.csv")
