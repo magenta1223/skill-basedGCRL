@@ -80,6 +80,7 @@ buffer_size : 20000
 n_episode : 50
 kl_decay : 0.99
 policy_lr : 5e-7
+early_stop_rwd : 80
 
 
 invD_lr : 5e-7

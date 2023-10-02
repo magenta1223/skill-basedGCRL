@@ -1,0 +1,4 @@
+method_name,seen,small,medium,large,avg_unseen_rwd
+BC,3.82 pm 0.03,3.51 pm 0.05,3.27 pm 0.06,2.69 pm 0.08,3.17 pm 0.04
+BC+SR,3.42 pm 0.06,3.02 pm 0.05,2.33 pm 0.07,2.00 pm 0.07,2.44 pm 0.04
+S-GCRL,3.79 pm 0.04,3.67 pm 0.04,3.23 pm 0.07,2.95 pm 0.08,3.28 pm 0.04

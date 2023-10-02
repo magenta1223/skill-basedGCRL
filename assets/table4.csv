@@ -1,0 +1,15 @@
+task_group,plan_H,Ours,onlyFlat
+,,,
+seen,160,3.79 pm 0.04,nan pm nan
+small,0,3.13 pm 0.07,3.26 pm 0.06
+small,40,3.65 pm 0.05,3.32 pm 0.06
+small,80,3.61 pm 0.04,3.08 pm 0.07
+small,160,3.67 pm 0.04,nan pm nan
+medium,0,2.59 pm 0.06,2.79 pm 0.08
+medium,40,3.08 pm 0.07,2.92 pm 0.07
+medium,80,3.24 pm 0.07,2.71 pm 0.09
+medium,160,3.23 pm 0.07,1.96 pm 0.08
+large,0,2.31 pm 0.07,2.77 pm 0.09
+large,40,2.57 pm 0.08,2.22 pm 0.09
+large,80,2.99 pm 0.08,2.53 pm 0.08
+large,160,2.95 pm 0.08,2.08 pm 0.10

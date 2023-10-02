@@ -111,10 +111,9 @@ class GC_Skill_RL_Trainer:
 
                 for n_ep in range(self.cfg.n_episode+1):                    
 
-                    threshold = self.cfg.max_reward * 0.9  
 
                     # ep 종료 지점에서               
-                    if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > threshold: # success 
+                    if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
                         print("early stop!!!")
                         break 
                     log = self.train_policy(n_ep, seed)
@@ -139,7 +138,7 @@ class GC_Skill_RL_Trainer:
                     df.drop_duplicates(inplace = True)
                     df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
 
-                    if ewm_rwds > self.cfg.max_reward * 0.9:
+                    if ewm_rwds > self.cfg.early_stop_rwd:
                         early_stop += 1
 
                     if early_stop == 10 and not self.cfg.no_early_stop_online:
@@ -202,7 +201,8 @@ class GC_Skill_RL_Trainer:
 
 
         # ------------- Precollect phase ------------- #
-        if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
+        if n_ep < self.cfg.precollect:
+        # if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
         # ------------- Warming up phase ------------- #
