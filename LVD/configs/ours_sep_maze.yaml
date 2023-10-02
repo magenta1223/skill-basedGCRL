@@ -72,6 +72,10 @@ model:
     # state_dim : ${get_statedim:${env.manipulation}, ${env.state_dim}, ${env.n_pos}}
     z_dim  : ${env.skill_dim}
 
+  high_policy:
+    in_feature : ${add:${env.latent_state_dim}, ${env.n_goal}} 
+    out_dim : ${multiply:${env.skill_dim}, 2}
+
   goal_encoder:
     in_feature: ${add:${env.n_goal}, ${env.state_dim}} 
     out_dim : 1024 
