@@ -1,0 +1,16 @@
+{
+    "MKBS": "no_shift", 
+    "MKSH": "no_shift", 
+    "KTLS": "no_shift", 
+    "KBTH": "no_shift", 
+    "MKBT": "small", 
+    "MKBL": "small", 
+    "BLSH": "large", 
+    "MBLH": "small", 
+    "KTSH": "middle", 
+    "MKTS": "small", 
+    "MTLS": "small", 
+    "KTLH": "small", 
+    "MTSH": "middle", 
+    "BTLH": "small"
+}
