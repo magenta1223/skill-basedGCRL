@@ -37,7 +37,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         else:
             diff_decoder = torch.nn.Identity()
         
-        if cfg.only_skill:
+        if cfg.learning_mode == "only_skill":
             high_policy = SequentialBuilder(cfg.high_policy)
         else:
             high_policy = None
@@ -137,7 +137,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             },
         }
         
-        if cfg.only_skill:
+        if cfg.learning_mode == "only_skill":
             self.optimizers["high_policy"] ={
                 "optimizer" : RAdam( [
                     {"params" : self.prior_policy.high_policy.parameters()},

@@ -106,7 +106,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
         
         # -------------- High Policy -------------- #
-        if self.cfg.only_skill:
+        if self.cfg.learning_mode == "only_skill":
             policy_skill = self.high_policy.dist(torch.cat((hts[:, 0].clone().detach(), G), dim = -1))
         else:
             policy_skill = None
