@@ -219,6 +219,7 @@ class WGCSL(BaseModel):
         self.loss_dict['value_error'] = value_loss.item()
         self.loss_dict['threshold'] = threshold
         self.loss_dict['avg_adv'] = self.adv_que.mean()
+        self.loss_dict['epd_adv_1'] = batch['epd_adv_1'].mean().item()
 
         # soft update
         if (self.step + 1) % self.target_update_freq == 0:

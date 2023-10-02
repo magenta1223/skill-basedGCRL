@@ -335,7 +335,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
         
         if self.learning_mode ==  "only_skill":
             # no subgoal generator
-            reg_term = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']) * weights).mean() 
+            reg_term = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean() 
             F_loss = reg_term
                    
         elif self.learning_mode ==  "sanity_check":
@@ -389,6 +389,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             "Reg" : reg.item(),
             "D" : D_loss.item(),
             "flat_D" : flat_D_loss.item(),
+            "F_loss" : F_loss.item(),
             "r_int" : r_int.item(),
             "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
             # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
