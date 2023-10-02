@@ -64,9 +64,9 @@ val_data_size : 5000
 time_limit : 3000
 target_kl_start : 15
 target_kl_end : 15
-init_alpha : 0.01
+init_alpha : 1e-3
 increasing_alpha : false
-auto_alpha : true
+auto_alpha : false # skimo, spirl은 true
 reuse_rate : 512
 step_per_ep : 400
 q_warmup : 5000
@@ -79,7 +79,7 @@ consistency_lr : 3e-5
 buffer_size : 20000
 n_episode : 50
 kl_decay : 0.99
-policy_lr : 5e-7
+policy_lr : 1e-7
 early_stop_rwd : 80
 
 

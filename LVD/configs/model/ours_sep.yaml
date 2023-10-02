@@ -29,7 +29,7 @@ gc : true
 
 # adaptation 
 with_gcsl: false
-consistency_update : true
+consistency_update : false
 model_update : true
 
 # Model-based skill augementation 

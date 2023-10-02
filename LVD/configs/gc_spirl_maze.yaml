@@ -8,6 +8,10 @@ structure : sc
 
 scheduler_params:
   min_lr: 1e-6
+
+env:
+  auto_alpha : true
+  init_alpha : 0.01
   
 model:
   prior:
