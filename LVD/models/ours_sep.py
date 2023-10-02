@@ -143,7 +143,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
                     {"params" : self.prior_policy.high_policy.parameters()},
                 ], lr = self.lr ),
                 "metric" : "Rec_skill",
-            }, 
+            }
         
 
         self.loss_fns['recon'] = ['mse', weighted_mse]
