@@ -142,9 +142,14 @@ class GC_Skill_RL_Trainer:
                     if ewm_rwds > self.cfg.max_reward * 0.9:
                         early_stop += 1
 
-                    if early_stop == 10:
+                    if early_stop == 10 and not self.cfg.no_early_stop_online:
                         # logger에 logging을 해야 하는데. .
                         break
+
+                    torch.save({
+                        "model" : self.agent,
+                    }, f"{self.cfg.weights_path}/{task_name}_ep{n_ep}.bin")  
+
 
 
             torch.save({
