@@ -131,20 +131,23 @@ class Evaluator:
         per_task_groupby = ['task']
         tasktype_groupby = ['task_type']
         sort_cols = ['order']
-
+        pertask_target_cols = ['task', 'reward', 'success']
+        tasktype_target_cols = ['task_type', 'reward', 'success']
 
         if self.cfg.eval_mode =="finetune":
             per_task_target_cols.append('shot')
             per_task_groupby.append('shot')
             tasktype_groupby.append('shot')
             sort_cols.append('shot')
+            pertask_target_cols = ['task', 'shot', 'reward', 'success']
+            tasktype_target_cols = ['task_type', 'shot', 'reward', 'success']
 
         # aggregate along  task 
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem']:.2f}", axis = 1)
         aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem']:.2f}", axis = 1)
 
-        aggregated = aggregated[['task', 'shot', 'reward', 'success']]
+        aggregated = aggregated[pertask_target_cols]
 
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv", index = False)
 
@@ -161,7 +164,7 @@ class Evaluator:
         
         df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem']:.2f}", axis = 1)
         df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem']:.2f}", axis = 1)
-        df_tasktype[['task_type', 'shot', 'reward', 'success']]
+        df_tasktype = df_tasktype[tasktype_target_cols]
         
         
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
