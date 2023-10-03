@@ -12,9 +12,18 @@ class Evaluator:
     def __init__(self, cfg):
         self.cfg = cfg 
 
+        self.task_type_order = {
+            'seen' : 0,
+            'small' : 1,
+            'medium' : 2,
+            'large' : 3
+        }
+
         # env
         envtask_cfg = cfg.envtask_cfg
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
+        
+        self.env_name = self.env.name
         
         if cfg.eval_mode == "zeroshot":
             self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.zeroshot_tasks]
@@ -62,7 +71,7 @@ class Evaluator:
 
         self.eval_methods = edict(
             zeroshot = self.eval_zeroshot,
-            finetuned = self.eval_finetuned,
+            finetune = self.eval_finetuned,
             learningGraph = self.eval_learningGraph,
             rearrange = self.rearrange_taskgroup
         )
@@ -93,116 +102,73 @@ class Evaluator:
         self.eval_methods[self.cfg.eval_mode]()
     
     def task_mapping(self, df, env_name = None):
-        # if self.env.name == "kitchen":
-        #     # mode dropping이 훨~씬 좋다 
-        #     # task_dict = {
-        #     #     # seen tasks 
-        #     #     "MKBS" : "seen",
-        #     #     "MKSH" : "seen",
-        #     #     "KTLS" : "seen",
-        #     #     "KBTH" : "seen",
+        # if env_name is not None:
+        #     with open(f"./assets/{env_name}_tasks.json") as f:
+        #         task_dict = json.load(f)
 
-        #     #     # "MBTS" : "seen",
-        #     #     # "MTLH" : "seen",
-        #     #     # "KBLH" : "seen",
-        #     #     # "MBTH" : "seen",
-        #     #     # "KBTS" : "seen",
-        #     #     # "MBTL" : "seen",
-        #     #     # "KBTL" : "seen",
-        #     #     # "MKTL" : "seen",
-        #     #     # "MKLH" : "seen",
-        #     #     # "MBLS" : "seen",
-        #     #     # "KBTL" : "seen",
-        #     #     # "MLSH" : "seen",
-        #     #     # "MBTH" : "seen",
-        #     #     # "KBSH" : "seen",
-        #     #     # "BTLS" : "seen",
-        #     #     # "MKLS" : "seen",
-                
-        #     #     # unseen and well-algined 
-        #     #     'MKBT' : "well-aligned",
-        #     #     'MKBL' : "well-aligned",
-        #     #     'BLSH' : "well-aligned",
-        #     #     'MBLH' : "well-aligned",
-        #     #     'KTSH' : "well-aligned",
-
-        #     #     # unseen and mis-aligned
-        #     #     'KTLH' : 'mis-aligned',
-        #     #     'MTSH' : 'mis-aligned',
-        #     #     'BTLH' : 'mis-aligned',
-        #     #     'MKTS' : 'mis-aligned',
-        #     #     'MTLS' : 'mis-aligned'
-        #     # }
-            
-        #     # {
-        #     #     'MKBS': 'seen',
-        #     #     'MKSH': 'seen',
-        #     #     'KTLS': 'seen',
-        #     #     'KBTH': 'seen',
-        #     #     'MKBT': 'small',
-        #     #     'MKBL': 'small',
-        #     #     'BLSH': 'small',
-        #     #     'MBLH': 'middle',
-        #     #     'KTSH': 'middle',
-        #     #     'MKTS': 'middle',
-        #     #     'MTLS': 'middle',
-        #     #     'KTLH': 'large',
-        #     #     'MTSH': 'large',
-        #     #     'BTLH': 'large',
-        #     # }
+        # else:
         #     with open(f"./assets/{self.env.name}_tasks.json") as f:
         #         task_dict = json.load(f)
-                        
-        # else:
-        #     with open(f"./assets/kitchen_tasks.json") as f:
-        #         task_dict = json.load(f)
-        
-        if env_name is not None:
-            with open(f"./assets/{env_name}_tasks.json") as f:
-                task_dict = json.load(f)
-
-        else:
-            with open(f"./assets/{self.env.name}_tasks.json") as f:
-                task_dict = json.load(f)
 
 
+        with open(f"./assets/{self.env_name}_tasks.json") as f:
+            task_dict = json.load(f)
 
         df['task_type'] = df['task'].map(task_dict)
-
 
         return df 
         
 
+    def aggregate(self, df = None):
+        
+        if df is None:
+            df = pd.DataFrame(self.eval_data)
+            df.to_csv( f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv", index = False )
+        
+        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        aggregated.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv", index = False)
 
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv")
 
+        df = self.task_mapping(df)
 
+        if self.cfg.eval_mode == "zeroshot":
+            group_cols = ['task_type']
+            sort_cols = ['order']
+        else:
+            group_cols = ['task_type', 'shot']
+            sort_cols = ['order', 'shot']
+            
+        df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby(group_cols, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        df_tasktype['order'] = df_tasktype['task_type'].map(self.task_type_order)
+        df_tasktype = df_tasktype.sort_values(by = sort_cols).reset_index(drop=True).drop(['order'], axis = 1)
+        df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
+
+        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
+        
+        
     def eval_zeroshot(self):
         for seed in self.cfg.seeds:
             for task in self.tasks:
                 self.eval_singleTask(seed, task)
         
-        df = pd.DataFrame(self.eval_data)
-        df.to_csv( f"{self.cfg.eval_data_prefix}/zeroshot_rawdata.csv", index = False )
-        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        aggregated.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot.csv", index = False)
+        self.aggregate()
+        
+        # df = pd.DataFrame(self.eval_data)
+        # df.to_csv( f"{self.cfg.eval_data_prefix}/zeroshot_rawdata.csv", index = False )
+        # aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        # aggregated.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot.csv", index = False)
 
-        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot.csv")
+        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot.csv")
 
+        # df = self.task_mapping(df)
 
-        # if self.env.name == "kitchen":
-        #     # mode dropping이 훨~씬 좋다 
-        #     easy_task = ['MKBT', 'MKBL', 'BLSH', 'MBLH', 'KTSH']
-        # else:
-        #     easy_task = ['[24. 34.]', '[23. 14.]', '[18.  8.]']
+        # df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        # df_tasktype['order'] = df_tasktype['task_type'].map(self.task_type_order)
+        # df_tasktype = df_tasktype.sort_values(by = ['order', 'shot']).reset_index(drop=True).drop(['order'], axis = 1)
+        # df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot_tasktype.csv", index = False)
 
-        # df['task_type'] = df['task'].apply(lambda x : 'easy' if x in easy_task else 'hard' )
-
-        df = self.task_mapping(df)
-
-        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/zeroshot_tasktype.csv", index = False)
-
-        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot_tasktype.csv")
+        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/zeroshot_tasktype.csv")
 
 
     def eval_finetuned(self):
@@ -231,22 +197,27 @@ class Evaluator:
                     # self.high_policy = torch.load(finetuned_model_path)['model'].policy
                     self.eval_singleTask(seed, task, shot)
                 
-        df = pd.DataFrame(self.eval_data)
-        df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
-        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_rawdata.csv")
+        self.aggregate()
 
-        aggregated = df[['task', 'reward', 'success']].groupby(['task', 'shot'], as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        aggregated.to_csv(f"{self.cfg.eval_data_prefix}/finetuned.csv", index = False)
+                
+        # df = pd.DataFrame(self.eval_data)
+        # df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
+        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_rawdata.csv")
 
-        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
+        # aggregated = df[['task', 'reward', 'success', 'shot']].groupby(['task', 'shot'], as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        # aggregated.to_csv(f"{self.cfg.eval_data_prefix}/finetuned.csv", index = False)
 
-        df = self.task_mapping(df)
+        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
+
+        # df = self.task_mapping(df)
 
 
-        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby(['task_type', 'shot'], as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/finetune_tasktype.csv", index = False)
+        # df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby(['task_type', 'shot'], as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        # df_tasktype['order'] = df_tasktype['task_type'].map(self.task_type_order)
+        # df_tasktype = df_tasktype.sort_values(by = ['order', 'shot']).reset_index(drop=True).drop(['order'], axis = 1)
+        # df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/finetune_tasktype.csv", index = False)
 
-        self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_tasktype.csv")
+        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_tasktype.csv")
 
 
 
@@ -356,30 +327,33 @@ class Evaluator:
             # zeroshot !! 
             df = pd.read_csv(rawdata_path)
             
-            aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-            aggregated.to_csv(f"{folder_path}/zeroshot.csv", index = False)
+            self.cfg.eval_data_prefix = folder_path 
+            self.cfg.eval_mode = "zeroshot"
+            self.env_name = env_name
+            
+            self.aggregate(df)
+            
+            # aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            # aggregated.to_csv(f"{folder_path}/zeroshot.csv", index = False)
 
-            self.logger.log(f"Done : {folder_path}/zeroshot.csv")
+            # self.logger.log(f"Done : {folder_path}/zeroshot.csv")
 
 
-            df = self.task_mapping(df, env_name)
+            # df = self.task_mapping(df, env_name)
 
-            df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            # df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
             
 
-            df_tasktype.to_csv(f"{folder_path}/zeroshot_tasktype.csv", index = False)
+            # df_tasktype.to_csv(f"{folder_path}/zeroshot_tasktype.csv", index = False)
 
-            self.logger.log(f"Done : {folder_path}/zeroshot_tasktype.csv")
+            # self.logger.log(f"Done : {folder_path}/zeroshot_tasktype.csv")
             
-        
-        
         target_folders = []
         
         for root, dirs, files in os.walk('.'):
             for file in files:
                 folder_path = os.path.abspath(root)
                 if file.endswith('finetune_tasktype.csv'):
-                    # print(f"폴더 경로: {folder_path}, 파일명: {file}")
                     target_folders.append(folder_path)
         
         for folder_path in target_folders:
@@ -394,15 +368,27 @@ class Evaluator:
                 env_name = "kitchen"
         
             df = pd.read_csv(rawdata_path)
-            aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-            aggregated.to_csv(f"{folder_path}/finetuned.csv", index = False)
+            
+            self.cfg.eval_data_prefix = folder_path 
+            self.cfg.eval_mode = "finetune"
+            self.env_name = env_name
 
-            self.logger.log(f"Done : {folder_path}/finetuned.csv")
+            
+            
+            self.aggregate(df)
+        
+        
+        
+            # df = pd.read_csv(rawdata_path)
+            # aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            # aggregated.to_csv(f"{folder_path}/finetuned.csv", index = False)
 
-            df = self.task_mapping(df, env_name )
+            # self.logger.log(f"Done : {folder_path}/finetuned.csv")
+
+            # df = self.task_mapping(df, env_name )
 
 
-            df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-            df_tasktype.to_csv(f"{folder_path}/finetune_tasktype.csv", index = False)
+            # df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+            # df_tasktype.to_csv(f"{folder_path}/finetune_tasktype.csv", index = False)
 
-            self.logger.log(f"Done : {folder_path}/finetune_tasktype.csv")
+            # self.logger.log(f"Done : {folder_path}/finetune_tasktype.csv")
