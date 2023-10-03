@@ -235,7 +235,7 @@ class Evaluator:
         df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_rawdata.csv")
 
-        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        aggregated = df[['task', 'reward', 'success']].groupby(['task', 'shot'], as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/finetuned.csv", index = False)
 
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetuned.csv")
@@ -243,7 +243,7 @@ class Evaluator:
         df = self.task_mapping(df)
 
 
-        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby('task_type', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        df_tasktype= df.drop(['env', 'task'], axis = 1).groupby(['task_type', 'shot'], as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/finetune_tasktype.csv", index = False)
 
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/finetune_tasktype.csv")
@@ -280,7 +280,14 @@ class Evaluator:
             self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{task}.csv")
 
 
-    def eval_singleTask(self, seed, task):
+    def eval_singleTask(self, seed, task, shot = None):
+        """
+        seed : used for few-shot adaptation
+        task : target goal
+        shot : n-shot for logging. optional.
+        """
+        
+        
         if "flat" in self.cfg.structure:
             with self.collector.env.set_task(task):
                 for _ in range(self.cfg.n_eval):
@@ -293,6 +300,8 @@ class Evaluator:
                         reward  = sum(episode.rewards),
                         success = np.array(episode.dones).sum() != 0
                     )
+                    if shot is not None:
+                        data['shot'] = shot
                     self.eval_data.append(data)
 
 
@@ -308,6 +317,8 @@ class Evaluator:
                         reward  = sum(episode.rewards),
                         success = np.array(episode.dones).sum() != 0
                     )
+                    if shot is not None:
+                        data['shot'] = shot
                     self.eval_data.append(data)
                     
                     
