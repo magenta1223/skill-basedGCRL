@@ -44,8 +44,8 @@ class GC_Skill_RL_Trainer:
         envtask_cfg = self.cfg.envtask_cfg
         envtask_cfg.env_cfg['binary_reward'] = self.cfg.binary_reward 
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-        # self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.fewshot_tasks]
-        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.fewshot_tasks]
+        # self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
 
     def prep(self):
         # load skill learners and prior policy
