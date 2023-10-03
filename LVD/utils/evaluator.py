@@ -122,26 +122,48 @@ class Evaluator:
     def aggregate(self, df = None):
         
         if df is None:
+            # raw data
             df = pd.DataFrame(self.eval_data)
             df.to_csv( f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv", index = False )
-        
-        aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+
+
+        per_task_target_cols = ['task', 'reward', 'success']
+        per_task_groupby = ['task']
+        tasktype_groupby = ['task_type']
+        sort_cols = ['order']
+
+
+        if self.cfg.eval_mode =="finetune":
+            per_task_target_cols.append('shot')
+            per_task_groupby.append('shot')
+            tasktype_groupby.append('shot')
+            sort_cols.append('shot')
+
+        # aggregate along  task 
+        aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+        aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem']:.2f}", axis = 1)
+        aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem']:.2f}", axis = 1)
+
+        aggregated = aggregated[['task', 'shot', 'reward', 'success']]
+
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv", index = False)
 
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv")
 
         df = self.task_mapping(df)
 
-        if self.cfg.eval_mode == "zeroshot":
-            group_cols = ['task_type']
-            sort_cols = ['order']
-        else:
-            group_cols = ['task_type', 'shot']
-            sort_cols = ['order', 'shot']
-            
-        df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby(group_cols, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
+
+        # aggregate per task group            
+        df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby(tasktype_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
         df_tasktype['order'] = df_tasktype['task_type'].map(self.task_type_order)
         df_tasktype = df_tasktype.sort_values(by = sort_cols).reset_index(drop=True).drop(['order'], axis = 1)
+        
+        
+        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem']:.2f}", axis = 1)
+        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem']:.2f}", axis = 1)
+        df_tasktype[['task_type', 'shot', 'reward', 'success']]
+        
+        
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
 
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
