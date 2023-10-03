@@ -133,10 +133,11 @@ class HierarchicalEpisode_Relabel(Episode_RR):
 
 
 class GC_Batch(Batch):
-    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False, hindsight_relabel = False):
+    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, transitions=None, tanh = False, hindsight_relabel = False, cfg = None):
         # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
         super().__init__(states, actions, rewards, dones, next_states, transitions)
-
+        
+        self.cfg =cfg
         self.data['goals'] = goals
         self.data['relabeled_goals'] = relabeled_goals
         self.data['relabeled_rewards'] = relabeled_rewards
@@ -166,6 +167,15 @@ class GC_Batch(Batch):
 
         else:
             indices = torch.zeros(len(self.states), 1).cuda()
+        
+        if "skimo" in self.cfg.structure:
+            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards.unsqueeze(-1))
+            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals.unsqueeze(-1))
+        else:    
+            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards.unsqueeze(-1))
+            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals.unsqueeze(-1))
+    
+        
 
         batch_dict = edict(
             states = self.states,
@@ -178,8 +188,8 @@ class GC_Batch(Batch):
             # G = self.relabeled_goals if relabel else self.goals,
             
             # GCQ
-            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
-            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
+            rewards = rewards,
+            G = G,
             
             # rewards = self.rewards,
             # G = self.goals,
@@ -204,7 +214,7 @@ class GC_Buffer(Buffer):
     """
     # def __init__(self, state_dim, action_dim, goal_dim, max_size, env_name, tanh = False, hindsight_relabeling = False):
     def __init__(self, cfg):
-
+        self.cfg = cfg
         self.state_processor = StateProcessor(cfg.env_name)
         self.env_name = cfg.env_name
         
@@ -311,7 +321,7 @@ class GC_Buffer(Buffer):
     def sample(self, n):
         indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
-        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device)
+        batch = GC_Batch(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel, self.cfg).to(self.device)
         return batch.parse()
     
 
@@ -461,7 +471,7 @@ class GC_Temporal_Buffer(Buffer):
     def sample(self, n):
         indices = torch.randint(self.size, size=[n])
         transitions = self.transitions[indices]
-        batch = GC_Batch(*[transitions[..., i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device)
+        batch = GC_Batch(*[transitions[..., i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel, self.cfg).to(self.device)
         return batch.parse()
 
 

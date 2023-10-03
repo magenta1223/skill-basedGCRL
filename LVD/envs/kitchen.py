@@ -239,14 +239,14 @@ few_shot_tasks = np.array([
 
     # middle
     [5,0,2,4],  # MBLH
-    [6,1,3,4],  # KTSH
-    [5,6,1,3],  # MKTS
+    # [6,1,3,4],  # KTSH
+    # [5,6,1,3],  # MKTS
     [5,1,2,3],  # MTLS
     
     # large
-    [6,1,2,4],  # KTLH
+    # [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
-    [0,1,2,4],  # BTLH
+    # [0,1,2,4],  # BTLH
 ])
 
 
