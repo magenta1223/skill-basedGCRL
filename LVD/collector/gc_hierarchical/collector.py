@@ -27,7 +27,7 @@ class GC_Hierarchical_Collector:
 
         # episode = HierarchicalEpisode(state)
         # episode  =HierarchicalEpisode_RR(state)
-        episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.binary_reward)
+        episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.binary_reward, self.cfg.max_reward)
         # episode.goal = G
         self.low_actor.eval()
         high_actor.eval()
@@ -67,6 +67,10 @@ class GC_Hierarchical_Collector:
             
             episode.add_step(low_action, data_high_action_w_normal, state, G, reward, relabeled_reward, data_done, info)
             t += 1
+        # if 'TimeLimit.truncated' in info:
+        #     print(data_done, info['TimeLimit.truncated'])
+        # else:
+        #     print(data_done)
         if verbose:
             targetG = self.state_processor.state_goal_checker(G)
             achievedG = self.state_processor.state_goal_checker(state)

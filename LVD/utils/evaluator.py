@@ -73,7 +73,7 @@ class Evaluator:
         self.run_path = f"logs/{self.cfg.env_name}/{self.cfg.structure}/{self.cfg.run_name}"
         
         log_path = f"{self.run_path}/{self.cfg.job_name}.log"
-        self.logger = Logger(log_path, verbose= False)
+        self.logger = Logger(log_path, verbose= True)
 
 
     @staticmethod
@@ -206,25 +206,30 @@ class Evaluator:
 
 
     def eval_finetuned(self):
-        try:
-            for seed in self.cfg.seeds:
-                for task in self.tasks:
-                    # load finetuned weight 
-                    # seed 
-                    finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}.bin"
-                    print(finetuned_model_path)
-                    # ckpt = torch.load(finetuned_model_path)
-                    self.high_policy = torch.load(finetuned_model_path)['model'].policy
-                    self.eval_singleTask(seed, task)
-        except:
+        
+        shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 300]
+        # early_stop 
+        
+        for seed in self.cfg.seeds:
             for task in self.tasks:
                 # load finetuned weight 
-                # seed 
-                finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}.bin"
-                # ckpt = torch.load(finetuned_model_path) # weight를 불러왔는데 이게 구버전이라 호환이 안됨. -> 
-                _weight = torch.load(finetuned_model_path)['model'].policy.state_dict()
-                self.high_policy.load_state_dict(_weight)
-                self.eval_singleTask(seed, task)         
+                # seed
+                earlystop_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}.bin"
+                for shot in shots: 
+                    # {task}_seed:{seeed}_ep{shot}.bin
+                    # 여기서 early stop이 적용된 경우 shot이 없을 수 있음. 
+                    # early stop이 적용되면 -> {task}_seed:{seeed}.bin 을 사용
+                    # early stop 적용 여부는 -> shot path가 없을 때 
+                    finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}_ep{shot}.bin"
+                    if os.path.exists(finetuned_model_path):
+                        self.logger.log(f"Evaluating : {finetuned_model_path}")
+                        self.high_policy = torch.load(finetuned_model_path)['model'].policy
+                    else:
+                        self.logger.log(f"Early Stopped, Evaluating : {earlystop_model_path}")
+                        self.high_policy = torch.load(earlystop_model_path)['model'].policy
+                        
+                    # self.high_policy = torch.load(finetuned_model_path)['model'].policy
+                    self.eval_singleTask(seed, task)
                 
         df = pd.DataFrame(self.eval_data)
         df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
@@ -249,7 +254,10 @@ class Evaluator:
     def eval_learningGraph(self):
         # 학습과정에서 생성된 csv 파일 불러와서 
         # 슈루룩 
-        print(f"Loading : {self.cfg.eval_rawdata_path}")
+        
+        self.logger.log("Starting Evaluation : Learning Graph")
+        self.logger.log(f"Loading : {self.cfg.eval_rawdata_path}")
+
         raw_data = pd.read_csv(self.cfg.eval_rawdata_path)
         # 여러번 수행할 경우 run_id가 쌓임. 원치 않음. run_id를 선택할 수 있게 input 추가 
         choices = raw_data['run_id'].unique()
@@ -310,6 +318,8 @@ class Evaluator:
         # 3. task group은 asset에서 불러오기 
         
         
+        self.logger.log("Starting Evaluation : Task Rearrnagement")
+        
 
         # 현재 디렉토리부터 시작하여 모든 하위 디렉토리를 검색
         target_folders = []
@@ -338,7 +348,7 @@ class Evaluator:
             aggregated = df[['task', 'reward', 'success']].groupby('task', as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
             aggregated.to_csv(f"{folder_path}/zeroshot.csv", index = False)
 
-            self.logger.log(f"Task group rearrange is done : {folder_path}/zeroshot.csv")
+            self.logger.log(f"Done : {folder_path}/zeroshot.csv")
 
 
             df = self.task_mapping(df, env_name)
@@ -363,8 +373,8 @@ class Evaluator:
         
         for folder_path in target_folders:
             rawdata_path = f"{folder_path}/finetune_rawdata.csv"
-            if not os.path.exists(rawdata_path):
-                print(f"{folder_path} does not have rawdata")
+            if not os.path.exists(rawdata_path):                
+                self.logger.log(f"{folder_path} does not have rawdata")
                 continue
         
             if "maze" in rawdata_path:

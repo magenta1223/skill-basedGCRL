@@ -181,7 +181,12 @@ class SAC(BaseModel):
         # calculate entropy term
         entropy_term, prior_dists = self.entropy( batch_next.states, policy_skill_dist , kl_clip= 20) 
         if self.gc:
+            # if self.hindsight_relabel:
+            #     q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.relabeled_G, policy_skill), dim = -1)
+            # else:
+            #     q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
             q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
+                        
         else:
             q_input = torch.cat((self.policy.encode(batch_next.states), policy_skill), dim = -1)
 
@@ -200,7 +205,12 @@ class SAC(BaseModel):
 
         qf_losses = []  
         if self.gc:
-            q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+            # if self.hindsight_relabel:                
+            #     q_input = torch.cat((self.policy.encode(batch.states), batch.relabeled_G, batch.actions), dim = -1)
+            # else:       
+            #     q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
+            
+            q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)            
         else:
             q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
 

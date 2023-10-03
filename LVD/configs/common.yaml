@@ -42,6 +42,7 @@ hydra:
           - env.binary_reward
           - env.precollect
           - env.n_episode
+          - env.time_limit
           # model 
           - model.consistency_update 
           - model.q_function.norm_cls
@@ -67,7 +68,7 @@ no_early_stop_online : false
 resume : false 
 resume_ckpt : 0
 zeroshot : false
-hindsight_relabel : true
+hindsight_relabel : false
 
 save_ckpt : 50
 early_stop_rounds : 999

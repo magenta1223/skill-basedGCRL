@@ -75,7 +75,7 @@ max_reward : 4
 use_hidden : true # use latent state for Q 
 consistency_lr : 3e-5
 buffer_size : 20000
-n_episode : 150
+n_episode : 300
 kl_decay : 0.99
 early_stop_rwd : 3.5
 # min_lr * 0.05

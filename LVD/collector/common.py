@@ -27,11 +27,14 @@ class Episode_RR(Episode):
         self.goals.append(goal)
 
 class HierarchicalEpisode_Relabel(Episode_RR):
-    def __init__(self, init_state, env_name = None, binary_reward = False):
+    def __init__(self, init_state, env_name = None, binary_reward = False, max_reward = None):
+        
+        assert max_reward is not None, "NEED MAXREWARD"
         super().__init__(init_state, env_name)
         # self.low_actions = self.actions
         self.high_actions = []
         self.binary_reward = binary_reward
+        self.max_reward = max_reward
     
     def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):
         # MDP transitions
@@ -55,7 +58,7 @@ class HierarchicalEpisode_Relabel(Episode_RR):
                     self.states[t],
                     self.goals[t],
                     sum(self.rewards[prev_t:t]),
-                    sum(self.relabeled_rewards[prev_t:t]),
+                    sum(self.relabeled_rewards[prev_t:t]), # not used 
                     self.dones[t],
                     self.infos[t]
                 )
@@ -68,7 +71,7 @@ class HierarchicalEpisode_Relabel(Episode_RR):
             self.states[-1],
             self.goals[t],
             sum(self.rewards[prev_t:]), 
-            sum(self.relabeled_rewards[prev_t:]),
+            self.max_reward - sum(self.relabeled_rewards[prev_t:]),  # not used 
             self.dones[-1], 
             self.infos[-1]
         )
@@ -84,43 +87,44 @@ class HierarchicalEpisode_Relabel(Episode_RR):
         #     maxlen_relabeled = None
         
         # 마지막을 1로
-        if self.binary_reward:
-            # initialize episode
-            high_episode_relabel = Episode_RR(self.states[0])
-            prev_t = 0
+        # if self.binary_reward:
+        # initialize episode
+        high_episode_relabel = Episode_RR(self.states[0])
+        prev_t = 0
+    
+        # goal relabeling ~ 을 이렇게 해야 할까? 
+        # # transition에서 하는게 나음. 
+        # relabeled_goal = self.state_processor.goal_transform(np.array(self.states[-1]))
         
-            # goal relabeling ~ 을 이렇게 해야 할까? 
-            # transition에서 하는게 나음. 
-            relabeled_goal = self.state_processor.goal_transform(np.array(self.states[-1]))
-            
-            self.relabeled_rewards[-1] = 1
+        # self.relabeled_rewards[-1] = 1
 
-            for t in range(1, len(self)):
-                if self.high_actions[t] is not None:
-                    high_episode_relabel.add_step(
-                        self.high_actions[prev_t],
-                        self.states[t],
-                        relabeled_goal, # relabeled goal로 대체 
-                        sum(self.relabeled_rewards[prev_t:t]), 
-                        sum(self.rewards[prev_t:t]), # 마찬가지 
-                        self.dones[t],
-                        self.infos[t]
-                    )
+        # for t in range(1, len(self)):
+        #     if self.high_actions[t] is not None:
+        #         high_episode_relabel.add_step(
+        #             self.high_actions[prev_t],
+        #             self.states[t],
+        #             relabeled_goal, # relabeled goal로 대체 
+        #             sum(self.rewards[prev_t:t]),
+        #             sum(self.relabeled_rewards[prev_t:t]),  # not used 
+        #             # sum(self.relabeled_rewards[prev_t:t]), 
+        #             # sum(self.rewards[prev_t:t]), # 마찬가지 
+        #             self.dones[t],
+        #             self.infos[t]
+        #         )
 
-                    prev_t = t
+        #         prev_t = t
 
-            high_episode_relabel.add_step(
-                self.high_actions[prev_t],
-                self.states[-1],
-                relabeled_goal,
-                sum(self.relabeled_rewards[prev_t:]), 
-                sum(self.rewards[prev_t:]), # 마찬가지 
-                self.dones[-1], 
-                self.infos[-1]
-            )
-            high_episode_relabel.raw_episode = self
-        else:
-            high_episode_relabel = None
+        # high_episode_relabel.add_step(
+        #     self.high_actions[prev_t],
+        #     self.states[-1],
+        #     relabeled_goal,
+        #     self.max_reward - sum(self.rewards[prev_t:t]), # relalbe as success 
+        #     sum(self.relabeled_rewards[prev_t:t]),  # not used 
+        #     self.dones[-1], 
+        #     self.infos[-1]
+        # )
+        # high_episode_relabel.raw_episode = self
+
 
 
 
@@ -156,9 +160,9 @@ class GC_Batch(Batch):
         
         if self.hindsight_relabel:
             # sample별로 해야 함. 
-            # indices = torch.randn(len(self.states), 1).cuda()
+            indices = torch.randn(len(self.states), 1).cuda()
             # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
-            indices = torch.zeros(len(self.states), 1).cuda() # relabeled 0% 
+            # indices = torch.zeros(len(self.states), 1).cuda() # relabeled 0% 
 
         else:
             indices = torch.zeros(len(self.states), 1).cuda()
@@ -174,11 +178,18 @@ class GC_Batch(Batch):
             # G = self.relabeled_goals if relabel else self.goals,
             
             # GCQ
-            # rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
-            # G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
-            rewards = self.rewards,
-            G = self.goals,
+            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards),
+            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals),
+            
+            # rewards = self.rewards,
+            # G = self.goals,
             relabeled_G = self.relabeled_goals,
+            relabeled_rewards = self.relabeled_rewards,
+            
+            # Q_G = self.relabeled_goals,
+            # Q_rewards = self.relabeled_rewards,
+            
+            
             dones = self.dones,
         )
         if self.tanh:
@@ -276,11 +287,12 @@ class GC_Buffer(Buffer):
         # relabeled reward 추가
         relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
         relabeled_goals = np.tile(relabeled_goal, (len(episode.states)-1, 1))
+        # 여기서 하지말고 
 
         relabeled_rewards = deepcopy(episode.relabeled_rewards)
 
-        if self.env_name == "maze":
-            relabeled_rewards[-1] = 100
+        # if self.env_name == "maze":
+        #     relabeled_rewards[-1] = 100
 
         relabeled_rewards = np.array(relabeled_rewards)[:, None]
 

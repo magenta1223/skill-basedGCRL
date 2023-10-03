@@ -407,11 +407,17 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             with torch.no_grad():
                 ht, ht_pos, ht_nonPos = self.state_encoder(state)
 
-            invD, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
+            if self.cfg.learning_mode == "only_skill":
+                policy_skill = self.high_policy.dist(torch.cat((ht, G), dim = -1))
+                result =  edict(
+                    policy_skill = policy_skill
+                )    
 
-            result =  edict(
-                policy_skill = invD
-            )    
+            else:
+                invD, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
+                result =  edict(
+                    policy_skill = invD
+                )    
 
             return result 
         
@@ -481,81 +487,105 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         ht, _, _ = self.state_encoder(states)
         htH,  _, _ = self.state_encoder(next_states)
         htH_target,  _, _ = self.target_state_encoder(next_states)
-
-        # inverse dynamics 
-        invD, invD_detach = self.forward_invD(ht, htH)
-        D = self.forward_D(ht, batch.actions)
-
-        # state_consistency = F.mse_loss(ht.clone().detach() + diff, htH) + mmd_loss
-        state_consistency = F.mse_loss(D, htH_target) #+ mmd_loss
         
-        skill_consistency = nll_dist(
-            batch.actions,
-            invD,
-            batch.actions_normal,
-            # tanh = self.tanh
-            tanh = self.cfg.tanh
-        ).mean()
+        if self.cfg.learning_mode == "only_skill":
+            policy_skill = self.high_policy.dist(torch.cat((ht, G), dim = -1))
+
+            skill_consistency = nll_dist(
+                batch.actions,
+                policy_skill,
+                batch.actions_normal,
+                # tanh = self.tanh
+                tanh = self.cfg.tanh
+            ).mean()
+            
+            return  edict(
+                skill_consistency = skill_consistency
+            )
+
+        else:
+            # inverse dynamics 
+            invD, invD_detach = self.forward_invD(ht, htH)
+            D = self.forward_D(ht, batch.actions)
+
+            # state_consistency = F.mse_loss(ht.clone().detach() + diff, htH) + mmd_loss
+            state_consistency = F.mse_loss(D, htH_target) #+ mmd_loss
+            
+            skill_consistency = nll_dist(
+                batch.actions,
+                invD,
+                batch.actions_normal,
+                # tanh = self.tanh
+                tanh = self.cfg.tanh
+            ).mean()
 
 
-        invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
+            invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
+            
+            # weights = torch.softmax(batch.skill_values, dim = 0) * states.shape[0] 
+
+            GCSL_loss = F.mse_loss(subgoal_D, htH_target) + F.mse_loss(subgoal_f, subgoal_D)
+
+            if not self.cfg.with_gcsl:
+                GCSL_loss = GCSL_loss.detach()
         
-        # weights = torch.softmax(batch.skill_values, dim = 0) * states.shape[0] 
-
-        GCSL_loss = F.mse_loss(subgoal_D, htH_target) + F.mse_loss(subgoal_f, subgoal_D)
-
-        if not self.cfg.with_gcsl:
-            GCSL_loss = GCSL_loss.detach()
-
-        # covering 
-        # GCSL_loss_skill = nll_dist(
-        #     batch.actions,
-        #     invD_sub,
-        #     batch.actions_normal,
-        #     tanh = self.cfg.tanh
-        # ).mean() # 이게 필요가 없지 
+            if not self.cfg.consistency_update:
+                state_consistency = state_consistency.detach()
+                skill_consistency = skill_consistency.detach()
         
-        # 
-    
-        if not self.cfg.consistency_update:
-            state_consistency = state_consistency.detach()
-            skill_consistency = skill_consistency.detach()
-        
-        return  edict(
-            state_consistency = state_consistency,
-            skill_consistency = skill_consistency,
-            GCSL_loss = GCSL_loss
-        )
+            return  edict(
+                state_consistency = state_consistency,
+                skill_consistency = skill_consistency,
+                GCSL_loss = GCSL_loss
+            )
 
 
     def get_rl_params(self):
-        rl_params =  edict(
-            policy = [ 
-                {"params" :  self.subgoal_generator.parameters(), "lr" : self.cfg.policy_lr}
-                ],
-            consistency = {
-                "invD" : {
-                    "params" : self.inverse_dynamics.parameters(),
-                    "lr" : self.cfg.invD_lr, 
-                    "metric" : None,
-                    # "metric" : "skill_consistency"
-                    },
-                "D" : {
-                    "params" : self.dynamics.parameters(), 
-                    "lr" : self.cfg.D_lr, 
-                    "metric" : None,
-                    # "metric" : "state_consistency"
-                    },
-            }
-                
-        )
-        
-        if self.cfg.with_gcsl:
-            rl_params['consistency']['f'] = {
-                "params" :  self.subgoal_generator.parameters(), 
-                "lr" : self.cfg.f_lr, 
-                # "metric" : "GCSL_loss"
-                "metric" : None,
-            }
+        if self.cfg.learning_mode == "only_skill":
+            rl_params =  edict(
+                policy = [ 
+                    {"params" :  self.high_policy.parameters(), "lr" : self.cfg.policy_lr}
+                    ],
+                consistency = {
+                    "high_policy" : {
+                        "params" : self.high_policy.parameters(),
+                        "lr" : self.cfg.consistency_lr, 
+                        "metric" : None,
+                        },
+                }
+            )
             
-        return rl_params
+
+            return rl_params            
+            
+        else:
+            rl_params =  edict(
+                policy = [ 
+                    {"params" :  self.subgoal_generator.parameters(), "lr" : self.cfg.policy_lr}
+                    ],
+                consistency = {
+                    "invD" : {
+                        "params" : self.inverse_dynamics.parameters(),
+                        "lr" : self.cfg.invD_lr, 
+                        "metric" : None,
+                        # "metric" : "skill_consistency"
+                        },
+                    "D" : {
+                        "params" : self.dynamics.parameters(), 
+                        "lr" : self.cfg.D_lr, 
+                        "metric" : None,
+                        # "metric" : "state_consistency"
+                        },
+                }
+                    
+            )
+            
+            if self.cfg.with_gcsl:
+                rl_params['consistency']['f'] = {
+                    "params" :  self.subgoal_generator.parameters(), 
+                    "lr" : self.cfg.f_lr, 
+                    # "metric" : "GCSL_loss"
+                    "metric" : None,
+                }
+                
+            return rl_params
