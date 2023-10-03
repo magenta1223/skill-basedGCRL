@@ -21,7 +21,7 @@ def main(cfg):
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
 
-    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=finetuned']
+    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=finetune', 'eval_mode=rearrange']
     all_overrides = [override  for override in deepcopy(list(hydra_config.overrides.task))]
 
     for override in overrides_to_remove:
