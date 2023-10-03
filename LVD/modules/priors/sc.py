@@ -55,7 +55,10 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
         )
 
     def encode(self, states, keep_grad = False, prior = False):
-        return states[..., :self.cfg.n_pos]
+        if self.cfg.manipulation:
+            return states[..., :self.cfg.n_pos]
+        else:
+            return states
 
     def soft_update(self):
         pass
