@@ -229,7 +229,7 @@ class Evaluator:
                         self.high_policy = torch.load(earlystop_model_path)['model'].policy
                         
                     # self.high_policy = torch.load(finetuned_model_path)['model'].policy
-                    self.eval_singleTask(seed, task)
+                    self.eval_singleTask(seed, task, shot)
                 
         df = pd.DataFrame(self.eval_data)
         df.to_csv( f"{self.cfg.eval_data_prefix}/finetune_rawdata.csv", index = False )
