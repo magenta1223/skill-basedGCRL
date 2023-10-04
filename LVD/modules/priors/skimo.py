@@ -163,7 +163,8 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                     ht = self.state_encoder(state)
             policy_skill =  self.highlevel_policy.dist(torch.cat((ht, G), dim = -1))
             return edict(
-                policy_skill = policy_skill
+                policy_skill = policy_skill,
+                additional_losses = {}
             )
         else: 
             # act 
@@ -334,7 +335,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             state_consistency = state_consistency * 2,
             reward_loss = reward_loss * 0.5,
             GCSL_loss = GCSL_loss,
-            htH_hat = htH_hat,
         )
     
     def rollout_latent(self, inputs):
