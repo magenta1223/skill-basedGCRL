@@ -178,7 +178,9 @@ class GC_Batch(Batch):
         if "skimo" in self.cfg.structure:
             rewards = torch.where( indices < 1- 0.2, self.rewards.unsqueeze(-1), self.relabeled_rewards)
             G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
-    
+        else:
+            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
+            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
         
 
         batch_dict = edict(
