@@ -888,7 +888,7 @@ class GC_Batch2(Batch):
             G = self.goals,
             done = self.dones,
             relabled_goals = self.relabled_goals,
-            drws = self.drws
+            drw = self.drws
         )
         if self.tanh:
             batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)

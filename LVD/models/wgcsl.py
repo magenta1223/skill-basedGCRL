@@ -143,7 +143,7 @@ class WGCSL(BaseModel):
         q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
         target_q = self.target_q_function(q_input).squeeze(-1) 
 
-        return batch.reward + (1 - batch.done) * self.discount * target_q 
+        return batch.rewards + (1 - batch.done) * self.discount * target_q 
     
     @torch.no_grad()
     def calcualate_advantage(self, batch):
