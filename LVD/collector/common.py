@@ -176,7 +176,6 @@ class GC_Batch(Batch):
                 
                 
         if "skimo" in self.cfg.structure:
-            print(indices.shape, self.rewards.shape, self.relabeled_rewards.shape)
             rewards = torch.where( indices < 1- 0.2, self.rewards.unsqueeze(-1), self.relabeled_rewards)
             G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
     
