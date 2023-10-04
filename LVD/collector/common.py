@@ -841,13 +841,13 @@ class GC_Buffer_Relabel(Buffer):
 
 
 class GC_Batch2(Batch):
-    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabled_goals, drws, transitions=None, tanh = False, hindsight_relabel = False):
+    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabeled_goals, drws, transitions=None, tanh = False, hindsight_relabel = False):
         # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
         super().__init__(states, actions, rewards, dones, next_states, transitions)
 
         self.data['goals'] = goals
         self.data['relabeled_rewards'] = relabeled_rewards
-        self.data['relabled_goals'] = relabled_goals
+        self.data['relabeled_goals'] = relabeled_goals
         self.data['drws'] = drws
 
         self.tanh = tanh
@@ -862,8 +862,8 @@ class GC_Batch2(Batch):
         return self.data['relabeled_rewards']
         
     @property
-    def relabled_goals(self):
-        return self.data['relabled_goals']
+    def relabeled_goals(self):
+        return self.data['relabeled_goals']
     @property
     def drws(self):
         return self.data['drws']
@@ -887,7 +887,7 @@ class GC_Batch2(Batch):
             relabeled_rewards = self.relabeled_rewards,
             G = self.goals,
             done = self.dones,
-            relabled_goals = self.relabled_goals,
+            relabeled_goals = self.relabeled_goals,
             drw = self.drws
         )
         if self.tanh:
