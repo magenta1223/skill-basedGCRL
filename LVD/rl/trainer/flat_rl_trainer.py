@@ -48,7 +48,7 @@ class Flat_RL_Trainer:
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+        self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.fewshot_tasks]
 
     def prep(self):
         # load skill learners and prior policy
