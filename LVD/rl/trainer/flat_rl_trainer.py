@@ -179,6 +179,7 @@ class Flat_RL_Trainer:
 
         self.agent.buffer.enqueue(episode) 
         log['tr_return'] = sum(episode.rewards)
+        log['tr_rewards'] = episode.infos[-1]['orig_return']
 
         data = edict(
             env = self.env.name, 
