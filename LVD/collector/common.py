@@ -769,7 +769,7 @@ class GC_Buffer_Relabel(Buffer):
                     drw = np.exp(np.log(0.99) * (goal_index - state_index))
 
                     drws.append(drw)
-                    relabeled_dones.append(batch.done[i].detach().cpu().numpy())
+                    relabeled_dones.append(batch.done[i].detach().cpu().item())
 
 
 
