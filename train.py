@@ -26,6 +26,9 @@ def main(cfg):
     for override in overrides_to_remove:
         if override in all_overrides:
             all_overrides.remove(override)
+            
+    all_overrides = [override for override in all_overrides if "seeds" not in override]
+
     rl_overrides = ",".join(all_overrides) # .으로 되어있어서 class로 parser가 class로 인식함.
 
 

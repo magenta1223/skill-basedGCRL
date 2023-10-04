@@ -160,36 +160,15 @@ class GC_Batch(Batch):
     def parse(self):
         
         if self.hindsight_relabel:
-            # sample별로 해야 함. 
-            # if "skimo" in self.cfg.structure:
-            #     indices = torch.rand(len(self.states), 1, 1).cuda()
-            # else:
-            #     indices = torch.rand(len(self.states), 1).cuda()
             indices = torch.rand(len(self.states), 1).cuda()
 
-        else:
-            # indices = torch.randn(len(self.states), 1).cuda()
-            # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
-            # if "skimo" in self.cfg.structure:
-            #     indices = torch.zeros(len(self.states), 1, 1).cuda()
-            # else:
-            #     indices = torch.zeros(len(self.states), 1).cuda()        
+        else:     
             indices = torch.zeros(len(self.states), 1).cuda()   
                 
-                
-                
-        # if "skimo" in self.cfg.structure:
-        #     rewards = torch.where( indices < 1- 0.2, self.rewards.unsqueeze(-1), self.relabeled_rewards)
-        #     G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
-        # else:
-        #     rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
-        #     G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
-        
+
         rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
         G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
         
-
-
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,
@@ -584,7 +563,7 @@ class GC_Buffer_Relabel(Buffer):
         # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
 
 
-        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal + 4) # rwd, relabeled rwd, dones
+        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal * 2, + 4) # rwd, relabeled rwd, dones
         # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
 
 
@@ -592,11 +571,12 @@ class GC_Buffer_Relabel(Buffer):
             ('state', cfg.state_dim),
             ('action', action_dim),
             ('reward', 1),
+            ('relabled_reward', 1),
             ('done', 1),
             ('next_state', cfg.state_dim),
             ('goal', cfg.n_goal),
-            ('state_index', 1), # state index for relabeling 
-            ('ep_index', 1), # episode index for relabeling 
+            ('relabled_goal', cfg.n_goal),
+            ('drws', 1),
         ])
         self.layout = dict()
         prev_i = 0
@@ -631,17 +611,81 @@ class GC_Buffer_Relabel(Buffer):
         # last state = goal로 변경
         # relabeled reward 추가
 
+        # relabeled goal, reward, done, drw 
+        # relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
+        # relabeled_goals = np.tile(relabeled_goal, (len(episode.states)-1, 1))
+        # 여기서 하지말고 
+
+        relabeled_rewards = deepcopy(episode.relabeled_rewards)
+        
+        # 1. 현재 state의 index를 구한다.
+        # 2. 최대 index를 구한다. state의 길이.
+        # 3. 그 사이에서 하나 샘플링
+        
+        relabeled_goals = []
+        relabeled_rewards = []
+        drws = []
+        dones = []
+
+        discount = np.log(0.99)
+        
+        for i in range(len(episode.states) - 1):
+            index = np.random.randint(i+1, len_ep, 1)[0]
+            relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
+
+            
+            if index - i < 2:
+                rr, done = 1, 1 
+            else:
+                if self.cfg.structure == "flat_wgcsl":
+                    rr = 0
+                elif self.cfg.structure == "flat_ris":
+                    rr = -1
+                else:
+                    rr = 0        
+                done = 0        
+
+            relabeled_goals.append(relabeled_goal)
+            relabeled_rewards.append(rr)
+            drws.append(np.exp(discount * (index - i)))
+            dones.append(done)            
+
+        relabeled_goals = np.array(relabeled_goals)
+        relabeled_rewards = np.array(relabeled_rewards)
+        drws = np.array(drws)
+        dones = np.array(dones)
+        # relabeled_rewards = np.array(relabeled_rewards)[:, None]
+        
+        # dims = OrderedDict([
+        #     ('state', cfg.state_dim),
+        #     ('action', action_dim),
+        #     ('reward', 1),
+        #     ('relabled_reward', 1),
+        #     ('done', 1),
+        #     ('next_state', cfg.state_dim),
+        #     ('goal', cfg.n_goal),
+        #     ('relabled_goal', cfg.n_goal),
+        # ])
+        
+        
+    
         return torch.as_tensor(np.concatenate([
             episode.states[:-1],
             episode.actions,
             np.array(episode.rewards)[:, None],
-            np.array(episode.dones)[:, None],
+            relabeled_rewards,            
+            dones, #np.array(episode.dones)[:, None],
             episode.states[1:],
             episode.goals,
-            np.array(list(range(len(episode.states) - 1)))[:, None]
+            relabeled_goals,  
+            drws,          
         ], axis=-1))
 
     def enqueue(self, episode):
+        for _ in range(3):
+            super().enqueue(episode) 
+
+    def __enqueue__(self, episode):
         # ep_index 로직
         # 일단 0에서 시작
         # episodes에서 제거 안했으면 -> ep_index += 1
@@ -700,108 +744,105 @@ class GC_Buffer_Relabel(Buffer):
         transitions = self.transitions[indices]
         batch = GC_Batch2(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device).parse()
         
-        relabeled_goals = []
-        relabeled_rewards = []
-        drws = []
-        relabeled_dones = []
+        # relabeled_goals = []
+        # relabeled_rewards = []
+        # drws = []
+        # relabeled_dones = []
         
-        if self.cfg.binary_reward:
-            if self.cfg.structure == "flat_wgcsl":
-                # wgcsl은 항상 relabel 
-                relabel = np.where(np.random.rand(len(batch.state_index)) > -1, True, False)
-            else:
-                relabel = np.where(np.random.rand(len(batch.state_index)) > 0.8, True, False)
-            # ep index로 relabeling 
-            for i, (state_index, ep_index) in enumerate(zip(batch.state_index, batch.ep_index)):
-                state_index = int(state_index.detach().cpu().item())
-                ep_index = int(ep_index.detach().cpu().item())
-                ep = self.episodes[ep_index]
+        # if self.cfg.binary_reward:
+        #     if self.cfg.structure == "flat_wgcsl":
+        #         # wgcsl은 항상 relabel 
+        #         relabel = np.where(np.random.rand(len(batch.state_index)) > -1, True, False)
+        #     else:
+        #         relabel = np.where(np.random.rand(len(batch.state_index)) > 0.8, True, False)
+        #     # ep index로 relabeling 
+        #     for i, (state_index, ep_index) in enumerate(zip(batch.state_index, batch.ep_index)):
+        #         state_index = int(state_index.detach().cpu().item())
+        #         ep_index = int(ep_index.detach().cpu().item())
+        #         ep = self.episodes[ep_index]
 
-                if relabel[i]:
-                    try:
-                        goal_index = np.random.randint(state_index, len(ep.states) - 1, 1)[0]
-                    except:
-                        goal_index = -1
+        #         if relabel[i]:
+        #             try:
+        #                 goal_index = np.random.randint(state_index, len(ep.states) - 1, 1)[0]
+        #             except:
+        #                 goal_index = -1
 
-                    # goal relabeling 
-                    relabeled_goal = self.state_processor.goal_transform(ep.states[goal_index])
-                    relabeled_goals.append(relabeled_goal)
+        #             # goal relabeling 
+        #             relabeled_goal = self.state_processor.goal_transform(ep.states[goal_index])
+        #             relabeled_goals.append(relabeled_goal)
                     
-                    # discounted relabeling weight for WGCSL 
-                    drw = np.exp(np.log(0.99) * (goal_index - state_index))
-                    drws.append(drw)
+        #             # discounted relabeling weight for WGCSL 
+        #             drw = np.exp(np.log(0.99) * (goal_index - state_index))
+        #             drws.append(drw)
 
-                    # reward relabeling 
-                    if self.cfg.structure == "flat_wgcsl":
-                        if goal_index - state_index < self.cfg.reward_threshold:
-                            relabeled_rewards.append(np.array([1]))
-                            relabeled_dones.append(1)
-                        else:
-                            relabeled_rewards.append(np.array([0]))
-                            relabeled_dones.append(0)
+        #             # reward relabeling 
+        #             if self.cfg.structure == "flat_wgcsl":
+        #                 if goal_index - state_index < self.cfg.reward_threshold:
+        #                     relabeled_rewards.append(np.array([1]))
+        #                     relabeled_dones.append(1)
+        #                 else:
+        #                     relabeled_rewards.append(np.array([0]))
+        #                     relabeled_dones.append(0)
 
-                    elif self.cfg.structure == "flat_ris":
-                        if goal_index - state_index < self.cfg.reward_threshold:
-                            relabeled_rewards.append(1)
-                            relabeled_dones.append(1)
+        #             elif self.cfg.structure == "flat_ris":
+        #                 if goal_index - state_index < self.cfg.reward_threshold:
+        #                     relabeled_rewards.append(1)
+        #                     relabeled_dones.append(1)
                             
-                        else:
-                            relabeled_rewards.append(-1)
-                            relabeled_dones.append(0)
+        #                 else:
+        #                     relabeled_rewards.append(-1)
+        #                     relabeled_dones.append(0)
 
-                    else: # skill-based  
-                        if goal_index - state_index < 1:
-                            relabeled_rewards.append(1)
-                            relabeled_dones.append(1)
-                        else:
-                            relabeled_rewards.append(0)
-                            relabeled_dones.append(0)
+        #             else: # skill-based  
+        #                 if goal_index - state_index < 1:
+        #                     relabeled_rewards.append(1)
+        #                     relabeled_dones.append(1)
+        #                 else:
+        #                     relabeled_rewards.append(0)
+        #                     relabeled_dones.append(0)
 
-                else:
-                    relabeled_goals.append(batch.G[i].detach().cpu().numpy())
+        #         else:
+        #             relabeled_goals.append(batch.G[i].detach().cpu().numpy())
                     
-                    rr = batch.rewards[i].detach().cpu().numpy()
+        #             rr = batch.rewards[i].detach().cpu().numpy()
                     
-                    relabeled_rewards.append(batch.rewards[i].detach().cpu().item())
+        #             relabeled_rewards.append(batch.rewards[i].detach().cpu().item())
                     
-                    goal_index = len(ep.states) - 1
+        #             goal_index = len(ep.states) - 1
             
-                    drw = np.exp(np.log(0.99) * (goal_index - state_index))
+        #             drw = np.exp(np.log(0.99) * (goal_index - state_index))
 
-                    drws.append(drw)
-                    relabeled_dones.append(batch.done[i].detach().cpu().item())
+        #             drws.append(drw)
+        #             relabeled_dones.append(batch.done[i].detach().cpu().item())
 
 
 
             # goal로 바꿔줘야 함. 
-            batch["G"] = torch.tensor(relabeled_goals, dtype = torch.float32).to(self.device)
-                        
-            batch['reward'] = torch.tensor(relabeled_rewards, dtype = torch.float32).to(self.device)
-
-
+            # batch["G"] = torch.tensor(relabeled_goals, dtype = torch.float32).to(self.device)
+            # batch['reward'] = torch.tensor(relabeled_rewards, dtype = torch.float32).to(self.device)
             
-            batch['drw'] = torch.tensor(drws, dtype = torch.float32).to(self.device)
-            batch['done'] = torch.tensor(relabeled_dones, dtype = torch.float32).to(self.device)
+            # batch['drw'] = torch.tensor(drws, dtype = torch.float32).to(self.device)
+            # batch['done'] = torch.tensor(relabeled_dones, dtype = torch.float32).to(self.device)
 
-
-            if self.cfg.structure == "flat_ris":
-                # subgoal sample 
-                states =  self.transitions[:, self.layout['states']]
-                subgoal_indices = torch.randint(self.size, size=[n])
-                batch['subgoal'] = states[subgoal_indices]
+        if self.cfg.structure == "flat_ris":
+            # subgoal sample 
+            states =  self.transitions[:, self.layout['states']]
+            subgoal_indices = torch.randint(self.size, size=[n])
+            batch['subgoal'] = states[subgoal_indices]
 
 
         return batch
 
 
 class GC_Batch2(Batch):
-    def __init__(self, states, actions, rewards, dones, next_states, goals, state_index, ep_index, transitions=None, tanh = False, hindsight_relabel = False):
+    def __init__(self, states, actions, rewards, relabeled_rewards, dones, next_states, goals, relabled_goals, drws, transitions=None, tanh = False, hindsight_relabel = False):
         # def   __init__(states, actions, rewards, dones, next_states, transitions=None):
         super().__init__(states, actions, rewards, dones, next_states, transitions)
 
         self.data['goals'] = goals
-        self.data['state_index'] = state_index
-        self.data['ep_index'] = ep_index
+        self.data['relabeled_rewards'] = relabeled_rewards
+        self.data['relabled_goals'] = relabled_goals
+        self.data['drws'] = drws
 
         self.tanh = tanh
         self.hindsight_relabel = hindsight_relabel
@@ -811,12 +852,17 @@ class GC_Batch2(Batch):
         return self.data['goals']
     
     @property
-    def state_index(self):
-        return self.data['state_index']
+    def relabeled_rewards(self):
+        return self.data['relabeled_rewards']
         
     @property
-    def ep_index(self):
-        return self.data['ep_index']
+    def relabled_goals(self):
+        return self.data['relabled_goals']
+    @property
+    def drws(self):
+        return self.data['drws']
+    
+    
     
     def parse(self):    
         if self.hindsight_relabel:
@@ -832,10 +878,11 @@ class GC_Batch2(Batch):
             states = self.states,
             next_states = self.next_states,
             rewards = self.rewards,
+            relabeled_rewards = self.relabeled_rewards,
             G = self.goals,
             done = self.dones,
-            state_index = self.state_index,
-            ep_index = self.ep_index
+            relabled_goals = self.relabled_goals,
+            drws = self.drws
         )
         if self.tanh:
             batch_dict['actions'], batch_dict['actions_normal'] = self.actions.chunk(2, -1)
