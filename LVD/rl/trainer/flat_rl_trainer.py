@@ -157,9 +157,11 @@ class Flat_RL_Trainer:
                         # logger에 logging을 해야 하는데. .
                         break
                     
-                    torch.save({
-                        "model" : self.agent,
-                    }, f"{self.cfg.weights_path}/{task_name}_ep{n_ep}.bin")           
+                    if n_ep in [10, 20, 25, 50, 300]:
+                        torch.save({
+                            "model" : self.agent,
+                        }, f"{self.cfg.weights_path}/{task_name}_ep{n_ep}.bin")  
+   
 
             torch.save({
                 "model" : self.agent,
