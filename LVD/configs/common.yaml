@@ -95,7 +95,6 @@ scheduler_params :
 
 rl :
   render_period : 10
-  q_warmup : 10_000 
   discount : 0.99
   tau : 0.005
   qf_lr : 3e-4
