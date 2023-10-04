@@ -161,19 +161,24 @@ class GC_Batch(Batch):
         
         if self.hindsight_relabel:
             # sample별로 해야 함. 
-            indices = torch.randn(len(self.states), 1).cuda()
-            # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
-            # indices = torch.zeros(len(self.states), 1).cuda() # relabeled 0% 
+            if "skimo" in self.cfg.structure:
+                indices = torch.rand(len(self.states), 1, 1).cuda()
+            else:
+                indices = torch.rand(len(self.states), 1).cuda()
 
         else:
-            indices = torch.zeros(len(self.states), 1).cuda()
-        
+            # indices = torch.randn(len(self.states), 1).cuda()
+            # indices = torch.ones(len(self.states), 1).cuda() # relabeled 100% 
+            if "skimo" in self.cfg.structure:
+                indices = torch.zeros(len(self.states), 1, 1).cuda()
+            else:
+                indices = torch.zeros(len(self.states), 1).cuda()        
+                
+                
         if "skimo" in self.cfg.structure:
-            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards.unsqueeze(-1))
-            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals.unsqueeze(-1))
-        else:    
-            rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards.unsqueeze(-1))
-            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals.unsqueeze(-1))
+            print(indices.shape, self.rewards.shape, self.relabeled_rewards.shape)
+            rewards = torch.where( indices < 1- 0.2, self.rewards.unsqueeze(-1), self.relabeled_rewards)
+            G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
     
         
 
