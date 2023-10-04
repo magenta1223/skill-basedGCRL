@@ -375,16 +375,33 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
 
         return dist, new_loc
     
-    def encode(self, states, keep_grad = False):
+    def encode(self, states, keep_grad = False, prior = False):
         """
         1. latent state가 들어오면 -> 그대로 내보내기 
         2. 아니면 -> 인코딩
         """
-        if states.shape[-1] == self.cfg.latent_state_dim:
-            return states
-        
+
+        if prior:
+            if self.cfg.env_name == "kitchen":
+                return states[:, :self.cfg.n_pos]
+            else:
+                return states
+            
         else:
-            return self.__encode__(states, keep_grad)
+            if keep_grad:
+                ht = self.state_encoder(states)
+            else:
+                with torch.no_grad():
+                    ht = self.state_encoder(states)
+            return ht 
+
+
+
+        # if states.shape[-1] == self.cfg.latent_state_dim:
+        #     return states
+        
+        # else:
+        #     return self.__encode__(states, keep_grad)
         
     def __encode__(self, states, keep_grad = False):
 
