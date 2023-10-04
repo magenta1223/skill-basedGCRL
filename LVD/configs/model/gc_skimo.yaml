@@ -2,7 +2,8 @@ subseq_len : 11
 tanh : true
 gc : true
 with_gcsl: false
-buffer_cls : LVD.collector.GC_Temporal_Buffer
+# buffer_cls : LVD.collector.GC_Temporal_Buffer
+buffer_cls : LVD.collector.GC_Buffer
 
 
 
@@ -19,7 +20,8 @@ cem_momentum : 0.1
 
 skill_trainer : LVD.runner.BaseTrainer
 rl_trainer : LVD.rl.GC_Skill_RL_Trainer
-rlAgentCls : LVD.rl.agent.SAC_Skimo # LVD.rl.agent.cql
+# rlAgentCls : LVD.rl.agent.SAC_Skimo # LVD.rl.agent.cql
+rlAgentCls : LVD.rl.agent.SAC # LVD.rl.agent.cql
 consistency_update : true
 model_update : true
 mode_drop : false
