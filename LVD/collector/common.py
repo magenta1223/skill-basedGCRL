@@ -563,7 +563,7 @@ class GC_Buffer_Relabel(Buffer):
         # self.transitions = torch.empty(max_size, 2*state_dim + action_dim + goal_dim + 3) # rwd, relabeled rwd, dones
 
 
-        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal * 2, + 4) # rwd, relabeled rwd, dones
+        self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal * 2 + 4) # rwd, relabeled rwd, dones
         # states, next_states, action, goal, relabeled_goal, rwd, relabeled_rwd, dones 
 
 
@@ -630,8 +630,8 @@ class GC_Buffer_Relabel(Buffer):
         discount = np.log(0.99)
         
         for i in range(len(episode.states) - 1):
-            index = np.random.randint(i+1, len_ep, 1)[0]
-            relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[-1]))
+            index = np.random.randint(i, len_ep, 1)[0]
+            relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[index]))
 
             
             if index - i < 2:
@@ -651,9 +651,9 @@ class GC_Buffer_Relabel(Buffer):
             dones.append(done)            
 
         relabeled_goals = np.array(relabeled_goals)
-        relabeled_rewards = np.array(relabeled_rewards)
-        drws = np.array(drws)
-        dones = np.array(dones)
+        relabeled_rewards = np.array(relabeled_rewards)[:, None]
+        drws = np.array(drws)[:, None]
+        dones = np.array(dones)[:, None]
         # relabeled_rewards = np.array(relabeled_rewards)[:, None]
         
         # dims = OrderedDict([
@@ -665,6 +665,7 @@ class GC_Buffer_Relabel(Buffer):
         #     ('next_state', cfg.state_dim),
         #     ('goal', cfg.n_goal),
         #     ('relabled_goal', cfg.n_goal),
+        #     ('drws', 1),
         # ])
         
         
@@ -683,7 +684,7 @@ class GC_Buffer_Relabel(Buffer):
 
     def enqueue(self, episode):
         for _ in range(3):
-            super().enqueue(episode) 
+            self.__enqueue__(episode) 
 
     def __enqueue__(self, episode):
         # ep_index 로직
@@ -691,7 +692,7 @@ class GC_Buffer_Relabel(Buffer):
         # episodes에서 제거 안했으면 -> ep_index += 1
         # 제거 했으면 -> 
 
-        ep_delta = 0
+        # ep_delta = 0
         # 에피소드 길이가 0 이 될 때 까지
         while len(self.episodes) > 0:
             # 가장 앞의 에피소드와
@@ -708,18 +709,18 @@ class GC_Buffer_Relabel(Buffer):
                 self.episodes.popleft()
                 self.episode_ptrs.popleft()
                 # 뺄 때 마다 ep_index도 변경 
-                ep_delta +=  1
+                # ep_delta +=  1
             else:
                 break
 
-        ep_index = len(self.episodes) - 1
+        # ep_index = len(self.episodes) - 1
 
         self.episodes.append(episode)
         self.episode_ptrs.append(self.ptr)
-        self.transitions[:, self.layout['ep_index']] -= ep_delta
+        # self.transitions[:, self.layout['ep_index']] -= ep_delta
 
         transitions = self.ep_to_transtions(episode)
-        transitions = torch.cat((transitions, torch.full((transitions.shape[0], 1), ep_index)), dim = -1)
+        # transitions = torch.cat((transitions, torch.full((transitions.shape[0], 1), ep_index)), dim = -1)
 
         
         # self.ptr + 에피소드 길이가 최대 크기 이하
@@ -829,6 +830,11 @@ class GC_Buffer_Relabel(Buffer):
             states =  self.transitions[:, self.layout['states']]
             subgoal_indices = torch.randint(self.size, size=[n])
             batch['subgoal'] = states[subgoal_indices]
+            
+        elif self.cfg.structure in ['flat_gcsl', 'flat_wgcsl']:
+            # 반드시 relabeling
+            batch['G'] = batch['relabeled_goals']            
+            batch['rewards'] = batch['relabeled_rewards']
 
 
         return batch
