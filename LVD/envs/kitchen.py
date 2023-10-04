@@ -197,13 +197,14 @@ zeroshot_tasks = np.array([
     [6,1,2,3], # KTLS
     [6,0,1,4], # KBTH
     
+
     # small
     [5,6,0,1], # MKBT
     [5,6,0,2], # MKBL
-    [0,2,3,4],  # BLSH
+    [5,0,2,4],  # MBLH
 
     # middle
-    [5,0,2,4],  # MBLH
+    [0,2,3,4],  # BLSH
     [6,1,3,4],  # KTSH
     [5,6,1,3],  # MKTS
     [5,1,2,3],  # MTLS
@@ -212,17 +213,6 @@ zeroshot_tasks = np.array([
     [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
     [0,1,2,4],  # BTLH
-    
-    # "MKBT": "small",
-    # "MKBL": "small",
-    # "BLSH": "small",
-    # "MBLH": "middle",
-    # "KTSH": "middle",
-    # "MKTS": "middle",
-    # "MTLS": "middle",
-    # "KTLH": "large",
-    # "MTSH": "large",
-    # "BTLH": "large"
 ])
 
 few_shot_tasks = np.array([
@@ -232,21 +222,22 @@ few_shot_tasks = np.array([
     # [6,1,2,3], # KTLS
     # [6,0,1,4], # KBTH
     
+
     # # small
     # [5,6,0,1], # MKBT
     # [5,6,0,2], # MKBL
-    [0,2,3,4],  # BLSH
+    # [5,0,2,4],  # MBLH
 
     # middle
-    [5,0,2,4],  # MBLH
-    # [6,1,3,4],  # KTSH
-    # [5,6,1,3],  # MKTS
+    [0,2,3,4],  # BLSH
+    [6,1,3,4],  # KTSH
+    [5,6,1,3],  # MKTS
     [5,1,2,3],  # MTLS
     
     # large
-    # [6,1,2,4],  # KTLH
+    [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
-    # [0,1,2,4],  # BTLH
+    [0,1,2,4],  # BTLH
 ])
 
 
