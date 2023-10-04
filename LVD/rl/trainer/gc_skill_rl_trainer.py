@@ -118,7 +118,6 @@ class GC_Skill_RL_Trainer:
                         print("early stop!!!")
                         break 
                     log = self.train_policy(n_ep, seed)
-    
                     precollect_rwds += log['tr_rewards']
 
 

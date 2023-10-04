@@ -121,24 +121,21 @@ class Flat_RL_Trainer:
 
                 ewm_rwds = 0
                 early_stop = 0
+                precollect_rwds = 0
+
+                            
                 for n_ep in range(self.cfg.n_episode+1):                    
+                    if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
+                        print("early stop!!!")
+                        break 
+
                     log = self.train_policy(n_ep, seed)
+                    precollect_rwds += log['tr_rewards']
 
                     log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
-
-                    if ewm_rwds > self.cfg.early_stop_threshold:
-                        early_stop += 1
-                    else:
-                        early_stop = 0
-                    
-                    if early_stop == 10:
-                        print("Converged enough. Early Stop!")
-                        break
-
-                    log = {f"{task_name}/{k}": log[k] for k in log.keys()}
                     wandb.log(log)
-                    # clear plot
                     plt.cla()
+
 
                     # 매 ep끝날 때 마다 저장. 
                     if os.path.exists(f"{self.result_path}/rawdata.csv"):
@@ -148,9 +145,21 @@ class Flat_RL_Trainer:
                         
                     else:
                         df = pd.DataFrame(self.data)
-                    
+
+
                     df.drop_duplicates(inplace = True)
                     df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
+
+                    if ewm_rwds > self.cfg.early_stop_rwd:
+                        early_stop += 1
+
+                    if early_stop == 10 and not self.cfg.no_early_stop_online:
+                        # logger에 logging을 해야 하는데. .
+                        break
+                    
+                    torch.save({
+                        "model" : self.agent,
+                    }, f"{self.cfg.weights_path}/{task_name}_ep{n_ep}.bin")           
 
             torch.save({
                 "model" : self.agent,
@@ -219,16 +228,47 @@ class Flat_RL_Trainer:
     
     def postprocess_log(self, log, task_name, n_ep, ewm_rwds):
 
+        # log['n_ep'] = n_ep
+        # log[f'{task_name}_return'] = log['tr_return']
+        # if 'GCSL_loss' in log.keys():
+        #     log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
+        # del log['tr_return']
+
+        # if (n_ep + 1) % self.cfg.render_period == 0:
+        #     log['policy_vis'] = self.visualize()
+
+        # ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+        # log = {f"{task_name}/{k}": log[k] for k in log.keys()}
+
+        # return log, ewm_rwds
+    
+    
         log['n_ep'] = n_ep
         log[f'{task_name}_return'] = log['tr_return']
-        if 'GCSL_loss' in log.keys():
-            log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
         del log['tr_return']
+        
+        if self.cfg.binary_reward:
+            log[f'{task_name}_rewards'] = log['tr_rewards']
+            del log['tr_rewards']
+    
+        # if 'GCSL_loss' in log.keys():
+        #     log[f'GCSL over return'] = log[f'{task_name}_return'] / log['GCSL_loss'] 
 
         if (n_ep + 1) % self.cfg.render_period == 0:
             log['policy_vis'] = self.visualize()
+        
+        if n_ep > self.cfg.precollect:
+            if self.cfg.binary_reward:
+                ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_rewards']
+            else:
+                ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+        else:
+            if self.cfg.binary_reward:
+                ewm_rwds += log[f'{task_name}_rewards'] / self.cfg.precollect
+            else:
+                ewm_rwds += log[f'{task_name}_return'] / self.cfg.precollect
 
-        ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+
         log = {f"{task_name}/{k}": log[k] for k in log.keys()}
 
         return log, ewm_rwds
