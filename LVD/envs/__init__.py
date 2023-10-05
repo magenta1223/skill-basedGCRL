@@ -1,6 +1,7 @@
 from .kitchen import *
 from .carla import *
 from .maze import *
+from .toy import *
 
 
 class Kitchen_EnvTaskConfig:
@@ -55,10 +56,20 @@ class Carla_EnvTaskConfig:
     unknown_tasks = None
 
 
+class Nav2D_EnvTaskConfig:
+    name = "2DNavigation"
+    env_cls = Navigation2D
+    env_cfg = toy_cfg
+    task_cls = Nav2DTask
+    zeroshot_tasks = toy_zeroshot_tasks
+    few_shot_tasks = toy_fewshot_tasks
+    
+
 __all__ = [
     'Kitchen_EnvTaskConfig',
     'Maze_EnvTaskConfig',
-    'CARLA_EnvTaskConfig'
+    'CARLA_EnvTaskConfig',
+    'Nav2D_EnvTaskConfig'
 
 ]
 
