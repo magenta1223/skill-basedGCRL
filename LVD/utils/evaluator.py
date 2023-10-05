@@ -18,6 +18,12 @@ class Evaluator:
             'medium' : 2,
             'large' : 3
         }
+        
+        self.env_scoreFactor = {
+            'kitchen' : 25,
+            'maze' : 1,
+            'toy' : 1
+        }
 
         # env
         envtask_cfg = cfg.envtask_cfg
@@ -111,6 +117,8 @@ class Evaluator:
             # raw data
             df = pd.DataFrame(self.eval_data)
             df.to_csv( f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv", index = False )
+
+        df['reward'] = df['reward'].apply(lambda x: x * self.env_scoreFactor[self.env_name])
 
 
         per_task_target_cols = ['task', 'reward', 'success']
