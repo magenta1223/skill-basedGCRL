@@ -183,6 +183,31 @@ class StateProcessor_Carla:
         state[..., 9:] = 0
         return state
 
+class StateProcessor_Toy:
+    @staticmethod
+    def state_process(state):
+        return state
+
+    @staticmethod
+    def goal_checker(state):
+        return state.astype(int)
+
+    @staticmethod
+    def get_goal(state):
+        return state
+
+    @staticmethod
+    def goal_transform(state):
+        return state
+    
+    @staticmethod
+    def to_ppc(state):
+        """
+        to proprioceptive state
+        """
+        return state
+
+
 
 class StateProcessor:
     def __init__(self, env_name) -> None:
@@ -190,6 +215,7 @@ class StateProcessor:
             kitchen = StateProcessor_Kitchen,
             maze = StateProcessor_Maze,
             carla = StateProcessor_Carla,
+            Nav2D = StateProcessor_Toy,
 
         )
         

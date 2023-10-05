@@ -18,11 +18,11 @@ class BaseModel(BaseModule):
 
         if envtask_cfg.name != "carla":
             self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
-            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
+            self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.zeroshot_tasks]
 
         self.state_processor = StateProcessor(cfg.env_name)
-        self.seen_tasks = envtask_cfg.known_tasks
-        self.unseen_tasks = envtask_cfg.unknown_tasks
+        # self.seen_tasks = envtask_cfg.known_tasks
+        # self.unseen_tasks = envtask_cfg.unknown_tasks
 
         # Losses
         self.loss_fns = {
