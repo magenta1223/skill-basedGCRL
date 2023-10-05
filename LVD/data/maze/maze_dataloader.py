@@ -478,9 +478,6 @@ class Maze_Dataset_Flat_RIS(Maze_Dataset):
         # seq = self._sample_seq()
         
         seq_index = index % len(self.seqs)
-
-        print(seq_index)
-
         seq = self.seqs[seq_index]
 
         start_idx, goal_idx = self.sample_indices(seq['obs'])

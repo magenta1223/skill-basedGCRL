@@ -6,7 +6,6 @@ defaults:
 structure : flat_ris
 dataset_cls : LVD.data.Maze_Dataset_Flat_RIS
 
-
 env:
   policy_lr : 3e-5
 model:
