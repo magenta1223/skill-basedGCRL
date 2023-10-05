@@ -5,6 +5,7 @@ with_gcsl: true
 consistency_update : true
 model_update : false
 binary_reward : true
+tanh : true
 
 policy : 
   n_blocks : 5

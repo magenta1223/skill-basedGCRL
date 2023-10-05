@@ -1,6 +1,7 @@
 # ENVIRONMENT # 
 env_name : Nav2D
 envtask_cfg : LVD.envs.Nav2D_EnvTaskConfig
+buffer_cls : LVD.collector.GC_Buffer_Relabel
 
 max_seq_len : 150
 

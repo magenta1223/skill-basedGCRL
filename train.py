@@ -41,7 +41,11 @@ def main(cfg):
 
         # PATHS  
         # pretrain weights 
-        cfg.skill_weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"\
+        pretrained_weights = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"
+        if not os.path.exists(pretrained_weights):
+            pretrained_weights = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/start.bin"
+        cfg.skill_weights_path = pretrained_weights
+
         # rl weights 
         cfg.weights_path = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/sac_{cfg.rl_overrides}"
         # rl results 

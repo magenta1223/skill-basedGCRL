@@ -827,9 +827,9 @@ class GC_Buffer_Relabel(Buffer):
 
         if self.cfg.structure == "flat_ris":
             # subgoal sample 
-            states =  self.transitions[:, self.layout['states']]
+            states =  self.transitions[:, self.layout['state']]
             subgoal_indices = torch.randint(self.size, size=[n])
-            batch['subgoal'] = states[subgoal_indices]
+            batch['subgoals'] = states[subgoal_indices]
             
         elif self.cfg.structure in ['flat_gcsl', 'flat_wgcsl']:
             # 반드시 relabeling

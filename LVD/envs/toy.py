@@ -10,7 +10,12 @@ import gym
 
 class Nav2DTask:
     def __init__(self, goal) -> None:
-        self.goal = np.array(goal)
+        self.goal = np.array(goal).astype(np.float64)
+        
+    def __repr__(self):
+        return f'Nav2D:{self.goal}'
+        
+        
 
 class Navigation2D(gym.Env):
     """
@@ -19,9 +24,13 @@ class Navigation2D(gym.Env):
     def __init__(self):
         super(Navigation2D, self).__init__()
         
-        self.state = np.array([0,0])
-        self.goal = np.array([0,0])
+        self.name = "Nav2D"
+        
+        self.state = np.array([0.0 ,0.0])
+        self.goal = np.array([0.0, 0.0])
         self.n_action_step = 0
+        self.timelimit = 200
+        self.task = None
  
     def step(self, action):
         # return super().step(action)
@@ -30,9 +39,10 @@ class Navigation2D(gym.Env):
         self.n_action_step += 1
         action = np.clip(action, -0.1, 0.1)
         
+            
         self.state += action         
         # reward 
-        if np.linalg.norm(self.state, self.goal) < 0.1:
+        if np.linalg.norm(self.state -self.goal) < 0.1:
             reward = 1
             done = True
         else:
@@ -43,15 +53,25 @@ class Navigation2D(gym.Env):
             done = True
         
         env_info = {}
-    
-        return self.state, reward, done, env_info
+        env_info['relabeled_reward'] = 0 
+        env_info['orig_return'] = reward    
+        
+        obs = np.concatenate((self.state, self.goal), axis = -1)
+                
+        return obs, reward, done, env_info
     
     def reset(self, *, seed= None, return_info = False, options = None):
         # return super().reset(seed=seed, return_info=return_info, options=options)
         # reinit
-        self.state = np.array([0,0])
-        self.goal = np.array([999, 999])        
-        return self.state
+        self.state = np.array([0.0 ,0.0])
+        
+        if self.task is not None:
+            self.goal = self.task.goal
+        else:
+            self.goal = np.array([999.0, 999.0])        
+        
+        obs = np.concatenate((self.state, self.goal), axis = -1)
+        return obs
     
     # def render(self, mode="human"):
     #     return super().render(mode)
@@ -63,8 +83,14 @@ class Navigation2D(gym.Env):
 
         prev_goal = self.goal
         self.goal = task.goal        
+        self.task = task
         yield
+        self.task = None
         self.goal = prev_goal
+
+        
+    def __repr__(self):
+        return f'Nav2D'
 
 
 zeroshot_tasks = np.array([

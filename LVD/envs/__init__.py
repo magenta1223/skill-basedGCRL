@@ -62,7 +62,7 @@ class Nav2D_EnvTaskConfig:
     env_cfg = toy_cfg
     task_cls = Nav2DTask
     zeroshot_tasks = toy_zeroshot_tasks
-    few_shot_tasks = toy_fewshot_tasks
+    fewshot_tasks = toy_fewshot_tasks
     
 
 __all__ = [

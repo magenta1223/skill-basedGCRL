@@ -120,7 +120,7 @@ class RIS(BaseModel):
         q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
         target_q = self.target_q_function(q_input).squeeze(-1) 
 
-        return batch.reward + (1 - batch.done) * self.discount * target_q 
+        return batch.rewards + (1 - batch.done) * self.discount * target_q 
     
     def forward_value(self, batch, mode = "default", subgoal = None ):
         assert mode in ['default', 'to_subgoal', 'to_goal'], "Invalid mode"
@@ -189,6 +189,7 @@ class RIS(BaseModel):
         subgoal_dist = result.subgoal_dist
 
         # advantage 계산
+        
         adv = self.calcualate_advantage(batch, subgoal_dist.sample())
         subgoal_loss = - subgoal_dist.log_prob(batch.subgoals) * adv
 
@@ -232,7 +233,10 @@ class RIS(BaseModel):
         # inputs & targets       
 
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-
+        
+        for k, v in batch.items():
+            print(f"{k} : {v.device}")
+        
         self.__main_network__(batch)
         self.get_metrics(batch)
 
@@ -260,10 +264,10 @@ class RIS(BaseModel):
         batch = self.buffer.sample(self.rl_batch_size)
         batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
         self.episode = step_inputs['episode']
-        self.n_step += 1
+        # self.n_step += 1
 
         
-        # batch = edict({  k : v.cuda()  for k, v in batch.items()})
+        batch = edict({  k : v.cuda()  for k, v in batch.items()})
 
         self.__main_network__(batch)
         self.stat = edict()

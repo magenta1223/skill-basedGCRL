@@ -186,19 +186,19 @@ class StateProcessor_Carla:
 class StateProcessor_Toy:
     @staticmethod
     def state_process(state):
-        return state
+        return state[..., :2]
 
     @staticmethod
     def goal_checker(state):
-        return state.astype(int)
+        return state[...,-2:].astype(int)
 
     @staticmethod
     def get_goal(state):
-        return state
+        return state[...,-2:]
 
     @staticmethod
     def goal_transform(state):
-        return state
+        return state[...,:2]
     
     @staticmethod
     def to_ppc(state):
