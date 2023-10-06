@@ -64,7 +64,7 @@ val_data_size : 5000
 time_limit : 3000
 target_kl_start : 15
 target_kl_end : 15
-init_alpha : 1e-3
+init_alpha : 1e-4
 increasing_alpha : false
 auto_alpha : false # skimo, spirl은 true
 reuse_rate : 512

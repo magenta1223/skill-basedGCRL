@@ -6,6 +6,9 @@ defaults:
 structure : flat_gcsl
 dataset_cls : LVD.data.Kitchen_Dataset_Flat
 
+env:
+  policy_lr : 3e-5
+
 model:
   normal_distribution:
     in_feature: ${env.action_dim}

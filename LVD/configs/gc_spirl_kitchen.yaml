@@ -6,9 +6,13 @@ defaults:
 dataset_cls : LVD.data.Kitchen_Dataset
 structure : sc
 
+env:
+  consistency_lr : 5e-7
 
 scheduler_params:
   min_lr: 1e-6
+
+
 
 model:
   prior:

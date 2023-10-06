@@ -423,13 +423,13 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             consistency = {
                 "state" : {
                     "params" : self.state_encoder.parameters(),
-                    "lr" : 5e-7, #self.cfg.invD_lr, 
+                    "lr" : self.cfg.consistency_lr, #self.cfg.invD_lr, 
                     "metric" : None,
                     # "metric" : "skill_consistency"
                     },
                 "D" : {
                     "params" : self.dynamics.parameters(), 
-                    "lr" : 5e-7, #self.cfg.D_lr, 
+                    "lr" : self.cfg.consistency_lr, #self.cfg.D_lr, 
                     "metric" : None,
                     # "metric" : "state_consistency"
                     },
@@ -441,7 +441,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                 },
                 "high_policy" : {
                     "params" :  self.highlevel_policy.parameters(), 
-                    "lr" : 5e-7, 
+                    "lr" : self.cfg.consistency_lr, 
                     # "metric" : "GCSL_loss"
                     "metric" : None,
                 }
