@@ -94,5 +94,5 @@ D_lr : 1e-6
 f_lr : 5e-7
 
 
-# alation params
+# ablation params
 skill_len : 10

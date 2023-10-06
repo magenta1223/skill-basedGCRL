@@ -86,3 +86,7 @@ early_stop_rwd : 80
 invD_lr : 5e-7
 D_lr : 5e-7
 f_lr : 5e-7
+
+
+# ablation params
+skill_len : 10
