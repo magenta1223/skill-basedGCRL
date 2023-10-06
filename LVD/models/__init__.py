@@ -11,6 +11,7 @@ from .flat_gcsl import Flat_GCSL
 from .spirl import SPiRL_Model
 from .ours_sep import GoalConditioned_Diversity_Sep_Model
 from .ours import GoalConditioned_Diversity_Model
+from .ours_sep_short import Ours_Shortskill
 from .wgcsl import WGCSL
 from .ris import RIS
 
@@ -28,6 +29,7 @@ MODELS = {
     'flat_gcsl' : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Model,
     'ours' : GoalConditioned_Diversity_Model,
+    "ours_short" : Ours_Shortskill,
     'flat_wgcsl' : WGCSL,
     'flat_ris' : RIS
 }
