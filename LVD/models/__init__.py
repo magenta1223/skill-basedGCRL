@@ -29,7 +29,7 @@ MODELS = {
     'flat_gcsl' : Flat_GCSL,
     "ours_sep" : GoalConditioned_Diversity_Sep_Model,
     'ours' : GoalConditioned_Diversity_Model,
-    "ours_short" : Ours_Shortskill,
+    "ours_sep_short" : Ours_Shortskill,
     'flat_wgcsl' : WGCSL,
     'flat_ris' : RIS
 }
