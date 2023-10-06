@@ -1,6 +1,6 @@
 defaults:
   - common
-  - model: ours_sep_short
+  - model: ours_sep
   - env : kitchen
 
 dataset_cls : LVD.data.Kitchen_Dataset_Div_Sep
