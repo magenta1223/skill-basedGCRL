@@ -11,7 +11,7 @@ from ...contrib import update_moving_average
 from easydict import EasyDict as edict
 from .ours_sep import GoalConditioned_Diversity_Sep_Prior
 
-class Ours_Short_Prior(GoalConditioned_Diversity_Sep_Prior):
+class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
     """
     """
     def __init__(self, **submodules):
