@@ -92,3 +92,7 @@ policy_lr : 5e-7
 invD_lr : 1e-6
 D_lr : 1e-6
 f_lr : 5e-7
+
+
+# alation params
+skill_len : 10
