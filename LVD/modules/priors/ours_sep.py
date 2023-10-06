@@ -450,7 +450,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # skill execution
             D = self.forward_D(ht, skill)
             
-            state_consistency_f = F.mse_loss(subgoal_f, D) * 0.1
+            state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
             # assert 1==0, state_consistency_f.item()
             result =  edict(
                 policy_skill = invD,
@@ -474,8 +474,11 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         dist = self.dist(batch, mode = "act").policy_skill
 
         if isinstance(dist, TanhNormal):
-            z_normal, z = dist.sample_with_pre_tanh_value()
-            return to_skill_embedding(z_normal), to_skill_embedding(z)
+            if self.explore:
+                z_normal, z = dist.sample_with_pre_tanh_value()
+                return to_skill_embedding(z_normal), to_skill_embedding(z)
+            else:
+                return to_skill_embedding(dist._normal.base_dist.loc), to_skill_embedding(dist._normal.base_dist.loc)
         else:
             return None, to_skill_embedding(dist.sample())
         

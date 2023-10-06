@@ -89,6 +89,6 @@ policy_lr : 5e-7
 # f_lr : 1e-6
 
 # min_lr * 0.05
-invD_lr : 5e-7
-D_lr : 5e-7
+invD_lr : 1e-6
+D_lr : 1e-6
 f_lr : 5e-7

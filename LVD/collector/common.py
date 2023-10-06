@@ -166,8 +166,8 @@ class GC_Batch(Batch):
             indices = torch.zeros(len(self.states), 1).cuda()   
                 
 
-        rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
-        G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
+        relabeled_rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
+        relabeled_G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
         
         batch_dict = edict(
             states = self.states,
@@ -180,13 +180,13 @@ class GC_Batch(Batch):
             # G = self.relabeled_goals if relabel else self.goals,
             
             # GCQ
-            rewards = rewards,
-            G = G,
+            # rewards = rewards,
+            # G = G,
             
-            # rewards = self.rewards,
-            # G = self.goals,
-            relabeled_G = self.relabeled_goals,
-            relabeled_rewards = self.relabeled_rewards,
+            rewards = self.rewards,
+            G = self.goals,
+            relabeled_G = relabeled_G,
+            relabeled_rewards = relabeled_rewards,
             
             # Q_G = self.relabeled_goals,
             # Q_rewards = self.relabeled_rewards,

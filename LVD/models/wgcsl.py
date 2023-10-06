@@ -250,6 +250,7 @@ class WGCSL(BaseModel):
     def set_buffer(self, buffer):
         self.buffer= buffer
 
+    # rl update methods 
     def update(self, step_inputs):
         batch = self.buffer.sample(self.rl_batch_size)
         batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
