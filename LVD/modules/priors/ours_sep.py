@@ -478,7 +478,9 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 z_normal, z = dist.sample_with_pre_tanh_value()
                 return to_skill_embedding(z_normal), to_skill_embedding(z)
             else:
-                return to_skill_embedding(dist._normal.base_dist.loc), to_skill_embedding(dist._normal.base_dist.loc)
+                return to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2)), to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2))
+
+                # return to_skill_embedding(dist._normal.base_dist.loc), to_skill_embedding(dist._normal.base_dist.loc)
         else:
             return None, to_skill_embedding(dist.sample())
         

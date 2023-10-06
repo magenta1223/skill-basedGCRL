@@ -77,10 +77,11 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
             hts_target = hts_target.view(N, T, -1)
             
             subgoal_target = hts_target[:, -1]
-            hts_target = hts_target[:, self.cfg.subseq_len-1]
+            hts_target = hts_target[:, :self.cfg.subseq_len-1]
             D_target = hts_target[:, -1]
             
             
+        N, T, _ = hts_target.shape
 
 
         # -------------- State-Conditioned Prior -------------- #
@@ -107,7 +108,7 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
         if self.cfg.manipulation:
             diff_nonPos_latent = cache[-1].view(N, T-1, -1)
             diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
-            diff_target = states[:, 1:, self.cfg.n_pos:] - states[:, :-1, self.cfg.n_pos:]
+            diff_target = states[:, 1:T, self.cfg.n_pos:] - states[:, :T-1, self.cfg.n_pos:]
         else:
             diff = None
             diff_target = None

@@ -68,7 +68,7 @@ class GC_Skill_RL_Trainer:
             self.cfg,
             self.env,
             low_actor,
-            horizon = self.cfg.subseq_len -1,
+            horizon = self.cfg.subseq_len -1 if self.skill_len == 10 else self.skill_len,
             time_limit= self.cfg.time_limit,
         )
 

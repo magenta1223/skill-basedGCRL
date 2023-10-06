@@ -137,7 +137,7 @@ class SAC(BaseModel):
         dist_out = self.policy.dist(batch, mode = "policy")
         policy_skill_dist = dist_out.policy_skill # 
         policy_skill = policy_skill_dist.rsample() 
-
+        
         entropy_term, prior_dists = self.entropy(  batch.states,  policy_skill_dist, kl_clip= None) # policy의 dist로는 gradient 전파함 .
         
         # encoded_states = self.policy.encode(batch.states)
