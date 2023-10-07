@@ -10,6 +10,7 @@ from .ours_sep import GoalConditioned_Diversity_Sep_Prior
 from .ours import GoalConditioned_Diversity_Prior
 from .ours_short import Ours_Short_Prior
 from .ris import RIS_Prior
+from .ours_long import Ours_LongSkill_Prior
 
 
 PRIOR_WRAPPERS = {
@@ -24,6 +25,7 @@ PRIOR_WRAPPERS = {
     "ours_sep" : GoalConditioned_Diversity_Sep_Prior,
     "ours" : GoalConditioned_Diversity_Prior,
     "ours_short" : Ours_Short_Prior,
+    "ours_long" : Ours_LongSkill_Prior,    
     "flat_ris" : RIS_Prior
 
 }

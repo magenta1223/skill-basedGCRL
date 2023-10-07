@@ -12,6 +12,7 @@ from .spirl import SPiRL_Model
 from .ours_sep import GoalConditioned_Diversity_Sep_Model
 from .ours import GoalConditioned_Diversity_Model
 from .ours_sep_short import Ours_Shortskill
+from .ours_sep_long import Ours_LongSkill
 from .wgcsl import WGCSL
 from .ris import RIS
 
@@ -30,6 +31,8 @@ MODELS = {
     "ours_sep" : GoalConditioned_Diversity_Sep_Model,
     'ours' : GoalConditioned_Diversity_Model,
     "ours_sep_short" : Ours_Shortskill,
+    "ours_sep_long" : Ours_LongSkill,
+    
     'flat_wgcsl' : WGCSL,
     'flat_ris' : RIS
 }
