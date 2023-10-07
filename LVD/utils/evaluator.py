@@ -138,8 +138,8 @@ class Evaluator:
 
         # aggregate along  task 
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem']:.2f}", axis = 1)
-        aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem']:.2f}", axis = 1)
+        aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
+        aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem'] * 1.96:.2f}", axis = 1)
 
         aggregated = aggregated[pertask_target_cols]
 
@@ -167,8 +167,8 @@ class Evaluator:
         df_tasktype = pd.concat(( df_tasktype, pd.DataFrame(unseen_avg) ), axis = 0).reset_index(drop=True).drop(['order'], axis = 1)
 
         
-        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem']:.2f}", axis = 1)
-        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem']:.2f}", axis = 1)
+        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
+        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem'] * 1.96:.2f}", axis = 1)
         df_tasktype = df_tasktype[tasktype_target_cols]
         
         
@@ -177,11 +177,32 @@ class Evaluator:
         
         
     def eval_zeroshot(self):
+        
+        df = None
+        zeroshot_rawdata_path = f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv"
+        
+        if os.path.exists(zeroshot_rawdata_path):
+            df = pd.read_csv(zeroshot_rawdata_path)
+        
         for seed in self.cfg.seeds:
             for task in self.tasks:
+                if df is not None:
+                    # previously evaluated with same seed, task, shot 
+                    if df.loc[(df['task'] == str(task)) & (df['seed'] == seed) ].shape[0] == self.cfg.n_eval:
+                        self.logger.log(f"Skip :  {task}_seed:{seed} is previoulsy evaluated.")
+                        continue
                 self.eval_singleTask(seed, task)
         
-        self.aggregate()
+        if df is not None:
+            # raw data
+            eval_df = pd.DataFrame(self.eval_data)
+            df = pd.concat((df, eval_df), axis = 0)
+            df.to_csv( zeroshot_rawdata_path, index = False )
+            
+        
+        
+        
+        self.aggregate(df)
         
     def eval_finetuned(self):
         
@@ -190,12 +211,24 @@ class Evaluator:
 
         # early_stop 
         
+        df = None
+        finetune_rawdata_path = f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv"
+        
+        if os.path.exists(finetune_rawdata_path):
+            df = pd.read_csv(finetune_rawdata_path)
+        
         for seed in self.cfg.seeds:
             for task in self.tasks:
                 # load finetuned weight 
                 # seed
                 earlystop_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}.bin"
                 for shot in shots: 
+                    if df is not None:
+                        # previously evaluated with same seed, task, shot 
+                        if df.loc[(df['task'] == str(task)) & (df['shot'] == shot) & (df['seed'] == seed) ].shape[0] == self.cfg.n_eval:
+                            self.logger.log(f"Skip :  {task}_shot:{shot}_seed:{seed} is previoulsy evaluated.")
+                            continue
+
                     # {task}_seed:{seeed}_ep{shot}.bin
                     # 여기서 early stop이 적용된 경우 shot이 없을 수 있음. 
                     # early stop이 적용되면 -> {task}_seed:{seeed}.bin 을 사용
@@ -211,7 +244,14 @@ class Evaluator:
                     # self.high_policy = torch.load(finetuned_model_path)['model'].policy
                     self.eval_singleTask(seed, task, shot)
                 
-        self.aggregate()
+        if df is not None:
+            # raw data
+            eval_df = pd.DataFrame(self.eval_data)
+            df = pd.concat((df, eval_df), axis = 0)
+            df.to_csv( f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv", index = False )
+            
+        
+        self.aggregate(df)
 
     def eval_learningGraph(self):
         # 학습과정에서 생성된 csv 파일 불러와서 
