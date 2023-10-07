@@ -94,7 +94,6 @@ class Flat_GCSL(BaseModel):
         # self.episode = step_inputs['episode']
 
         batch = self.buffer.sample(self.rl_batch_size)
-        batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
         self.episode = step_inputs['episode']
         self.n_step += 1
 
@@ -132,3 +131,13 @@ class Flat_GCSL(BaseModel):
             loss += v
         return loss
     
+
+    def warmup_Q(self, step_inputs):
+        # self.train()
+        self.stat = {}
+        self.episode = step_inputs['episode']
+
+        # # orig : 200 
+        for _ in range(int(self.q_warmup)):
+            self.update(step_inputs)
+            # ------------------- Alpha ------------------- #         

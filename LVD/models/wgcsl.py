@@ -161,16 +161,9 @@ class WGCSL(BaseModel):
         weights = torch.clamp(exp_adv, max=10)
 
         return weights, exp_adv, adv
-
-    def __main_network__(self, batch, validate = False):
-        if not validate:
-            self.step += 1
-
-        # Offline RL 
-        
-        # Target Value 
+    
+    def update_value(self, batch, validate = False):
         target_q = self.compute_target_q(batch)
-
         # Value
         q_input = torch.cat((batch.states, batch.actions, batch.G), dim = -1)
         q = self.q_function(q_input).squeeze(-1)
@@ -182,6 +175,16 @@ class WGCSL(BaseModel):
             self.optimizers['value']['optimizer'].zero_grad()
             value_loss.backward()
             self.optimizers['value']['optimizer'].step()
+        
+        return value_loss, target_q
+
+    def __main_network__(self, batch, validate = False):
+        if not validate:
+            self.step += 1
+
+        # Offline RL 
+        value_loss, target_q = self.update_value(batch, validate)
+
         
         # advantage
         if self.adv_mode == 0:
@@ -196,13 +199,9 @@ class WGCSL(BaseModel):
         self.threshold = min(self.threshold + self.baw_delta, self.baw_max)
         threshold = self.adv_que.get_threshold(self.threshold)
 
-        # eps_adv[ exp_adv >= threshold ] = 1
-        # eps_adv[ exp_adv < threshold ] = 0.05
-
         eps_adv = torch.where(adv >= threshold, 1, self.eps_adv).to(exp_adv.device)
 
         batch['epd_adv_1'] =  torch.where(adv >= threshold, 1, 0).to(exp_adv.device)
-        # weights = batch.drw * weights * eps_adv
         batch['weights'] = batch.drw * weights * eps_adv
 
         # Update policy
@@ -214,17 +213,9 @@ class WGCSL(BaseModel):
             loss.backward()
             self.optimizers['prior_policy']['optimizer'].step()
 
-            # for _, optimizer in self.optimizers.items():
-            #     optimizer['optimizer'].zero_grad()
-            # loss.backward()
-            # for _, optimizer in self.optimizers.items():
-            #     optimizer['optimizer'].step()
-
-
         self.loss_dict['value_error'] = value_loss.item()
         self.loss_dict['threshold'] = threshold
         self.loss_dict['avg_adv'] = self.adv_que.mean()
-        # self.loss_dict['epd_adv_1'] = batch['epd_adv_1'].mean().item()
 
         # soft update
         if (self.step + 1) % self.target_update_freq == 0:
@@ -258,7 +249,6 @@ class WGCSL(BaseModel):
     # rl update methods 
     def update(self, step_inputs):
         batch = self.buffer.sample(self.rl_batch_size)
-        batch['G'] = step_inputs['G'].repeat(self.rl_batch_size, 1).to(self.device)
         self.episode = step_inputs['episode']
         # self.n_step += 1
 
@@ -273,3 +263,37 @@ class WGCSL(BaseModel):
         # self.stat = deepcopy(self.loss_dict)
 
         return self.loss_dict
+    
+    
+    def reset_optimizers(self):
+        
+        self.optimizers = {
+            "prior_policy" : {
+                "optimizer" : RAdam( self.prior_policy.parameters(), lr = self.policy_lr),
+                "metric" : "Rec_skill"
+            }, 
+
+            "value" : {
+                "optimizer" : RAdam( self.q_function.parameters(), lr = self.value_lr),
+                "metric" : None
+            }, 
+
+        }        
+        
+        
+    def warmup_Q(self, step_inputs):
+        # self.train()
+        self.stat = {}
+        self.episode = step_inputs['episode']
+
+        for _ in range(int(self.q_warmup)):
+            batch = self.buffer.sample(self.rl_batch_size)
+            self.update_value(batch)
+        
+            # if self.consistency_update:
+            #     self.update_consistency(batch)
+        
+        # # orig : 200 
+        for _ in range(int(self.q_warmup)):
+            self.update(step_inputs)
+            # ------------------- Alpha ------------------- #         

@@ -88,6 +88,7 @@ class Flat_RL_Trainer:
             agent = model
             agent.policy = policy
             agent.set_buffer(buffer)
+            agent.reset_optimizers()
 
         self.collector, self.agent = collector, agent
 
@@ -180,8 +181,14 @@ class Flat_RL_Trainer:
         with self.agent.policy.expl() : #, collector.env.step_render():
             episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
 
-        if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
-            print("success")
+        if self.cfg.binary_reward:
+            if np.array(episode.rewards).sum() == 1: # success 
+                print(len(episode.states))
+                print("success")
+        else:
+            if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
+                print(len(episode.states))
+                print("success")
 
         self.agent.buffer.enqueue(episode) 
         log['tr_return'] = sum(episode.rewards)
@@ -199,12 +206,28 @@ class Flat_RL_Trainer:
         self.data.append(data)
 
 
-        if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
+        # ------------- Precollect phase ------------- #
+        if n_ep < self.cfg.precollect:
+        # if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
-        n_step = self.n_step(episode)
-        # print(f"Reuse!! : {n_step}")
+        # ------------- Warming up phase ------------- #
+        elif n_ep == self.cfg.precollect:
+            step_inputs = edict(
+                episode = n_ep,
+                G = G
+            )
+            print("Warmup Value function")
+            self.agent.warmup_Q(step_inputs)
+        else:
+            pass 
 
+
+
+        
+        # ------------- Policy learning phase ------------- #
+        n_step = self.n_step(episode)
+        print(f"Reuse!! : {n_step}")
         for _ in range(max(n_step, 1)):
             step_inputs = edict(
                 episode = n_ep,
@@ -235,22 +258,6 @@ class Flat_RL_Trainer:
 
     
     def postprocess_log(self, log, task_name, n_ep, ewm_rwds):
-
-        # log['n_ep'] = n_ep
-        # log[f'{task_name}_return'] = log['tr_return']
-        # if 'GCSL_loss' in log.keys():
-        #     log[f'GCSL over return'] = log['tr_return'] / log['GCSL_loss'] 
-        # del log['tr_return']
-
-        # if (n_ep + 1) % self.cfg.render_period == 0:
-        #     log['policy_vis'] = self.visualize()
-
-        # ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
-        # log = {f"{task_name}/{k}": log[k] for k in log.keys()}
-
-        # return log, ewm_rwds
-    
-    
         log['n_ep'] = n_ep
         log[f'{task_name}_return'] = log['tr_return']
         del log['tr_return']

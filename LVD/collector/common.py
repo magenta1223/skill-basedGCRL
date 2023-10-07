@@ -746,86 +746,6 @@ class GC_Buffer_Relabel(Buffer):
         transitions = self.transitions[indices]
         batch = GC_Batch2(*[transitions[:, i] for i in self.layout.values()], transitions, self.tanh, self.hindsight_relabel).to(self.device).parse()
         
-        # relabeled_goals = []
-        # relabeled_rewards = []
-        # drws = []
-        # relabeled_dones = []
-        
-        # if self.cfg.binary_reward:
-        #     if self.cfg.structure == "flat_wgcsl":
-        #         # wgcsl은 항상 relabel 
-        #         relabel = np.where(np.random.rand(len(batch.state_index)) > -1, True, False)
-        #     else:
-        #         relabel = np.where(np.random.rand(len(batch.state_index)) > 0.8, True, False)
-        #     # ep index로 relabeling 
-        #     for i, (state_index, ep_index) in enumerate(zip(batch.state_index, batch.ep_index)):
-        #         state_index = int(state_index.detach().cpu().item())
-        #         ep_index = int(ep_index.detach().cpu().item())
-        #         ep = self.episodes[ep_index]
-
-        #         if relabel[i]:
-        #             try:
-        #                 goal_index = np.random.randint(state_index, len(ep.states) - 1, 1)[0]
-        #             except:
-        #                 goal_index = -1
-
-        #             # goal relabeling 
-        #             relabeled_goal = self.state_processor.goal_transform(ep.states[goal_index])
-        #             relabeled_goals.append(relabeled_goal)
-                    
-        #             # discounted relabeling weight for WGCSL 
-        #             drw = np.exp(np.log(0.99) * (goal_index - state_index))
-        #             drws.append(drw)
-
-        #             # reward relabeling 
-        #             if self.cfg.structure == "flat_wgcsl":
-        #                 if goal_index - state_index < self.cfg.reward_threshold:
-        #                     relabeled_rewards.append(np.array([1]))
-        #                     relabeled_dones.append(1)
-        #                 else:
-        #                     relabeled_rewards.append(np.array([0]))
-        #                     relabeled_dones.append(0)
-
-        #             elif self.cfg.structure == "flat_ris":
-        #                 if goal_index - state_index < self.cfg.reward_threshold:
-        #                     relabeled_rewards.append(1)
-        #                     relabeled_dones.append(1)
-                            
-        #                 else:
-        #                     relabeled_rewards.append(-1)
-        #                     relabeled_dones.append(0)
-
-        #             else: # skill-based  
-        #                 if goal_index - state_index < 1:
-        #                     relabeled_rewards.append(1)
-        #                     relabeled_dones.append(1)
-        #                 else:
-        #                     relabeled_rewards.append(0)
-        #                     relabeled_dones.append(0)
-
-        #         else:
-        #             relabeled_goals.append(batch.G[i].detach().cpu().numpy())
-                    
-        #             rr = batch.rewards[i].detach().cpu().numpy()
-                    
-        #             relabeled_rewards.append(batch.rewards[i].detach().cpu().item())
-                    
-        #             goal_index = len(ep.states) - 1
-            
-        #             drw = np.exp(np.log(0.99) * (goal_index - state_index))
-
-        #             drws.append(drw)
-        #             relabeled_dones.append(batch.done[i].detach().cpu().item())
-
-
-
-            # goal로 바꿔줘야 함. 
-            # batch["G"] = torch.tensor(relabeled_goals, dtype = torch.float32).to(self.device)
-            # batch['reward'] = torch.tensor(relabeled_rewards, dtype = torch.float32).to(self.device)
-            
-            # batch['drw'] = torch.tensor(drws, dtype = torch.float32).to(self.device)
-            # batch['done'] = torch.tensor(relabeled_dones, dtype = torch.float32).to(self.device)
-
         if self.cfg.structure == "flat_ris":
             # subgoal sample 
             states =  self.transitions[:, self.layout['state']]
@@ -834,8 +754,8 @@ class GC_Buffer_Relabel(Buffer):
             
         elif self.cfg.structure in ['flat_gcsl', 'flat_wgcsl']:
             # 반드시 relabeling
-            batch['G'] = batch['relabeled_goals']            
-            batch['rewards'] = batch['relabeled_rewards']
+            batch['G'] = batch['relabeled_goal']            
+            batch['reward'] = batch['relabeled_reward']
 
 
         return batch
@@ -884,11 +804,11 @@ class GC_Batch2(Batch):
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,
-            rewards = self.rewards,
-            relabeled_rewards = self.relabeled_rewards,
+            reward = self.rewards,
+            relabeled_reward = self.relabeled_rewards,
             G = self.goals,
             done = self.dones,
-            relabeled_goals = self.relabeled_goals,
+            relabeled_goal = self.relabeled_goals,
             drw = self.drws
         )
         if self.tanh:

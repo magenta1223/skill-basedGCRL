@@ -9,7 +9,6 @@ structure : flat_wgcsl
 dataset_cls : LVD.data.Maze_Dataset_Flat_WGCSL
 env:
   policy_lr : 3e-5
-  epochs : 70
 
   
 model:

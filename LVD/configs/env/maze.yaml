@@ -22,6 +22,9 @@ discount : true
 # flat_Dtest 
 testtest : false
 
+# WGCSL
+value_lr : 3e-5
+
 
 # Skimo
 # Reward relabeling threshold in offline WGCSL / RIS

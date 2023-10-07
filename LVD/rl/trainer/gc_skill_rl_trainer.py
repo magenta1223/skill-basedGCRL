@@ -195,9 +195,7 @@ class GC_Skill_RL_Trainer:
         # high_ep = episode.as_high_episode()
         # self.agent.buffer.enqueue(high_ep) 
         log['tr_return'] = sum(episode.rewards)
-
-        # 진짜 reward의 총합 
-        log['tr_rewards'] = episode.infos[-1]['orig_return']
+        log['tr_rewards'] = episode.infos[-1]['orig_return'] # env rewrad
 
         # ------------- Logging Data ------------- #
         data = edict(
