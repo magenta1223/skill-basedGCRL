@@ -103,12 +103,16 @@ class Flat_RL_Trainer:
             task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
 
-            torch.save({
-                "model" : self.agent,
-                # "collector" : collector if env_name != "carla" else None,
-                # "task" : task_obj if env_name != "carla" else np.array(task_obj),
-                # "env" : env if env_name != "carla" else None,
-            }, f"{self.cfg.weights_path}/{task_name}.bin")   
+            # torch.save({
+            #     "model" : self.agent,
+            #     # "collector" : collector if env_name != "carla" else None,
+            #     # "task" : task_obj if env_name != "carla" else np.array(task_obj),
+            #     # "env" : env if env_name != "carla" else None,
+            # }, f"{self.cfg.weights_path}/{task_name}.bin")   
+            
+            if os.path.exists(f"{self.cfg.weights_path}/{task_name}.bin"):
+                print(f"{self.cfg.weights_path}/{task_name} is already adaptated. Skip!")
+                continue
             
             # TODO : collector.env로 통일. ㅈㄴ헷갈림. 
 

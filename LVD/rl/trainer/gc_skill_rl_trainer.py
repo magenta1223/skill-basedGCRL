@@ -107,9 +107,13 @@ class GC_Skill_RL_Trainer:
             task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
 
-            torch.save({
-                "model" : self.agent,
-            }, f"{self.cfg.weights_path}/{task_name}.bin")   
+            # torch.save({
+            #     "model" : self.agent,
+            # }, f"{self.cfg.weights_path}/{task_name}.bin")   
+            
+            if os.path.exists(f"{self.cfg.weights_path}/{task_name}.bin"):
+                print(f"{self.cfg.weights_path}/{task_name} is already adaptated. Skip!")
+                continue
             
             with self.collector.env.set_task(task_obj):
                 self.collector.env.reset()
