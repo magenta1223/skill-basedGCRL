@@ -225,7 +225,8 @@ class Flat_RL_Trainer:
             NotImplementedError
 
     def n_step(self, episode):
-        return int(self.cfg.reuse_rate * len(episode) / self.cfg.batch_size)
+        # n_update = episode reuse rate * n_transition * action_length / (10 * batch_size)
+        return int(self.cfg.reuse_rate * len(episode) / ( 10 * self.cfg.batch_size))
     
 
     

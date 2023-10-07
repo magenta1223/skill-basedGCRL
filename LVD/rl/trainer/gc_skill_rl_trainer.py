@@ -252,6 +252,7 @@ class GC_Skill_RL_Trainer:
             NotImplementedError
 
     def n_step(self, episode):
+        # n_update = episode reuse rate * n_transition * action_length / (10 * batch_size)        
         return int(self.cfg.reuse_rate * len(episode) / self.cfg.rl_batch_size)
     
     def postprocess_log(self, log, task_name, n_ep, ewm_rwds):
