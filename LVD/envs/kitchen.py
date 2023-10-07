@@ -192,10 +192,10 @@ tasks = np.array([
 
 zeroshot_tasks = np.array([
     # seen 
-    # [5,6,0,3], # MKBS
-    # [5,6,3,4], # MKSH
-    # [6,1,2,3], # KTLS
-    # [6,0,1,4], # KBTH
+    [5,6,0,3], # MKBS
+    [5,6,3,4], # MKSH
+    [6,1,2,3], # KTLS
+    [6,0,1,4], # KBTH
     
 
     # small
@@ -216,18 +216,6 @@ zeroshot_tasks = np.array([
 ])
 
 few_shot_tasks = np.array([
-    # seen 
-    # [5,6,0,3], # MKBS
-    # [5,6,3,4], # MKSH
-    # [6,1,2,3], # KTLS
-    # [6,0,1,4], # KBTH
-    
-
-    # # small
-    # [5,6,0,1], # MKBT
-    # [5,6,0,2], # MKBL
-    # [5,0,2,4],  # MBLH
-
     # middle
     [0,2,3,4],  # BLSH
     [6,1,3,4],  # KTSH
