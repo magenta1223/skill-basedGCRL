@@ -90,7 +90,7 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
 
 
         # -------------- Subgoal Generator -------------- #
-        invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
+        invD_sub, subgoal_D, subgoal_f_10, subgoal_f_long = self.forward_subgoal_G(hts[:, 0], G)
         
         # -------------- High Policy -------------- #
         if self.cfg.learning_mode == "only_skill":
@@ -121,8 +121,8 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
 
             # Subgoal generator 
             subgoal_D =  subgoal_D,
-            subgoal_f = subgoal_f,
-            subgoal_D_target =  subgoal_f,
+            subgoal_f = subgoal_f_10,
+            subgoal_D_target =  subgoal_f_long,
             subgoal_f_target =  subgoal_target,
             
             # high_policy
@@ -136,7 +136,7 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
         
         # -------------- Rollout for metric -------------- #
         if not self.training:
-            check_subgoals_input = (hts, skill, D, subgoal_f)
+            check_subgoals_input = (hts, skill, D, subgoal_f_long)
             subgoals = self.check_subgoals(check_subgoals_input)
             result.update(subgoals)
 
@@ -148,6 +148,17 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
         start_detached = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
         start_original = start.clone().detach()
         
+        # for _ in range((self.cfg.subseq_len - 1) // 10):
+        #     sg_input = self.sg_input(start_detached, G)
+
+        #     _subgoal_f = self.subgoal_generator(sg_input)
+        #     if self.cfg.sg_residual:
+        #         subgoal_f = _subgoal_f + start_detached
+        #     else:
+        #         subgoal_f = _subgoal_f
+        #     start_detached = subgoal_f
+        
+        subgoals_pred = []
         for _ in range((self.cfg.subseq_len - 1) // 10):
             sg_input = self.sg_input(start_detached, G)
 
@@ -157,9 +168,8 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
             else:
                 subgoal_f = _subgoal_f
             start_detached = subgoal_f
-                
-            
-            
+            subgoals_pred.append(subgoal_f)
+                    
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start_original, subgoal= subgoal_f, tanh = self.cfg.tanh)
 
         _, skill_sub = invD_sub.rsample_with_pre_tanh_value()
@@ -171,4 +181,4 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
         else:
             subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
 
-        return invD_sub, subgoal_D, subgoal_f
+        return invD_sub, subgoal_D,  subgoals_pred[0], subgoals_pred[1]  #z_0:20, h_20, h_10 
