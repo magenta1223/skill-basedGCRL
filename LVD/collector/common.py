@@ -161,13 +161,14 @@ class GC_Batch(Batch):
         
         if self.hindsight_relabel:
             indices = torch.rand(len(self.states), 1).cuda()
-
         else:     
             indices = torch.zeros(len(self.states), 1).cuda()   
-                
-
-        relabeled_rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
-        relabeled_G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
+        
+            
+        # relabeled_rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
+        # relabeled_G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
+        
+        
         
         batch_dict = edict(
             states = self.states,
@@ -185,8 +186,8 @@ class GC_Batch(Batch):
             
             rewards = self.rewards,
             G = self.goals,
-            relabeled_G = relabeled_G,
-            relabeled_rewards = relabeled_rewards,
+            relabeled_G = self.relabeled_goals,
+            relabeled_rewards = self.relabeled_rewards,
             
             # Q_G = self.relabeled_goals,
             # Q_rewards = self.relabeled_rewards,

@@ -1,14 +1,14 @@
 task_group,plan_H,Ours,onlyFlat
 ,,,
-small,0,78.363 pm 1.697,81.579 pm 1.601
-small,40,91.374 pm 1.179,82.895 pm 1.516
-small,80,90.205 pm 1.105,77.047 pm 1.825
-small,160,91.667 pm 1.097,77.883 pm 1.928
-medium,0,64.693 pm 1.620,69.846 pm 1.895
-medium,40,77.083 pm 1.714,73.026 pm 1.873
-medium,80,81.031 pm 1.680,67.654 pm 2.151
-medium,160,80.811 pm 1.632,48.904 pm 1.995
-large,0,57.749 pm 1.763,69.152 pm 2.312
-large,40,64.181 pm 2.021,55.409 pm 2.257
-large,80,74.708 pm 2.032,63.158 pm 2.077
-large,160,73.830 pm 1.965,51.901 pm 2.382
+small,0,78.4 pm 3.3,81.6 pm 3.1
+small,40,91.4 pm 2.3,82.9 pm 3.0
+small,80,90.2 pm 2.2,77.0 pm 3.6
+small,160,85.7 pm 3.0,nan pm nan
+medium,0,64.7 pm 3.2,69.8 pm 3.7
+medium,40,77.1 pm 3.4,73.0 pm 3.7
+medium,80,81.0 pm 3.3,67.7 pm 4.2
+medium,160,80.3 pm 3.4,48.9 pm 3.9
+large,0,57.7 pm 3.5,69.2 pm 4.5
+large,40,64.2 pm 4.0,55.4 pm 4.4
+large,80,74.7 pm 4.0,63.2 pm 4.1
+large,160,70.6 pm 4.0,51.9 pm 4.7

@@ -186,7 +186,7 @@ class SAC(BaseModel):
             # else:
             #     q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
             # q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
-            q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.relabeled_G, policy_skill), dim = -1)
+            q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
                         
         else:
             q_input = torch.cat((self.policy.encode(batch_next.states), policy_skill), dim = -1)
@@ -194,7 +194,8 @@ class SAC(BaseModel):
         min_qs = torch.min(*[target_qf(q_input).squeeze(-1) for target_qf in self.target_qfs])
         soft_qs = min_qs - self.alpha*entropy_term
 
-        rwd_term = batch.relabeled_rewards
+        # rwd_term = batch.relabeled_rewards
+        rwd_term = batch.rewards
         ent_term = (1 - batch.dones) * self.discount * soft_qs
 
         return rwd_term, ent_term, entropy_term
@@ -211,7 +212,7 @@ class SAC(BaseModel):
             # else:       
             #     q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
             # q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)                        
-            q_input = torch.cat((self.policy.encode(batch.states), batch.relabeled_G, batch.actions), dim = -1)            
+            q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)            
         else:
             q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
 
