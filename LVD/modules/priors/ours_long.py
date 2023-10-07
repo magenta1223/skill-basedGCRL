@@ -182,3 +182,72 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
             subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
 
         return invD_sub, subgoal_D,  subgoals_pred[0], subgoals_pred[1]  #z_0:20, h_20, h_10 
+    
+    
+    
+
+    def dist(self, batch, mode = "policy"):
+        assert mode in ['policy', 'consistency', 'act', 'rollout'], "Invalid mode"
+        if mode == "consistency":
+            return self.consistency(batch)
+ 
+        elif mode == "act":
+            # act
+            state, G = batch.states, batch.G 
+            with torch.no_grad():
+                ht, ht_pos, ht_nonPos = self.state_encoder(state)
+
+            if self.cfg.learning_mode == "only_skill":
+                policy_skill = self.high_policy.dist(torch.cat((ht, G), dim = -1))
+                result =  edict(
+                    policy_skill = policy_skill
+                )    
+
+            else:
+                invD, subgoal_D, subgoal_f, subgoal_f_long = self.forward_subgoal_G(ht, G)
+                result =  edict(
+                    policy_skill = invD
+                )    
+
+            return result 
+        
+        elif mode == "rollout":
+            # latent state가 
+            with torch.no_grad():
+                _, subgoal_D, _ = self.forward_subgoal_G(batch.ht, batch.G)
+            
+            return edict(
+                ht = subgoal_D 
+            )
+
+        else:
+            # policy 
+            states, G = batch.states, batch.G
+            with torch.no_grad():
+                ht, ht_pos, ht_nonPos = self.state_encoder(states)
+
+            # forward subgoal generator 
+            sg_input = self.sg_input(ht, G)
+            
+            if self.cfg.sg_residual:
+                subgoal_f = self.subgoal_generator(sg_input)
+                subgoal_f = subgoal_f + ht
+            
+            # skill inference 
+            invD, _ = self.forward_invD(ht, subgoal_f)
+            skill = invD.rsample() 
+            
+            # skill execution
+            D = self.forward_D(ht, skill)
+            
+            state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
+            # assert 1==0, state_consistency_f.item()
+            result =  edict(
+                policy_skill = invD,
+                additional_losses = dict(
+                    state_consistency_f = state_consistency_f
+                )
+            )    
+
+            return result
+    

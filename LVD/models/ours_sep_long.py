@@ -160,3 +160,111 @@ class Ours_LongSkill(GoalConditioned_Diversity_Sep_Model):
         
         self.g_mu = None
         self.g_std = None
+        
+    def compute_loss(self, batch):
+        # 생성된 data에 대한 discount 
+        weights = batch.weights
+
+        # ----------- Skill Recon & Regularization -------------- # 
+        recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions, weights)
+        reg = (self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']) * weights).mean()
+
+        # ----------- State/Goal Conditioned Prior -------------- # 
+        prior = (self.loss_fn('prior')(
+            self.outputs['z'],
+            self.outputs['prior'], # distributions to optimize
+            self.outputs['z_normal'],
+            tanh = self.tanh
+        ) * weights).mean()
+
+        if self.mode_drop:
+            invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
+        else:
+            invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+
+
+        # ----------- Dynamics -------------- # 
+        flat_D_loss = self.loss_fn('recon')(
+            self.outputs['flat_D'],
+            self.outputs['flat_D_target'],
+            weights
+        ) # 1/skill horizon  
+        
+        D_loss = self.loss_fn('recon')(
+            self.outputs['D'],
+            self.outputs['D_target'],
+            weights
+        )         
+
+        # ----------- subgoal generator -------------- #  
+        
+        
+        if self.learning_mode ==  "only_skill":
+            # no subgoal generator
+            reg_term = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean() 
+            F_loss = reg_term
+                   
+        elif self.learning_mode ==  "sanity_check":
+            sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights)
+            subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+            # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
+            F_loss = sanity_check + subgoal_bc #+ reg_term
+            
+        elif self.learning_mode ==  "skill_reg":
+            subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+            reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() 
+            F_loss = reg_term + subgoal_bc #+ reg_term
+            
+        else:
+            subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+            F_loss = subgoal_bc
+        
+        r_int = self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
+
+        recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
+
+        if self.manipulation:
+            diff_loss = self.loss_fn("recon")(
+                self.outputs['diff'], 
+                self.outputs['diff_target'], 
+                weights
+            )
+        else:
+            diff_loss = torch.tensor([0]).cuda()
+
+        
+        
+        # tanh라서 logprob에 normal 필요할 수도
+        # goal_recon = self.loss_fn("recon")(self.outputs['G_hat'], batch.G, weights)
+        # goal_reg = self.loss_fn("reg")(self.outputs['goal_dist'], get_fixed_dist(self.outputs['goal_dist'].sample().repeat(1,2), tanh = self.tanh)).mean() * 1e-5
+
+        goal_recon = self.loss_fn("recon_orig")(self.outputs['target_goal_embedding'], self.outputs['goal_embedding'])
+
+
+        if self.only_flatD:
+            D_loss = torch.tensor([0]).cuda()
+
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
+        # loss = recon + reg * self.reg_beta + prior + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon + goal_reg # + skill_logp + goal_logp 
+
+
+        self.loss_dict = {           
+            # total
+            "loss" : loss.item(), #+ prior_loss.item(),
+            "Rec_skill" : recon.item(),
+            "Reg" : reg.item(),
+            "D" : D_loss.item(),
+            "flat_D" : flat_D_loss.item(),
+            "F_loss" : F_loss.item(),
+            "r_int" : r_int.item(),
+            "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
+            # "r_int_D" : r_int_D.item() / self.weight.D if self.weight.D else 0,
+            # "F_skill_kld" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
+            "KL_F_invD" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
+            "KL_F_z" : (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item(),
+            "diff_loss" : diff_loss.item(),
+            "Rec_state" : recon_state.item(),
+            "Rec_goal" : goal_recon.item(),
+        }       
+
+        return loss
