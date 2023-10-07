@@ -185,7 +185,9 @@ class Evaluator:
         
     def eval_finetuned(self):
         
-        shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 300]
+        # shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 300]
+        shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 100]
+
         # early_stop 
         
         for seed in self.cfg.seeds:
