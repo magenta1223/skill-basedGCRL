@@ -329,5 +329,5 @@ class WGCSL(BaseModel):
             {k: v.avg  for k, v in self.time_queues.items()}
         )   
         
-        # return self.loss_dict
-        return time
+        return self.loss_dict
+        # return time
