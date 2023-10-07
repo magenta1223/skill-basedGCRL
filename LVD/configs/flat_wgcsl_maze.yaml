@@ -3,7 +3,7 @@ defaults:
   - model: flat_wgcsl
   - env : maze
 
-
+eps_adv : 0.5
 
 structure : flat_wgcsl
 dataset_cls : LVD.data.Maze_Dataset_Flat_WGCSL

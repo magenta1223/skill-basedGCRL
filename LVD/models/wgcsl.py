@@ -199,7 +199,7 @@ class WGCSL(BaseModel):
         # eps_adv[ exp_adv >= threshold ] = 1
         # eps_adv[ exp_adv < threshold ] = 0.05
 
-        eps_adv = torch.where(adv >= threshold, 1, 0.05).to(exp_adv.device)
+        eps_adv = torch.where(adv >= threshold, 1, self.eps_adv).to(exp_adv.device)
 
         batch['epd_adv_1'] =  torch.where(adv >= threshold, 1, 0).to(exp_adv.device)
         # weights = batch.drw * weights * eps_adv
