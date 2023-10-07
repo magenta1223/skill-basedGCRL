@@ -344,7 +344,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
             F_loss = reg_term
                    
         elif self.learning_mode ==  "sanity_check":
-            sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_f'], weights)
+            sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights)
             subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
             # reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() * self.weight.invD
             F_loss = sanity_check + subgoal_bc #+ reg_term

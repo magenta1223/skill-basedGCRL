@@ -530,11 +530,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(ht, G)
             
             # weights = torch.softmax(batch.skill_values, dim = 0) * states.shape[0] 
-
+            
+            # used for metric
             GCSL_loss = F.mse_loss(subgoal_D, htH_target) + F.mse_loss(subgoal_f, subgoal_D)
-
-            if not self.cfg.with_gcsl:
-                GCSL_loss = GCSL_loss.detach()
+            GCSL_loss = GCSL_loss.detach()
         
             if not self.cfg.consistency_update:
                 state_consistency = state_consistency.detach()

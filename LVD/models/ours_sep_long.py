@@ -10,6 +10,7 @@ from .ours_sep import GoalConditioned_Diversity_Sep_Model
 
 class Ours_LongSkill(GoalConditioned_Diversity_Sep_Model):
     """
+    Ablation for longer skill horizon (20)    
     """
     def __init__(self, cfg):
         super().__init__(cfg)

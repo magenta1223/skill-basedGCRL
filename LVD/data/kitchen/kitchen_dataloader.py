@@ -38,7 +38,8 @@ class Kitchen_Dataset(Base_Dataset):
             unique_subtasks = [""]
             subtasks = []
             goals = []
-
+            
+            # 지우기 
             n=3
             for i, state in enumerate(_states):
                 # goal 확인
