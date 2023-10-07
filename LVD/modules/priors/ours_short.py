@@ -272,125 +272,11 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
 
         return result
     
-    
-    def forward_prior(self, start):
-        if len(start.shape) > 2:
-            start = start[:, 0]
-        
-        if self.cfg.manipulation:
-            start = start.chunk(2, -1)[0].clone().detach()
-            return self.skill_prior.dist(start, detached = True)
-        else:
-            # 
-            return self.skill_prior.dist(start.clone().detach(), detached = True)
-
-
-    def forward_invD(self, start, subgoal, use_target = False):
-        if not self.cfg.grad_pass.invD:
-            start = start.clone().detach()
-            subgoal = subgoal.clone().detach() 
-
-        inverse_dynamics, inverse_dynamics_detach  = self.inverse_dynamics.dist(state = start, subgoal = subgoal, tanh = self.cfg.tanh)
-        
-        return inverse_dynamics, inverse_dynamics_detach
-    
-    def forward_flatD(self, start, skill, use_target = False):
-        
-        # if not self.cfg.only_flatD:
-        #     start = start.clone().detach()
-
-        if not self.cfg.grad_pass.flat_D:
-            start = start.clone().detach()
-
-        # rollout / check 
-        pos, nonPos = start.chunk(2, -1)
-
-        
-        # rollout 
-        if len(pos.shape) < 3:
-            # if self.cfg.manipulation:
-            #     flat_dynamics_input = torch.cat((start, skill), dim=-1)
-            # else:
-            #     flat_dynamics_input = torch.cat((pos, skill), dim=-1)
-            
-            if self.cfg.testtest:
-                flat_dynamics_input = torch.cat((pos, skill), dim=-1)
-            else:
-                flat_dynamics_input = torch.cat((start, skill), dim=-1)
-
-            
-            if use_target:
-                flat_D = self.target_flat_dynamics(flat_dynamics_input)                
-            else:
-                flat_D = self.flat_dynamics(flat_dynamics_input)
-                
-            pos_now, nonPos_now = flat_D.chunk(2, -1)
-
-            if self.cfg.diff:
-                flat_D = start + flat_D
-
-        # learning. 
-        else:
-            N, T = pos.shape[:2]
-            skill_length = T- 1
-            
-            # skill 
-            skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-            # if self.cfg.manipulation:
-            #     flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
-            # else:
-            #     flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
-            
-            if self.cfg.testtest:
-                flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
-            else:
-                flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
-            
-
-            flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
-            
-            if self.cfg.diff.flat:
-                if self.cfg.manipulation:
-                    pos_now, nonPos_now = flat_D.chunk(2, -1)
-                else:
-                    # pos_now, nonPos_now = flat_D, None
-                    pos_now, nonPos_now = flat_D.chunk(2, -1)
-
-            else:
-                pos_now, nonPos_now = None, flat_D.chunk(2, -1)[1] - nonPos[:, :-1]
-
-            if self.cfg.diff.flat:
-                flat_D = start[:,:-1] + flat_D
-
-
-        cache = pos, nonPos, pos_now, nonPos_now
-
-        return flat_D, cache
-
-    def forward_D(self, start, skill, use_target = False):
-
-        dynamics_input = torch.cat((start, skill), dim=-1)
-
-        if use_target:
-            D = self.target_dynamics(dynamics_input)
-        else:
-            D = self.dynamics(dynamics_input)
-
-        if self.cfg.diff.skill:
-            if self.cfg.grad_pass.skill_D:
-                D = start + D
-            else:
-                D = start.clone().detach() + D
-
-        return D
-    
-    def sg_input(self, start, G):
-        return torch.cat((start, G.repeat(1, self.cfg.goal_factor)), dim = -1)
 
     def forward_subgoal_G(self, start, G):
 
         start_detached = start.clone().detach() 
-        
+        skill_dists = []
         subgoals_f = []
             
         for _ in range( 10 // (self.cfg.skill_len)):
@@ -408,6 +294,7 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
     
             invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)
             _, skill_sub = invD_sub.rsample_with_pre_tanh_value()
+            skill_dists.append(invD_sub)
             
             if self.cfg.only_flatD:
                 for _ in range(self.cfg.skill_len):
@@ -418,7 +305,7 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
             
             start_detached = subgoal_D
 
-        return invD_sub, subgoal_D, subgoals_f[0]
+        return skill_dists[0], subgoal_D, subgoals_f[0]
 
 
     @torch.no_grad()
@@ -461,7 +348,10 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
         skills = [] 
 
         # select branching point 
-        c = random.sample(range(1, skill_length - 1), 1)[0]
+        try:
+            c = random.sample(range(1, skill_length - 1), 1)[0]
+        except:
+            c = 1
         _state = states[:, c]
         _ht, _, _ = self.state_encoder(_state)
         # for robotics 
