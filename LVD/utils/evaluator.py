@@ -307,7 +307,8 @@ class Evaluator:
         for folder_path in target_folders:
             rawdata_path = f"{folder_path}/zeroshot_rawdata.csv"
             if not os.path.exists(rawdata_path):
-                print(f"{folder_path} does not have rawdata")
+                # print(f"{folder_path} does not have rawdata")
+                self.logger.log(f"{folder_path} does not have rawdata")
                 continue
             
             if "maze" in rawdata_path:
@@ -322,8 +323,10 @@ class Evaluator:
             self.cfg.eval_mode = "zeroshot"
             self.env_name = env_name
             
-            self.aggregate(df)
-            
+            try:
+                self.aggregate(df)
+            except:
+                self.logger.log(f"Failed : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
         target_folders = []
         
         for root, dirs, files in os.walk('.'):
@@ -348,4 +351,8 @@ class Evaluator:
             self.cfg.eval_data_prefix = folder_path 
             self.cfg.eval_mode = "finetune"
             self.env_name = env_name
-            self.aggregate(df)
+            
+            try:
+                self.aggregate(df)
+            except:
+                self.logger.log(f"Failed : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
