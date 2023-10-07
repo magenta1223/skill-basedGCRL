@@ -8,23 +8,23 @@ from easydict import EasyDict as edict
 import numpy as np
 from ..contrib import update_moving_average
 from copy import deepcopy
-
+from time import time
 
 class AdvQueue:
-    def __init__(self, max_len = 50_000) -> None:
+    def __init__(self, max_len=50_000):
         self.max_len = max_len
-        self.__queue__ = []
-        
-    def enqueue(self, advantages):
-        self.__queue__.extend(advantages)
-        if len(self.__queue__) >= self.max_len :
-            self.__queue__ = self.__queue__[ - self.max_len: ]
+        self.que = np.array([])
+
+    def enqueue(self, advantages):        
+        self.que = np.concatenate((self.que, advantages))
+        if len(self.que) >= self.max_len:
+            self.que = self.que[-self.max_len:]
 
     def get_threshold(self, threshold):
-        return np.percentile(np.array(self.__queue__), threshold)
-    
+        return np.percentile(self.que, threshold)
+
     def mean(self):
-        return np.mean(self.__queue__)
+        return np.mean(self.que)
 
 
 class WGCSL(BaseModel):
@@ -32,6 +32,13 @@ class WGCSL(BaseModel):
     """
     def __init__(self, cfg):
         super().__init__(cfg)
+        
+        self.time_queues = {
+            "value_update" : AverageMeter(),
+            "adv" : AverageMeter(),
+            "adv_queue" : AverageMeter(),
+            "policy_update" : AverageMeter(),
+        }
         
 
         self.use_amp = True
@@ -142,27 +149,38 @@ class WGCSL(BaseModel):
         actions = self.prior_policy(next_batch).policy_action
         q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
         target_q = self.target_q_function(q_input).squeeze(-1) 
-
+                        
+        
         return batch.reward + (1 - batch.done) * self.discount * target_q 
     
     @torch.no_grad()
     def calcualate_advantage(self, batch, target_q = None):
-        
+        start = time()
         if target_q is None:
             target_q = self.compute_target_q(batch)
 
         actions = self.prior_policy(batch).policy_action
         q_input = torch.cat((batch.states, actions, batch.G), dim = -1)
         value = self.q_function(q_input).squeeze(-1) 
+        
 
         adv = target_q - value
+
+
+
         exp_adv = torch.exp(adv)
         # if self.clip_score is not None:
         weights = torch.clamp(exp_adv, max=10)
+        
+        end = time()
+        
+        self.time_queues['adv'].update(end-start)
 
         return weights, exp_adv, adv
     
     def update_value(self, batch, validate = False):
+        start = time()
+        
         target_q = self.compute_target_q(batch)
         # Value
         q_input = torch.cat((batch.states, batch.actions, batch.G), dim = -1)
@@ -175,7 +193,9 @@ class WGCSL(BaseModel):
             self.optimizers['value']['optimizer'].zero_grad()
             value_loss.backward()
             self.optimizers['value']['optimizer'].step()
-        
+            
+        end = time()
+        self.time_queues['value_update'].update(end-start)
         return value_loss, target_q
 
     def __main_network__(self, batch, validate = False):
@@ -190,20 +210,23 @@ class WGCSL(BaseModel):
         if self.adv_mode == 0:
             weights, exp_adv, adv = self.calcualate_advantage(batch, target_q)            
         else:
-
             weights, exp_adv, adv = self.calcualate_advantage(batch)
-        self.adv_que.enqueue(adv.detach().cpu().numpy().tolist())
+        self.adv_que.enqueue(adv.detach().cpu().numpy())
 
         # eps_adv = exp_adv.clone()
-
+        start = time()
         self.threshold = min(self.threshold + self.baw_delta, self.baw_max)
         threshold = self.adv_que.get_threshold(self.threshold)
-
         eps_adv = torch.where(adv >= threshold, 1, self.eps_adv).to(exp_adv.device)
 
         batch['epd_adv_1'] =  torch.where(adv >= threshold, 1, 0).to(exp_adv.device)
         batch['weights'] = batch.drw * weights * eps_adv
+        end = time()
+        
+        self.time_queues['adv_queue'].update(end - start)
 
+
+        start = time()
         # Update policy
         self(batch)
         loss = self.compute_loss(batch)
@@ -212,6 +235,10 @@ class WGCSL(BaseModel):
             self.optimizers['prior_policy']['optimizer'].zero_grad()
             loss.backward()
             self.optimizers['prior_policy']['optimizer'].step()
+
+        end = time()
+        self.time_queues['policy_update'].update(end - start)
+
 
         self.loss_dict['value_error'] = value_loss.item()
         self.loss_dict['threshold'] = threshold
@@ -296,4 +323,11 @@ class WGCSL(BaseModel):
         # # orig : 200 
         for _ in range(int(self.q_warmup)):
             self.update(step_inputs)
-            # ------------------- Alpha ------------------- #         
+            # ------------------- Alpha ------------------- #    
+            
+        time = edict(
+            {k: v.avg  for k, v in self.time_queues.items()}
+        )   
+        
+        # return self.loss_dict
+        return time

@@ -755,7 +755,7 @@ class GC_Buffer_Relabel(Buffer):
         elif self.cfg.structure in ['flat_gcsl', 'flat_wgcsl']:
             # 반드시 relabeling
             batch['G'] = batch['relabeled_goal']            
-            batch['reward'] = batch['relabeled_reward']
+            batch['reward'] = batch['relabeled_reward'].squeeze(-1)
 
 
         return batch
