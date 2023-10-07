@@ -441,7 +441,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                 },
                 "high_policy" : {
                     "params" :  self.highlevel_policy.parameters(), 
-                    "lr" : self.cfg.consistency_lr, 
+                    "lr" : self.cfg.gcsl_lr, 
                     # "metric" : "GCSL_loss"
                     "metric" : None,
                 }

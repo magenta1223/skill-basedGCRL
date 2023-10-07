@@ -168,6 +168,6 @@ class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
                 {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.policy_lr}
             ],
             consistency = {
-                "highpolicy" : {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.consistency_lr, "metric" : None},
+                "highpolicy" : {"params" : self.highlevel_policy.parameters(), "lr" : self.cfg.gcsl_lr, "metric" : None},
             }
         )

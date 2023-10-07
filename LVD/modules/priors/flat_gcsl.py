@@ -111,7 +111,7 @@ class Flat_GCSL(ContextPolicyMixin, BaseModule):
             consistency = {
                 "policy" : {
                     "params" : self.policy.parameters(),
-                    "lr" : self.cfg.consistency_lr, 
+                    "lr" : self.cfg.gcsl_lr, 
                     "metric" : None,
                     # "metric" : "skill_consistency"
                     },
