@@ -143,12 +143,13 @@ class WGCSL(BaseModel):
         q_input = torch.cat((batch.next_states, actions, batch.G), dim = -1)
         target_q = self.target_q_function(q_input).squeeze(-1) 
 
-        return batch.rewards + (1 - batch.done) * self.discount * target_q 
+        return batch.reward + (1 - batch.done) * self.discount * target_q 
     
     @torch.no_grad()
-    def calcualate_advantage(self, batch):
-
-        target_q = self.compute_target_q(batch)
+    def calcualate_advantage(self, batch, target_q = None):
+        
+        if target_q is None:
+            target_q = self.compute_target_q(batch)
 
         actions = self.prior_policy(batch).policy_action
         q_input = torch.cat((batch.states, actions, batch.G), dim = -1)
@@ -183,7 +184,11 @@ class WGCSL(BaseModel):
             self.optimizers['value']['optimizer'].step()
         
         # advantage
-        weights, exp_adv, adv = self.calcualate_advantage(batch)
+        if self.adv_mode == 0:
+            weights, exp_adv, adv = self.calcualate_advantage(batch, target_q)            
+        else:
+
+            weights, exp_adv, adv = self.calcualate_advantage(batch)
         self.adv_que.enqueue(adv.detach().cpu().numpy().tolist())
 
         # eps_adv = exp_adv.clone()
@@ -219,7 +224,7 @@ class WGCSL(BaseModel):
         self.loss_dict['value_error'] = value_loss.item()
         self.loss_dict['threshold'] = threshold
         self.loss_dict['avg_adv'] = self.adv_que.mean()
-        self.loss_dict['epd_adv_1'] = batch['epd_adv_1'].mean().item()
+        # self.loss_dict['epd_adv_1'] = batch['epd_adv_1'].mean().item()
 
         # soft update
         if (self.step + 1) % self.target_update_freq == 0:

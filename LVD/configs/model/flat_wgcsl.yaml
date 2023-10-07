@@ -8,6 +8,7 @@ consistency_update : true
 model_update : false
 binary_reward : true
 tanh : true
+adv_mode : 1
 
 policy : 
   n_blocks : 5
