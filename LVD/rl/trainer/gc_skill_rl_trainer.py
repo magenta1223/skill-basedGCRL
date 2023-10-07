@@ -64,11 +64,19 @@ class GC_Skill_RL_Trainer:
         qfs = [ SequentialBuilder(self.cfg.q_function)  for _ in range(2)]        
         buffer = self.cfg.buffer_cls(self.cfg).to(high_policy.device)
 
+        if self.cfg.structure == "ours_sep_short":
+            horizon = self.cfg.skill_len
+        else:
+        # elif self.cfg.structure == "ours_sep_long":
+            horizon = self.cfg.subseq_len - 1
+            
+
+
         collector = GC_Hierarchical_Collector(
             self.cfg,
             self.env,
             low_actor,
-            horizon = self.cfg.subseq_len -1 if self.cfg.skill_len == 10 else self.cfg.skill_len,
+            horizon = horizon,
             time_limit= self.cfg.time_limit,
         )
 

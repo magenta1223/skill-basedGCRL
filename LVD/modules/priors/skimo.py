@@ -304,7 +304,7 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         rewards_pred = self.reward_function(torch.cat((ht, G, skill), dim = -1)).squeeze(-1) 
 
         state_consistency = F.mse_loss(htH_hat, htH)
-        reward_loss = F.mse_loss(rewards_pred, batch.rewards)
+        reward_loss = F.mse_loss(rewards_pred, batch.rewards) # real reward 
 
         # gcsl 
         # GCSL_loss_skill = (nll_dist(
