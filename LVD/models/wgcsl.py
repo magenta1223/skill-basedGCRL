@@ -154,10 +154,8 @@ class WGCSL(BaseModel):
         return batch.reward + (1 - batch.done) * self.discount * target_q 
     
     @torch.no_grad()
-    def calcualate_advantage(self, batch, target_q = None):
+    def calcualate_advantage(self, batch, target_q ):
         start = time()
-        if target_q is None:
-            target_q = self.compute_target_q(batch)
 
         actions = self.prior_policy(batch).policy_action
         q_input = torch.cat((batch.states, actions, batch.G), dim = -1)
@@ -207,10 +205,8 @@ class WGCSL(BaseModel):
 
         
         # advantage
-        if self.adv_mode == 0:
-            weights, exp_adv, adv = self.calcualate_advantage(batch, target_q)            
-        else:
-            weights, exp_adv, adv = self.calcualate_advantage(batch)
+        weights, exp_adv, adv = self.calcualate_advantage(batch, target_q)            
+
         self.adv_que.enqueue(adv.detach().cpu().numpy())
 
         # eps_adv = exp_adv.clone()

@@ -275,10 +275,6 @@ class Maze_Dataset_Div_Sep(Maze_Dataset):
         states = states[start_idx : start_idx + self.subseq_len, :self.state_dim]
         actions = actions[start_idx : start_idx + self.subseq_len -1]
         
-        # if self.normalize:
-        #     states[:, :2] = states[:, :2]/40
-        #     G[:2] = G[:2]/40
-
         return edict(
             states = states,
             actions = actions, 
@@ -415,15 +411,18 @@ class Maze_Dataset_Flat_WGCSL(Maze_Dataset):
 
         drw = np.exp(self.discount * (goal_idx - start_idx))
 
-        if goal_idx - start_idx < self.reward_threshold:
-            reward, done = 1, 1
-        else:
-            reward, done = 0, 0 
 
-        # if np.linalg.norm(states[:self.n_pos]- G) < 1:
-        #     reward, done = 1, 1
-        # else:
-        #     reward, done = 0, 0
+        if self.distance_reward:
+            if np.linalg.norm(states[:self.n_pos]- G) < 1:
+                reward, done = 1, 1
+            else:
+                reward, done = 0, 0
+
+        else:
+            if goal_idx - start_idx < self.reward_threshold:
+                reward, done = 1, 1
+            else:
+                reward, done = 0, 0 
 
 
         # print(output.states.shape)

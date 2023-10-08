@@ -24,7 +24,7 @@ testtest : false
 
 # WGCSL
 value_lr : 3e-5
-
+distance_reward : false
 
 # Skimo
 # Reward relabeling threshold in offline WGCSL / RIS
