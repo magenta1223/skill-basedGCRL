@@ -450,11 +450,12 @@ class Evaluator:
             self.env_name = env_name
 
 
-            self.aggregate(df)
-            # try:
-            #     self.aggregate(df)
-            # except:
-            #     self.logger.log(f"Failed : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
+            # self.aggregate(df)
+            try:
+                self.aggregate(df)
+            except:
+                self.logger.log(f"Failed : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
+                
         target_folders = []
         
         for root, dirs, files in os.walk('.'):
@@ -480,10 +481,10 @@ class Evaluator:
             self.cfg.eval_mode = "finetune"
             self.env_name = env_name
 
-            self.aggregate(df)
+            # self.aggregate(df)
 
             
-            # try:
-            #     self.aggregate(df)
-            # except:
-            #     self.logger.log(f"Failed : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
+            try:
+                self.aggregate(df)
+            except:
+                self.logger.log(f"Failed : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
