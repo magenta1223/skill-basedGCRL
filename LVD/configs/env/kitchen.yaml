@@ -73,7 +73,7 @@ reuse_rate : 4000
 step_per_ep : 100
 q_warmup : 10_000
 q_weight : 1
-precollect : 20
+precollect : 1
 early_stop_threshold : ${multiply:4, 0.8}
 max_reward : 4
 use_hidden : true # use latent state for Q 
