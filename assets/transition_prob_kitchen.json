@@ -1,0 +1,39 @@
+{
+    "start": {
+        "microwave": 0.6089850249584027, 
+        "kettle": 0.2978369384359401, 
+        "bottom burner": 0.09317803660565724
+    }, 
+    "microwave": {
+        "top burner": 0.05722070844686648, 
+        "kettle": 0.4196185286103542, 
+        "bottom burner": 0.46321525885558584, 
+        "light switch": 0.05722070844686648, 
+        "slide cabinet": 0.0027247956403269754
+    }, 
+    "top burner": {
+        "light switch": 0.48148148148148145, 
+        "hinge cabinet": 0.24814814814814815, 
+        "slide cabinet": 0.27037037037037037
+    }, 
+    "light switch": {
+        "hinge cabinet": 0.23954372623574144,
+        "slide cabinet": 0.7566539923954373, 
+        "microwave": 0.0038022813688212928
+    }, 
+    "kettle": {
+        "top burner": 0.1831831831831832,
+        "light switch": 0.17717717717717718,
+        "bottom burner": 0.5645645645645646,
+        "slide cabinet": 0.07507507507507508
+    }, 
+    "bottom burner": {
+        "light switch": 0.28640776699029125,
+        "hinge cabinet": 0.04611650485436893,
+        "top burner": 0.46116504854368934, 
+        "slide cabinet": 0.20631067961165048
+    },
+    "slide cabinet": {
+        "hinge cabinet": 1.0
+    }
+}

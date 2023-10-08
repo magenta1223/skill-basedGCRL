@@ -1,0 +1,16 @@
+{
+    "MKBS": "seen", 
+    "MKSH": "seen", 
+    "KTLS": "seen", 
+    "KBTH": "seen", 
+    "MKBT": "small", 
+    "MKBL": "small", 
+    "MBLH": "small", 
+    "MKTS": "medium", 
+    "MTLS": "medium", 
+    "KTSH": "medium", 
+    "BLSH": "medium", 
+    "MTSH": "large", 
+    "KTLH": "large", 
+    "BTLH": "large"
+}
