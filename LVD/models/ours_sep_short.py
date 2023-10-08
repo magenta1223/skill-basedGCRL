@@ -13,7 +13,7 @@ class Ours_Shortskill(GoalConditioned_Diversity_Sep_Model):
     Ablation for skill length shorter than subgoal horizon
     H = 1,  subgoal horizon = 10 in table 5
     H = 5,  subgoal horizon = 10 in table 5
-    H = 10, subgoal horizon = 20 in table 6
+    H = 10, subgoal horizon = 20 in table 6 (2-skill step subgoal)
     """
     def __init__(self, cfg):
         super().__init__(cfg)

@@ -1,6 +1,6 @@
 method_name,BC,BC+SR,S-GCRL
-seen,95.6 pm 1.7 (0.0),85.5 pm 3.1 (0.0),nan pm nan (nan)
-small,87.7 pm 2.5 (-7.9),75.4 pm 2.3 (-10.1),85.7 pm 3.0 (nan)
-medium,81.7 pm 2.8 (-13.9),58.2 pm 3.3 (-27.3),80.3 pm 3.4 (nan)
-large,67.3 pm 3.8 (-28.4),50.0 pm 3.5 (-35.5),70.6 pm 4.0 (nan)
-avg_unseen_rwd,79.2 pm 1.9 (-16.4 ),60.9 pm 2.0 (-24.6 ),79.0 pm 2.1 (nan )
+seen,95.6 pm 0.8 (0.0),85.5 pm 2.4 (0.0),nan pm nan (nan)
+small,87.7 pm 0.5 (-7.9),75.4 pm 2.3 (-10.1),85.7 pm 2.8 (nan)
+medium,81.7 pm 3.2 (-13.9),58.2 pm 4.6 (-27.3),80.3 pm 2.4 (nan)
+large,67.3 pm 4.0 (-28.4),50.0 pm 0.5 (-35.5),70.6 pm 3.1 (nan)
+avg_unseen_rwd,79.2 pm 1.0 (-16.4 ),60.9 pm 2.6 (-24.6 ),79.0 pm 1.7 (nan )

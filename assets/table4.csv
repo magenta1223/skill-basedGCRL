@@ -1,14 +1,14 @@
-task_group,plan_H,Ours,onlyFlat
+task_group,plan_H,onlyFlat,Ours
 ,,,
-small,0,78.4 pm 3.3,81.6 pm 3.1
-small,40,91.4 pm 2.3,82.9 pm 3.0
-small,80,90.2 pm 2.2,77.0 pm 3.6
-small,160,85.7 pm 3.0,nan pm nan
-medium,0,64.7 pm 3.2,69.8 pm 3.7
-medium,40,77.1 pm 3.4,73.0 pm 3.7
-medium,80,81.0 pm 3.3,67.7 pm 4.2
-medium,160,80.3 pm 3.4,48.9 pm 3.9
-large,0,57.7 pm 3.5,69.2 pm 4.5
-large,40,64.2 pm 4.0,55.4 pm 4.4
-large,80,74.7 pm 4.0,63.2 pm 4.1
-large,160,70.6 pm 4.0,51.9 pm 4.7
+small,0,81.6 \pm 6.9,78.4 \pm 2.0
+small,40,82.9 \pm 2.6,91.4 \pm 0.3
+small,80,77.0 \pm 0.8,90.2 \pm 0.3
+small,160,79.6 \pm 3.0,85.7 \pm 2.8
+medium,0,69.8 \pm 5.7,64.7 \pm 1.5
+medium,40,73.0 \pm 4.9,77.1 \pm 2.6
+medium,80,67.7 \pm 3.9,81.0 \pm 0.2
+medium,160,48.9 \pm 3.3,80.3 \pm 2.4
+large,0,69.2 \pm 6.7,57.7 \pm 2.9
+large,40,55.4 \pm 7.5,64.2 \pm 4.0
+large,80,63.2 \pm 5.4,74.7 \pm 3.5
+large,160,51.9 \pm 6.7,70.6 \pm 3.1
