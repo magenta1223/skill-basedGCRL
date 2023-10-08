@@ -72,9 +72,9 @@ increasing_alpha : false
 auto_alpha : false # skimo, spirl은 true
 reuse_rate : 512
 step_per_ep : 400
-q_warmup : 5000
+q_warmup : 2_000
 q_weight : 1
-precollect : 1
+precollect : 0
 early_stop_threshold : ${multiply:100, 0.8}
 max_reward : 100
 use_hidden : true

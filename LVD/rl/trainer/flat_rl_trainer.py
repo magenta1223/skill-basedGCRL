@@ -280,9 +280,9 @@ class Flat_RL_Trainer:
                 ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
         else:
             if self.cfg.binary_reward:
-                ewm_rwds += log[f'{task_name}_rewards'] / self.cfg.precollect
+                ewm_rwds += log[f'{task_name}_rewards'] / (self.cfg.precollect + 1)
             else:
-                ewm_rwds += log[f'{task_name}_return'] / self.cfg.precollect
+                ewm_rwds += log[f'{task_name}_return'] / (self.cfg.precollect + 1)
 
 
         log = {f"{task_name}/{k}": log[k] for k in log.keys()}
