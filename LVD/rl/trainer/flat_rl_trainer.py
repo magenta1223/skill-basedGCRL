@@ -254,7 +254,7 @@ class Flat_RL_Trainer:
     def n_step(self, episode):
         # n_update = episode reuse rate * n_transition * action_length / (10 * batch_size)
         # return int(self.cfg.reuse_rate * len(episode) / ( 10 * self.cfg.batch_size))
-        return int(self.cfg.reuse_rate * len(episode) / (  self.cfg.batch_size))
+        return int(self.cfg.reuse_rate * len(episode) / self.cfg.batch_size)
     
 
     

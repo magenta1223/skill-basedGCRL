@@ -53,121 +53,6 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
 
         self.n_soft_update += 1
 
-    # def forward(self, batch, *args, **kwargs):
-    #     states, G = batch.states, batch.G
-    #     N, T, _ = states.shape
-
-    #     # -------------- State Enc / Dec -------------- #
-    #     # for state reconstruction and dynamics
-    #     states_repr, ht_pos, ht_nonPos = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
-            
-    #     states_hat, pos_hat, nonPos_hat = self.state_decoder(states_repr)
-    #     states_hat = states_hat.view(N, T, -1) 
-    #     hts = states_repr.view(N, T, -1).clone()
-        
-    #     flat_D_input = hts[:, :self.cfg.subseq_len-1]
-
-    #     with torch.no_grad():
-    #         # target for dynamics & subgoal generator
-    #         # hts_target, _, _ = self.target_state_encoder(states.view(N * T, -1))
-    #         # hts_target = hts_target.view(N, T, -1)
-    #         # subgoal_target = hts_target[:, -1]
-
-    #         hts_target, _, _ = self.target_state_encoder(states.view(N * T, -1))
-    #         hts_target = hts_target.view(N, T, -1)
-            
-    #         subgoal_target = hts_target[:, -1]
-    #         hts_target = hts_target[:, :self.cfg.subseq_len-1]
-    #         D_target = hts_target[:, -1]
-            
-            
-    #     N, T, _ = hts_target.shape
-
-
-    #     # -------------- State-Conditioned Prior -------------- #
-    #     prior, prior_detach = self.forward_prior(hts)
-
-    #     # -------------- Inverse Dynamics : Skill Learning -------------- #
-    #     inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:, -1])
-        
-    #     if self.cfg.grad_swap:
-    #         invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
-    #         skill = invD_skill - invD_skill.clone().detach() + batch.skill
-
-    #     elif self.cfg.grad_pass.skill:
-    #         invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
-    #         skill = batch.skill
-    #     else:
-    #         invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
-    #         skill = invD_skill.clone()
-
-    #     # -------------- Dynamics Learning -------------- #                
-    #     flat_D, cache = self.forward_flatD(flat_D_input, batch.skill)
-    #     D = self.forward_D(hts[:, 0], skill)
-        
-    #     if self.cfg.manipulation:
-    #         diff_nonPos_latent = cache[-1].view(N, T-1, -1)
-    #         diff = self.diff_decoder(diff_nonPos_latent.clone().detach())
-    #         diff_target = states[:, 1:T, self.cfg.n_pos:] - states[:, :T-1, self.cfg.n_pos:]
-    #     else:
-    #         diff = None
-    #         diff_target = None
-
-
-
-    #     # -------------- Subgoal Generator -------------- #
-    #     invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
-        
-    #     # -------------- High Policy -------------- #
-    #     if self.cfg.learning_mode == "only_skill":
-    #         policy_skill = self.high_policy.dist(torch.cat((hts[:, 0].clone().detach(), G), dim = -1))
-    #     else:
-    #         policy_skill = None
-
-
-
-    #     result = edict(
-    #         # State Auto-Encoder
-    #         states = states,
-    #         states_hat = states_hat,
-    #         states_repr = states_repr,
-
-    #         # Skills 
-    #         prior = prior,
-    #         prior_detach = prior_detach,
-    #         invD = inverse_dynamics,
-    #         invD_detach = inverse_dynamics_detach,
-    #         # invD_target = invD_target,
-
-    #         # Dynamics modules
-    #         D = D,
-    #         flat_D = flat_D,
-    #         D_target =  D_target, 
-    #         flat_D_target = hts_target[:, 1:],
-
-    #         # Subgoal generator 
-    #         subgoal_D =  subgoal_D,
-    #         subgoal_f = subgoal_f,
-    #         subgoal_D_target =  subgoal_f,
-    #         subgoal_f_target =  subgoal_target,
-            
-    #         # high_policy
-    #         policy_skill = policy_skill,
-
-    #         # Difference Decoder for manipulation task 
-    #         diff = diff,
-    #         diff_target = diff_target,
-    #         invD_sub = invD_sub,
-    #     )
-        
-    #     # -------------- Rollout for metric -------------- #
-    #     if not self.training:
-    #         check_subgoals_input = (hts, skill, D, subgoal_f)
-    #         subgoals = self.check_subgoals(check_subgoals_input)
-    #         result.update(subgoals)
-
-    #     return result
-    
     def forward(self, batch, *args, **kwargs):
         states, G = batch.states, batch.G
         N, T, _ = states.shape
@@ -393,24 +278,25 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
         
         subgoals_f = []
         skills = []
-        for _ in range( 10 // (self.cfg.skill_len)):
-
+        # for sanity check, loop until generated subgoal's time step == skill length 
+        for _ in range( (self.cfg.subseq_len - 1) // (self.cfg.skill_len)):
+            # infer subgoal
             sg_input = self.sg_input(start_detached, G)
-            
-            # skill 길이가 짧으면 -> loop 
             _subgoal_f = self.subgoal_generator(sg_input)
             if self.cfg.sg_residual:
                 subgoal_f = _subgoal_f + start_detached
             else:
                 subgoal_f = _subgoal_f
-
-            subgoals_f.append(subgoal_f)
-    
+            
+            # infer skill 
             invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)
             _, skill_sub = invD_sub.rsample_with_pre_tanh_value()
             
+            # save subgoal and skill for sanity check 
+            subgoals_f.append(subgoal_f)
             skills.append(invD_sub)
             
+            # infer next state
             if self.cfg.only_flatD:
                 for _ in range(self.cfg.skill_len):
                     start_detached, _ = self.forward_flatD(start_detached, skill_sub, use_target= True)
@@ -418,8 +304,12 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
             else:
                 subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
             
+            # set next state
             start_detached = subgoal_D
-
+        
+        # skills[0] : first skill
+        # subgoal_D : subgoal from dynamics with subseq_len -1 time step
+        # subgoals_f[0] : subgoal from subgoal generator with subseq_len -1 time step
         return skills[0], subgoal_D, subgoals_f[0]
 
 
@@ -569,24 +459,43 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
             with torch.no_grad():
                 ht, ht_pos, ht_nonPos = self.state_encoder(states)
 
-            # forward subgoal generator 
-            sg_input = self.sg_input(ht, G)
+            start_detached = ht
             
-            if self.cfg.sg_residual:
-                subgoal_f = self.subgoal_generator(sg_input)
-                subgoal_f = subgoal_f + ht
+            subgoals_f = []
+            skills = []
             
-            # skill inference 
-            invD, _ = self.forward_invD(ht, subgoal_f)
-            skill = invD.rsample() 
+            # for state consistency, loop until generated subgoal's time step == skill length             
+            for _ in range( (self.cfg.subseq_len - 1) // (self.cfg.skill_len)):
+                # infer subgoal with shorter horizon than skill horizon 
+                sg_input = self.sg_input(start_detached, G)
+                _subgoal_f = self.subgoal_generator(sg_input)
+                if self.cfg.sg_residual:
+                    subgoal_f = _subgoal_f + start_detached
+                else:
+                    subgoal_f = _subgoal_f
+                
+                # infer skill
+                invD_sub, _ = self.target_inverse_dynamics.dist(state = start_detached, subgoal= subgoal_f, tanh = self.cfg.tanh)
+                _, skill_sub = invD_sub.rsample_with_pre_tanh_value()
+                
+                # save subgoal and skill for sanity check 
+                subgoals_f.append(subgoal_f)
+                skills.append(invD_sub)
+                
+                # infer next state
+                subgoal_D = self.forward_D(start_detached, skill_sub)
+
+                # set next state
+                start_detached = subgoal_D
             
-            # skill execution
-            D = self.forward_D(ht, skill)
+
+            # subgoals_f[0] : subgoal from subgoal generator with subseq_len -1 time step            
+            # subgoal_D : subgoal from dynamics with subseq_len -1 time step
             
-            state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
+            state_consistency_f = F.mse_loss(subgoals_f[0].detach(), subgoal_D)
             # assert 1==0, state_consistency_f.item()
             result =  edict(
-                policy_skill = invD,
+                policy_skill = skills[0], # 
                 additional_losses = dict(
                     state_consistency_f = state_consistency_f
                 )
