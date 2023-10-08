@@ -17,27 +17,6 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
     def __init__(self, **submodules):
         super().__init__(**submodules)
 
-    def soft_update(self):
-        """
-        Exponentially moving averaging the parameters of state encoder 
-        """
-        # soft update
-        if self.n_soft_update % self.update_freq == 0 and self.cfg.phase != "rl":
-            # update_moving_average(self.target_state_encoder, self.state_encoder, self.cfg.tau)
-            update_moving_average(self.target_state_encoder, self.state_encoder)
-            # update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
-        
-        # hard update 
-        # update_moving_average(self.target_state_decoder, self.state_decoder, 1)
-        update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
-        update_moving_average(self.target_dynamics, self.dynamics, 1)
-        if self.cfg.only_flatD:
-            update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
-
-        # update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics)
-        # update_moving_average(self.target_dynamics, self.dynamics)
-
-        self.n_soft_update += 1
 
     def forward(self, batch, *args, **kwargs):
         states, G = batch.states, batch.G
@@ -55,8 +34,10 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
             # target for dynamics & subgoal generator 
             hts_target, _, _ = self.target_state_encoder(states.view(N * T, -1))
             hts_target = hts_target.view(N, T, -1)
-            subgoal_target = hts_target[:, 10]
             D_target = hts_target[:, -1]
+            
+            # skill and subgoal have different lengths
+            subgoal_target = hts_target[:, self.cfg.subseq_len]
 
         # -------------- State-Conditioned Prior -------------- #
         prior, prior_detach = self.forward_prior(hts)
@@ -145,30 +126,22 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
 
     def forward_subgoal_G(self, start, G):
 
-        start_detached = start.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
+        start_detached = start.clone().detach() 
         start_original = start.clone().detach()
         
-        # for _ in range((self.cfg.subseq_len - 1) // 10):
-        #     sg_input = self.sg_input(start_detached, G)
 
-        #     _subgoal_f = self.subgoal_generator(sg_input)
-        #     if self.cfg.sg_residual:
-        #         subgoal_f = _subgoal_f + start_detached
-        #     else:
-        #         subgoal_f = _subgoal_f
-        #     start_detached = subgoal_f
-        
-        subgoals_pred = []
-        for _ in range((self.cfg.subseq_len - 1) // 10):
+        subgoals_f = []
+        for _ in range((21 - 1) // 10):
+            # infer subgoal
             sg_input = self.sg_input(start_detached, G)
-
             _subgoal_f = self.subgoal_generator(sg_input)
             if self.cfg.sg_residual:
                 subgoal_f = _subgoal_f + start_detached
             else:
                 subgoal_f = _subgoal_f
+            # next subgoal
             start_detached = subgoal_f
-            subgoals_pred.append(subgoal_f)
+            subgoals_f.append(subgoal_f)
                     
         invD_sub, _ = self.target_inverse_dynamics.dist(state = start_original, subgoal= subgoal_f, tanh = self.cfg.tanh)
 
@@ -181,7 +154,13 @@ class Ours_LongSkill_Prior(GoalConditioned_Diversity_Sep_Prior):
         else:
             subgoal_D = self.forward_D(start_detached, skill_sub, use_target= True)
 
-        return invD_sub, subgoal_D,  subgoals_pred[0], subgoals_pred[1]  #z_0:20, h_20, h_10 
+
+        # invD_sub : skill for \tau_0:20
+        # subgoal_D : subgoal from dynamics with 20 (subseq_len = 21)
+        # subgoals_f[0] : subgoal from f with time step 10 for BC term in Eq. subgoal
+        # subgoals_f[1] : subgoal from f with time step 20 for sanity check
+
+        return invD_sub, subgoal_D,  subgoals_f[0], subgoals_f[1]  #z_0:20, h_20, h_10 
     
     
     

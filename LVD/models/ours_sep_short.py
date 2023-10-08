@@ -10,7 +10,10 @@ from .ours_sep import GoalConditioned_Diversity_Sep_Model
 
 class Ours_Shortskill(GoalConditioned_Diversity_Sep_Model):
     """
-    Ablation for shorter skill horizon (1, 5)
+    Ablation for skill length shorter than subgoal horizon
+    H = 1,  subgoal horizon = 10 in table 5
+    H = 5,  subgoal horizon = 10 in table 5
+    H = 10, subgoal horizon = 20 in table 6
     """
     def __init__(self, cfg):
         super().__init__(cfg)

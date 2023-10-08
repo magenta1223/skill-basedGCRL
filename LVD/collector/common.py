@@ -630,25 +630,37 @@ class GC_Buffer_Relabel(Buffer):
 
         discount = np.log(0.99)
         
-        for i in range(len(episode.states) - 1):
-            index = np.random.randint(i, len_ep, 1)[0]
-            relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[index]))
+        for state_index in range(len(episode.states) - 1):
+            relabel_index = np.random.randint(state_index, len_ep, 1)[0]
 
+            _now_state_G = self.state_processor.goal_transform(np.array(episode.states[state_index]))
+            relabeled_goal = self.state_processor.goal_transform(np.array(episode.states[relabel_index]))
             
-            if index - i < 2:
-                rr, done = 1, 1 
-            else:
-                if self.cfg.structure == "flat_wgcsl":
-                    rr = 0
-                elif self.cfg.structure == "flat_ris":
-                    rr = -1
+            
+            if self.cfg.distance_reward:
+                # no kitchen 
+                assert self.cfg.env_name == "maze", f"Invalid env name : {self.cfg.env_name}"
+                if np.linalg.norm(_now_state_G - relabeled_goal) < 1:
+                    rr, done = 1, 1
                 else:
-                    rr = 0        
-                done = 0        
+                    rr, done = 1, 0
+                
+                
+            else:
+                if relabel_index - state_index < 2:
+                    rr, done = 1, 1 
+                else:
+                    if self.cfg.structure == "flat_wgcsl":
+                        rr = 0
+                    elif self.cfg.structure == "flat_ris":
+                        rr = -1
+                    else:
+                        rr = 0        
+                    done = 0        
 
             relabeled_goals.append(relabeled_goal)
             relabeled_rewards.append(rr)
-            drws.append(np.exp(discount * (index - i)))
+            drws.append(np.exp(discount * (relabel_index - state_index)))
             dones.append(done)            
 
         relabeled_goals = np.array(relabeled_goals)

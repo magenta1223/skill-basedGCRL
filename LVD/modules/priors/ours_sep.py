@@ -190,16 +190,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         
         # rollout 
         if len(pos.shape) < 3:
-            # if self.cfg.manipulation:
-            #     flat_dynamics_input = torch.cat((start, skill), dim=-1)
-            # else:
-            #     flat_dynamics_input = torch.cat((pos, skill), dim=-1)
-            
-            if self.cfg.testtest:
-                flat_dynamics_input = torch.cat((pos, skill), dim=-1)
-            else:
-                flat_dynamics_input = torch.cat((start, skill), dim=-1)
-
+            flat_dynamics_input = torch.cat((start, skill), dim=-1)
             
             if use_target:
                 flat_D = self.target_flat_dynamics(flat_dynamics_input)                
@@ -215,20 +206,10 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
         else:
             N, T = pos.shape[:2]
             skill_length = T- 1
-            
             # skill 
             skill = skill.unsqueeze(1).repeat(1, skill_length, 1)
-            # if self.cfg.manipulation:
-            #     flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
-            # else:
-            #     flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
-            
-            if self.cfg.testtest:
-                flat_dynamics_input = torch.cat((pos[:, :-1], skill), dim=-1)
-            else:
-                flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
-            
 
+            flat_dynamics_input = torch.cat((start[:, :-1], skill), dim=-1)
             flat_D = self.flat_dynamics(flat_dynamics_input.view(N * skill_length, -1)).view(N, skill_length, -1)
             
             if self.cfg.diff.flat:
@@ -534,6 +515,7 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             # used for metric
             GCSL_loss = F.mse_loss(subgoal_D, htH_target) + F.mse_loss(subgoal_f, subgoal_D)
             GCSL_loss = GCSL_loss.detach()
+
         
             if not self.cfg.consistency_update:
                 state_consistency = state_consistency.detach()

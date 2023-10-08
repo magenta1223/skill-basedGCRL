@@ -19,7 +19,7 @@ std_factor : 1.1
 # discount for generated traj 
 discount : true
 
-# flat_Dtest 
+# for instant test 
 testtest : false
 
 # WGCSL

@@ -27,8 +27,6 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
 
 
         prior = SequentialBuilder(cfg.prior)
-        if not cfg.manipulation and cfg.testtest:
-            cfg.flat_dynamics.in_feature = cfg.latent_state_dim //2  + cfg.skill_dim
         flat_dynamics = SequentialBuilder(cfg.flat_dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
@@ -303,7 +301,7 @@ class GoalConditioned_Diversity_Sep_Model(BaseModel):
     def compute_loss(self, batch):
         # 생성된 data에 대한 discount 
         weights = batch.weights
-
+        
         # ----------- Skill Recon & Regularization -------------- # 
         recon = self.loss_fn('recon')(self.outputs['actions_hat'], batch.actions, weights)
         reg = (self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']) * weights).mean()
