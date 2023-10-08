@@ -293,8 +293,10 @@ class Evaluator:
     def eval_finetuned(self):
         
         # shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 300]
-        shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 100]
+        # shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 100]
 
+        # shots = [10, 25, 50] if self.env.name == "maze" else [20, 50, 100]
+        shots = [1, 3, 5, 10, 15, 20, 25, 30, 50]
         # early_stop 
         
         df = None
