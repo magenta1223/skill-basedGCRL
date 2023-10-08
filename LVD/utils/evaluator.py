@@ -208,8 +208,8 @@ class Evaluator:
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
 
     
-        aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
-        aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem'] * 1.96:.2f}", axis = 1)
+        aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} \\pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
+        aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} \\pm {row['success/sem'] * 1.96:.2f}", axis = 1)
 
         aggregated = aggregated[pertask_target_cols]
 
@@ -247,8 +247,8 @@ class Evaluator:
         df_tasktype = pd.concat(( df_tasktype, pd.DataFrame(unseen_avg) ), axis = 0).reset_index(drop=True).drop(['order'], axis = 1)
 
         
-        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
-        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem'] * 1.96:.2f}", axis = 1)
+        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} \\pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
+        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} \\pm {row['success/sem'] * 1.96:.2f}", axis = 1)
         df_tasktype = df_tasktype[tasktype_target_cols]
         
         

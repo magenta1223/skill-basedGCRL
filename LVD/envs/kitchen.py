@@ -216,11 +216,11 @@ zeroshot_tasks = np.array([
 ])
 
 few_shot_tasks = np.array([
-    # middle
-    [0,2,3,4],  # BLSH
-    [6,1,3,4],  # KTSH
-    [5,6,1,3],  # MKTS
-    [5,1,2,3],  # MTLS
+    # # middle
+    # [0,2,3,4],  # BLSH
+    # [6,1,3,4],  # KTSH
+    # [5,6,1,3],  # MKTS
+    # [5,1,2,3],  # MTLS
     
     # large
     [6,1,2,4],  # KTLH
