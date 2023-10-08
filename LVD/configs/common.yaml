@@ -26,7 +26,7 @@ hydra:
           - rl.rl_batch_size
           - rl.norm
           # new mode
-          - rl.mode 
+          - rl.rl_mode 
           # env 
           - env.policy_lr
           - env.consistency_lr
@@ -104,10 +104,10 @@ rl :
   # precollect : 20
   norm : false
   rl_batch_size : 256
-  mode : 0
+  rl_mode : 0
 
 rl_cfgs : [
-  mode, # rl mode 
+  rl_mode, # rl mode 
   rl_batch_size, # general
   q_warmup, discount, tau, # qfs
   policy_lr, consistency_lr, qf_lr, alpha_lr, # lrs
