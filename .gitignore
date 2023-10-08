@@ -4,6 +4,7 @@ wandb/
 imgs/
 data/
 carla_data/
+assets/
 
 *.pyc
 __pycache__/
