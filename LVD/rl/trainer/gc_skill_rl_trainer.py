@@ -125,10 +125,10 @@ class GC_Skill_RL_Trainer:
                 for n_ep in range(self.cfg.n_episode+1):                    
 
 
-                    # ep 종료 지점에서               
-                    if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
-                        print("early stop!!!")
-                        break 
+                    # # ep 종료 지점에서               
+                    # if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
+                    #     print("early stop!!!")
+                    #     break 
                     log = self.train_policy(n_ep, seed)
                     precollect_rwds += log['tr_rewards']
 
