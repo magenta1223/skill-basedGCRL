@@ -77,7 +77,7 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
         prior, prior_detach = self.forward_prior(hts)
 
         # -------------- Inverse Dynamics : Skill Learning -------------- #
-        inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:, -1])
+        inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], subgoal_target)
         
         if self.cfg.grad_swap:
             invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
