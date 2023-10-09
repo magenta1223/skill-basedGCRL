@@ -417,31 +417,44 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             with torch.no_grad():
                 ht, ht_pos, ht_nonPos = self.state_encoder(states)
 
-            # forward subgoal generator 
-            sg_input = self.sg_input(ht, G)
-            
-            if self.cfg.sg_residual:
-                subgoal_f = self.subgoal_generator(sg_input)
-                subgoal_f = subgoal_f + ht
-            
-            # skill inference 
-            invD, _ = self.forward_invD(ht, subgoal_f)
-            skill = invD.rsample() 
-            
-            # skill execution
-            D = self.forward_D(ht, skill)
-            
-            if self.cfg.grad_pass.state_consistency:
-                state_consistency_f = F.mse_loss(subgoal_f, D)
+
+            if self.cfg.learning_mode == "only_skill":
+                policy_skill = self.high_policy.dist(torch.cat((ht, G), dim = -1))
+                result =  edict(
+                    policy_skill = policy_skill,
+                    additional_losses = dict(
+                        state_consistency_f = state_consistency_f
+                    )
+                    
+                    
+                )    
+
             else:
-                state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
-            # assert 1==0, state_consistency_f.item()
-            result =  edict(
-                policy_skill = invD,
-                additional_losses = dict(
-                    state_consistency_f = state_consistency_f
-                )
-            )    
+                # forward subgoal generator 
+                sg_input = self.sg_input(ht, G)
+                
+                if self.cfg.sg_residual:
+                    subgoal_f = self.subgoal_generator(sg_input)
+                    subgoal_f = subgoal_f + ht
+                
+                # skill inference 
+                invD, _ = self.forward_invD(ht, subgoal_f)
+                skill = invD.rsample() 
+                
+                # skill execution
+                D = self.forward_D(ht, skill)
+                
+                if self.cfg.grad_pass.state_consistency:
+                    state_consistency_f = F.mse_loss(subgoal_f, D)
+                else:
+                    state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
+                # assert 1==0, state_consistency_f.item()
+                result =  edict(
+                    policy_skill = invD,
+                    additional_losses = dict(
+                        state_consistency_f = state_consistency_f
+                    )
+                )    
 
             return result
     
@@ -546,7 +559,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 }
             )
             
-
             return rl_params            
             
         else:
@@ -571,12 +583,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                     
             )
             
-            if self.cfg.with_gcsl:
-                rl_params['consistency']['f'] = {
-                    "params" :  self.subgoal_generator.parameters(), 
-                    "lr" : self.cfg.f_lr, 
-                    # "metric" : "GCSL_loss"
-                    "metric" : None,
-                }
+
                 
             return rl_params

@@ -28,6 +28,8 @@ class SAC(BaseModel):
             rl_params['policy'],
             # lr = self.policy_lr # 낮추면 잘 안됨. 왜? 
         )
+        
+        
 
 
         if rl_params['consistency']:
@@ -154,7 +156,7 @@ class SAC(BaseModel):
         
         self.policy_optim.zero_grad()
         policy_loss.backward()
-        self.grad_clip(self.policy_optim)
+        # self.grad_clip(self.policy_optim)
         self.policy_optim.step()
 
         results['policy_loss'] = policy_loss.item()
