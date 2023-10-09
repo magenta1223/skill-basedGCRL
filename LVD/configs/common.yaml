@@ -50,6 +50,7 @@ hydra:
           - model.q_function.norm_cls
           - model.with_gcsl
           - model.buffer_cls
+          - model.grad_pass.state_consistency
           # eval
           - eval_mode
           - n_eval 

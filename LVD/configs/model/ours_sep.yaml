@@ -15,6 +15,7 @@ grad_pass:
   flat_D : false
   skill_D : true # diff=false면 무의미 
   skill : true
+  state_consistency : false
 
 only_flatD : false
 

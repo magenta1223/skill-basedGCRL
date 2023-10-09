@@ -213,6 +213,7 @@ zeroshot_tasks = np.array([
     [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
     [0,1,2,4],  # BTLH
+    # [1,2,3,4] # TLSH 이런건 없다
 ])
 
 few_shot_tasks = np.array([

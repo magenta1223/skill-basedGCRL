@@ -129,61 +129,6 @@ class Evaluator:
 
         df['reward'] = df['reward'].apply(lambda x: x * self.env_scoreFactor[self.env_name])
 
-        # add seed 
-        # per_task_target_cols = ['task', 'reward', 'success']
-        # per_task_groupby = ['task']
-        # tasktype_groupby = ['task_type']
-        # sort_cols = ['order']
-        # pertask_target_cols = ['task', 'reward', 'success']
-        # tasktype_target_cols = ['task_type', 'reward', 'success']
-
-        # if self.cfg.eval_mode =="finetune":
-        #     per_task_target_cols.append('shot')
-        #     per_task_groupby.append('shot')
-        #     tasktype_groupby.append('shot')
-        #     sort_cols.append('shot')
-        #     pertask_target_cols = ['task', 'shot', 'reward', 'success']
-        #     tasktype_target_cols = ['task_type', 'shot', 'reward', 'success']
-
-        # # aggregate along  task 
-        # aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        # aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
-        # aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem'] * 1.96:.2f}", axis = 1)
-
-        # aggregated = aggregated[pertask_target_cols]
-
-        # aggregated.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv", index = False)
-
-        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv")
-
-        # df = self.task_mapping(df)
-
-        # unseen_rwd_mu, unseen_rwd_ste = df.loc[df['task_type'] != "seen"][['reward']].agg(['mean', 'sem']).values
-        # unseen_scs_mu, unseen_scs_ste = df.loc[df['task_type'] != "seen"][['success']].agg(['mean', 'sem']).values
-
-        # unseen_avg = {
-        #     'task_type' : 'unseen Avg.',
-        #     'reward/mean' : unseen_rwd_mu,
-        #     'reward/sem' : unseen_rwd_ste,
-        #     'success/mean' : unseen_scs_mu,
-        #     'success/sem' : unseen_scs_ste,
-        # }
-
-        # # aggregate per task group            
-        # df_tasktype= df.drop(['env', 'task', 'seed'], axis = 1).groupby(tasktype_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
-        # df_tasktype['order'] = df_tasktype['task_type'].map(self.task_type_order)
-        # df_tasktype = df_tasktype.sort_values(by = sort_cols)
-        # df_tasktype = pd.concat(( df_tasktype, pd.DataFrame(unseen_avg) ), axis = 0).reset_index(drop=True).drop(['order'], axis = 1)
-
-        
-        # df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.2f} pm {row['reward/sem'] * 1.96:.2f}", axis = 1)
-        # df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.2f} pm {row['success/sem'] * 1.96:.2f}", axis = 1)
-        # df_tasktype = df_tasktype[tasktype_target_cols]
-        
-        
-        # df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
-        # self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
-        
         per_task_target_cols = ['seed', 'task', 'reward', 'success']
         per_task_groupby = ['seed', 'task']
         tasktype_groupby = ['seed', 'task_type']
@@ -208,8 +153,8 @@ class Evaluator:
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
 
     
-        aggregated['reward'] = aggregated.apply(lambda row: f"{row['reward/mean']:.1f} \\pm {row['reward/sem'] * 1.96:.1f}", axis = 1)
-        aggregated['success'] = aggregated.apply(lambda row: f"{row['success/mean']:.1f} \\pm {row['success/sem'] * 1.96:.1f}", axis = 1)
+        aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
+        aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
 
         aggregated = aggregated[pertask_target_cols]
 
@@ -247,8 +192,8 @@ class Evaluator:
         df_tasktype = pd.concat(( df_tasktype, pd.DataFrame(unseen_avg) ), axis = 0).reset_index(drop=True).drop(['order'], axis = 1)
 
         
-        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{row['reward/mean']:.1f} \\pm {row['reward/sem'] * 1.96:.1f}", axis = 1)
-        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{row['success/mean']:.1f} \\pm {row['success/sem'] * 1.96:.1f}", axis = 1)
+        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
+        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
         df_tasktype = df_tasktype[tasktype_target_cols]
         
         

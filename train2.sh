@@ -2,6 +2,7 @@
 
 # # 환경 변수 설정
 
+
 METHOD=ours_sep
 ENV=kitchen
 
