@@ -425,8 +425,6 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                     additional_losses = dict(
                         state_consistency_f = state_consistency_f
                     )
-                    
-                    
                 )    
 
             else:
