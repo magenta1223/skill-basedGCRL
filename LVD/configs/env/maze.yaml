@@ -15,6 +15,8 @@ normalize_state : false
 
 # RND filter threshold 
 std_factor : 1.1
+adv_clip : 3
+
 
 # discount for generated traj 
 discount : true

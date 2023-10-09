@@ -61,6 +61,17 @@ seeds :
   - 444
   - 666
 
+shots :
+  - 1
+  - 3
+  - 5
+  - 10
+  - 15
+  - 20
+  - 25
+  - 50 
+
+
 phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 eval_mode : false

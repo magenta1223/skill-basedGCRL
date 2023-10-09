@@ -157,8 +157,7 @@ class GC_Skill_RL_Trainer:
                         # logger에 logging을 해야 하는데. .
                         break
                     
-                    # if n_ep in [10, 20, 25, 50, 100, 150, 300]:
-                    if n_ep in [1, 3, 5, 10, 15, 20, 25, 30, 50]:
+                    if n_ep in self.cfg.shots:
                         torch.save({
                             "model" : self.agent,
                         }, f"{self.cfg.weights_path}/{task_name}_ep{n_ep}.bin")  

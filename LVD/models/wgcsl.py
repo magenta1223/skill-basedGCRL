@@ -168,7 +168,7 @@ class WGCSL(BaseModel):
 
         exp_adv = torch.exp(adv)
         # if self.clip_score is not None:
-        weights = torch.clamp(exp_adv, max=10)
+        weights = torch.clamp(exp_adv, max=self.adv_clip)
         
         end = time()
         

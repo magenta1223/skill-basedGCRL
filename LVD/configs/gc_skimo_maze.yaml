@@ -21,8 +21,10 @@ model:
   state_encoder :
     in_feature : ${env.state_dim} 
     latent_state_dim : ${env.latent_state_dim}
-    env_state_dim : ${env.n_env}
-    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    # env_state_dim : ${env.n_env}
+    # ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    env_state_dim : 2
+    ppc_state_dim : ${env.n_pos}
     pos_state_dim : ${env.n_pos}
     nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.latent_state_dim}
@@ -30,8 +32,10 @@ model:
   state_decoder :
     in_feature : ${env.latent_state_dim}
     latent_state_dim : ${env.latent_state_dim}
-    env_state_dim : ${env.n_env}
-    ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    # env_state_dim : ${env.n_env}
+    # ppc_state_dim : ${add:${env.n_pos}, ${env.n_nonPos}}
+    env_state_dim : 2
+    ppc_state_dim : ${env.n_pos}
     pos_state_dim : ${env.n_pos}
     nonPos_state_dim : ${env.n_nonPos}
     out_dim : ${env.state_dim}
