@@ -45,6 +45,7 @@ hydra:
           - env.precollect
           - env.n_episode
           - env.time_limit
+          - env.gcsl_lr
           # model 
           - model.consistency_update 
           - model.q_function.norm_cls
