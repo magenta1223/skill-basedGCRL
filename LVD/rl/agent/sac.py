@@ -169,6 +169,7 @@ class SAC(BaseModel):
 
         self.stat.update(results)
         self.stat.update(dist_out.additional_losses)
+        
 
 
     @torch.no_grad()

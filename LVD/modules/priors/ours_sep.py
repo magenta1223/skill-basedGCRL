@@ -412,51 +412,60 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
             )
 
         else:
-            # policy 
-            states, G = batch.states, batch.G
-            with torch.no_grad():
-                ht, ht_pos, ht_nonPos = self.state_encoder(states)
+            return self.policy_dist(batch)
+        
+    def policy_dist(self, batch):
+        # policy 
+        states, G = batch.states, batch.G
+        with torch.no_grad():
+            ht, ht_pos, ht_nonPos = self.state_encoder(states)
 
+        if self.cfg.learning_mode == "only_skill":
+            policy_skill = self.high_policy.dist(torch.cat((ht, G), dim = -1))
+            result =  edict(
+                policy_skill = policy_skill,
+                additional_losses = dict(
+                )
+            )    
 
-            if self.cfg.learning_mode == "only_skill":
-                policy_skill = self.high_policy.dist(torch.cat((ht, G), dim = -1))
-                result =  edict(
-                    policy_skill = policy_skill,
-                    additional_losses = dict(
-                        state_consistency_f = state_consistency_f
-                    )
-                )    
+        else:
+            start_detached = ht.clone().detach() # stop grad : 안하면 goal과의 연관성이 너무 심해짐. 
+            # sg_input = self.sg_input(start_detached, G)
 
-            else:
-                # forward subgoal generator 
-                sg_input = self.sg_input(ht, G)
-                
-                if self.cfg.sg_residual:
-                    subgoal_f = self.subgoal_generator(sg_input)
-                    subgoal_f = subgoal_f + ht
-                
-                # skill inference 
-                invD, _ = self.forward_invD(ht, subgoal_f)
-                skill = invD.rsample() 
-                
-                # skill execution
-                D = self.forward_D(ht, skill)
-                
-                # if self.cfg.grad_pass.state_consistency:
-                #     state_consistency_f = F.mse_loss(subgoal_f, D)
-                # else:
-                #     state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
-                # assert 1==0, state_consistency_f.item()
-                
+            # _subgoal_f = self.subgoal_generator(sg_input)
+            
+            # if self.cfg.sg_residual:
+            #     subgoal_f = _subgoal_f + start_detached
+            # else:
+            #     subgoal_f = _subgoal_f
+            
+            # # skill inference 
+            
+            # invD, _  = self.inverse_dynamics.dist(state = start_detached, subgoal = subgoal_f, tanh = self.cfg.tanh)
+            # skill = invD.rsample() 
+            
+            # # skill execution
+            # D = self.forward_D(ht, skill)
+            
+            invD, D, subgoal_f = self.forward_subgoal_G(ht, G)
+            
+            if self.cfg.grad_pass.state_consistency:
                 state_consistency_f = F.mse_loss(subgoal_f, D)
-                result =  edict(
-                    policy_skill = invD,
-                    additional_losses = dict(
-                        state_consistency_f = state_consistency_f
-                    )
-                )    
+            else:
+                subgoal_f_c = subgoal_f.clone().detach()
+                state_consistency_f = F.mse_loss(subgoal_f_c, D)
+            # assert 1==0, state_consistency_f.item()
+            
+            # state_consistency_f = F.mse_loss(subgoal_f, D)
+                        
+            result =  edict(
+                policy_skill = invD,
+                additional_losses = dict(
+                    state_consistency_f = state_consistency_f
+                )
+            )    
 
-            return result
+        return result
     
     @torch.no_grad()
     def act(self, states, G):
