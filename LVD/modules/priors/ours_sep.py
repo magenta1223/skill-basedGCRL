@@ -442,11 +442,13 @@ class GoalConditioned_Diversity_Sep_Prior(ContextPolicyMixin, BaseModule):
                 # skill execution
                 D = self.forward_D(ht, skill)
                 
-                if self.cfg.grad_pass.state_consistency:
-                    state_consistency_f = F.mse_loss(subgoal_f, D)
-                else:
-                    state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
+                # if self.cfg.grad_pass.state_consistency:
+                #     state_consistency_f = F.mse_loss(subgoal_f, D)
+                # else:
+                #     state_consistency_f = F.mse_loss(subgoal_f.detach(), D)
                 # assert 1==0, state_consistency_f.item()
+                
+                state_consistency_f = F.mse_loss(subgoal_f, D)
                 result =  edict(
                     policy_skill = invD,
                     additional_losses = dict(
