@@ -122,7 +122,7 @@ class GC_Skill_RL_Trainer:
                 early_stop = 0
                 precollect_rwds = 0
 
-                for n_ep in range(self.cfg.n_episode+1):                    
+                for n_ep in range(max(self.cfg.shots)):                    
 
 
                     # # ep 종료 지점에서               
