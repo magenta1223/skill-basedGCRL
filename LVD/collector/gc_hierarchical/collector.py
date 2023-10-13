@@ -24,9 +24,6 @@ class GC_Hierarchical_Collector:
         state, done, t = self.env.reset(), False, 0
         G = self.state_processor.get_goal(state)
         state = self.state_processor.state_process(state)
-
-        # episode = HierarchicalEpisode(state)
-        # episode  =HierarchicalEpisode_RR(state)
         episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.binary_reward, self.cfg.max_reward)
         # episode.goal = G
         self.low_actor.eval()
@@ -35,11 +32,6 @@ class GC_Hierarchical_Collector:
         
         while not done and t < self.time_limit:
             if t % self.horizon == 0:
-                # if "act_cem" in  dir(high_actor):
-                #     high_action_normal, high_action = high_actor.act_cem(state, G)
-                # else:
-                #     high_action_normal, high_action = high_actor.act(state, G)
-
                 high_action_normal, high_action = high_actor.act(state, G)
                 data_high_action_normal, data_high_action = high_action_normal, high_action
             else:
@@ -67,15 +59,11 @@ class GC_Hierarchical_Collector:
             
             episode.add_step(low_action, data_high_action_w_normal, state, G, reward, relabeled_reward, data_done, info)
             t += 1
-        # if 'TimeLimit.truncated' in info:
-        #     print(data_done, info['TimeLimit.truncated'])
-        # else:
-        #     print(data_done)
+
         if verbose:
             targetG = self.state_processor.state_goal_checker(G)
             achievedG = self.state_processor.state_goal_checker(state)
             coloring(self.env.name, targetG, achievedG, data_done, episode) 
-            # print(f"T : {self.state_processor.state_goal_checker(G)}, A : {self.state_processor.state_goal_checker(state)}")
 
         if vis:
             return imgs

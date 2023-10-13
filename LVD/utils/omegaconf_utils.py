@@ -10,7 +10,7 @@ def multiply(*args):
 def divide(a, b):
     share, remainder = divmod(a,b)
 
-    assert remainder == 0, "배수가 아님"
+    assert remainder == 0, "Invalid"
 
     return share
 

@@ -10,9 +10,6 @@ from easydict import EasyDict as edict
 # target은 q_dist에서 샘플링한 값. 
 
 class Skimo_Model(BaseModel):
-    """
-    
-    """
     def __init__(self, cfg):
         super().__init__(cfg)
 
@@ -55,7 +52,6 @@ class Skimo_Model(BaseModel):
                     {"params" : self.prior_policy.dynamics.parameters()},
                 ], lr = self.lr ),
                 "metric" : "D"
-                # "metric" : "Prior_GC"
             }, 
             'state' : {
                 "optimizer" : RAdam([
@@ -154,40 +150,14 @@ class Skimo_Model(BaseModel):
         recon = self.loss_fn('recon')(self.outputs['skill_hat'], batch.actions)
         reg = self.loss_fn('reg')(self.outputs['post'], self.outputs['fixed']).mean()
         
-        if self.tanh:
-            prior = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['prior'], # distributions to optimize
-                self.outputs['z_normal'],
-                tanh = self.tanh
-            ).mean()
+        prior = self.loss_fn('prior')(
+            self.outputs['z'],
+            self.outputs['prior'], # distributions to optimize
+            self.outputs['z_normal'],
+            tanh = self.tanh
+        ).mean()
 
-            # policy_loss = self.loss_fn('prior')(
-            #     self.outputs['z'],
-            #     self.outputs['policy_skill'], # distributions to optimize
-            #     self.outputs['z_normal'],
-            #     tanh = self.tanh
-            # ).mean()
-
-
-            if self.mode_drop:
-                policy_loss = self.loss_fn('reg')(self.outputs['policy_skill'], self.outputs['post_detach']).mean()
-            else:
-                policy_loss = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean()
-    
-
-        else:
-            prior = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['prior'], 
-                tanh = self.tanh
-            ).mean()
-
-            policy_loss = self.loss_fn('prior')(
-                self.outputs['z'],
-                self.outputs['policy_skill'], # distributions to optimize
-                tanh = self.tanh
-            ).mean()
+        policy_loss = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean()
 
         D_loss = self.loss_fn('recon')(
             self.outputs['D'],

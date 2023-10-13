@@ -29,13 +29,6 @@ def render_from_env(*args, **kwargs):
 
 def render_kitchen(env, task, states = None, actions = None, c = 0, text = None, size = (400, 400)):
     assert states is not None or actions is not None, "States or actions must not be None."
-    # assert states is None or actions is None, "둘 중 하나만" 
-    
-    # if states is not None:
-    #     mode = "state"
-    # else:
-    #     mode = "action"
-
     if actions is not None:
         mode = "action"
     else:

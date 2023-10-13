@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.distributions as torch_dist
 from ..modules import *
 from ..utils import *
-# 앞이 estimate = q_hat_dist
-# target은 q_dist에서 샘플링한 값. 
 
 
 class BaseModel(BaseModule):
@@ -21,9 +19,6 @@ class BaseModel(BaseModule):
             self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.zeroshot_tasks]
 
         self.state_processor = StateProcessor(cfg.env_name)
-        # self.seen_tasks = envtask_cfg.known_tasks
-        # self.unseen_tasks = envtask_cfg.unknown_tasks
-
         # Losses
         self.loss_fns = {
             'recon' : ['mse', nn.MSELoss()],

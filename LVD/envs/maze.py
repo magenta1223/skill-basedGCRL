@@ -45,40 +45,8 @@ class Maze_GC(MazeEnv):
         self.agent_centric_res = 32
         self.render_width = 32
         self.render_height = 32
-        # self.maze_size = size
-        # self.maze_spec = rand_layout(size=size, seed=seed)
-        
         # for initialization
         self.task = MazeTask_GC([[0, 0], [0, 0]])
-        # self.done_on_completed = False
-        # self.task = None
-        # self.done_on_completed = done_on_completed
-        # gym.utils.EzPickle.__init__(self, size, seed, reward_type, done_on_completed)
-        # print(self.reset_locations)
-        # 이 중에 적당히 멀리있는 goal을 뽑아야 함.
-        # size=20이면 10,10에서 출발 L1거리가 최대 20이니, 10이상인걸로 
-        # L1 distance가 size // 2 이상인 그런 지점을 거르고
-        # 거리순으로 정렬, 3개마다 샘플링
-
-        # print(np.array(self.reset_locations))
-
-        # center = np.array([self.maze_size // 2, self.maze_size // 2])
-        
-        # dists = np.abs(goal_candidates-center).sum(axis = 1)
-        # # goal_candidates = goal_candidates[ (self.maze_size // 10) * 6 > dists > (self.maze_size // 10) * 3]
-
-        # cond1 = dists < (self.maze_size // 10) * 6
-        # cond2 = dists > (self.maze_size // 10) * 3
-
-        # goal_candidates = goal_candidates[np.where( cond1 & cond2 )[0]]
-        
-        # indices = random.sample(range(len(goal_candidates)), k = 10)
-
-        # print(goal_candidates[indices])
-        # assert 1==0, ""
-        
-
-        # Goal 후보를 찾아야.. 
         self._viewers = {}
         self.viewer = self._get_viewer(mode = "rgb_array")
 
@@ -113,14 +81,6 @@ class Maze_GC(MazeEnv):
         ob = np.concatenate((ob, target), axis = 0)
        
         return ob
-        # with self.agent_centric_render():
-        #     img = self.sim.render(self.agent_centric_res, self.agent_centric_res, device_id=self.render_device) / 255
-        #     walls = np.abs(img - WALL).mean(axis=-1)
-        #     grounds = np.minimum(np.abs(img - G1).mean(axis=-1), np.abs(img - G2).mean(axis=-1))
-        #     img = np.stack((walls, grounds), axis=-1).argmax(axis=-1)
-
-
-        # return np.concatenate((self._get_obs(), img.reshape(-1), np.array(self._target)), axis = 0)
 
     @contextmanager
     def agent_centric_render(self):
@@ -161,17 +121,11 @@ class Maze_GC(MazeEnv):
             reward = np.exp(-goal_dist)
         else:
             raise ValueError('Unknown reward type %s' % self.reward_type)
-        
-        # relabeled_reward = self.compute_relabeled_reward()
-        
+                
         env_info = {}
         env_info['relabeled_reward'] = 0 
 
         env_info['orig_return'] = reward
-
-
-        # GC buffer에서 조절
-        
 
         return ob, reward, done, env_info
 
@@ -185,16 +139,12 @@ class Maze_GC(MazeEnv):
 
         return reward
 
-
-
-
     def render(self, mode = "rgb_array"):
         if mode == "agent_centric":
             with self.agent_centric_render():
                 img = self.sim.render(self.agent_centric_res, self.agent_centric_res, device_id=self.render_device) / 255
                 walls = np.abs(img - WALL).mean(axis=-1)
                 grounds = np.minimum(np.abs(img - G1).mean(axis=-1), np.abs(img - G2).mean(axis=-1))
-                # img = np.stack((walls, grounds), axis=-1).argmax(axis=-1)
             return img * 255
 
         else:
@@ -208,66 +158,6 @@ maze_cfg = {
     'visual_encoder' : None
 }
 
-maze_meta_tasks = np.array([
-    [[10, 24], [16, 18]],
-    [[10, 24], [ 6, 39]],
-    [[10, 24], [ 4, 14]],
-    [[10, 24], [15, 11]],
-    [[10, 24], [ 3, 16]],
-    [[10, 24], [15, 17]],
-    [[10, 24], [18, 20]],
-    [[10, 24], [12, 13]],
-    [[10, 24], [24, 17]],
-    [[10, 24], [16, 36]],
-    [[10, 24], [15, 16]],
-    [[10, 24], [24, 11]],
-    [[10, 24], [14, 39]],
-    [[10, 24], [22, 14]],
-    [[10, 24], [ 6, 13]],
-    [[10, 24], [15, 14]],
-    [[10, 24], [ 5, 35]],
-    [[10, 24], [22, 26]],
-    [[10, 24], [18, 17]],
-    [[10, 24], [13, 11]]])
-
-# MAZE_TASKS = np.array([
-#     [[10, 24], [39,  6]],
-#     [[10, 24], [21,  6]],
-#     [[10, 24], [21,  8]],
-#     [[10, 24], [ 2,  5]],
-#     [[10, 24], [36, 34]]
-#     ])
-
-
-maze_tasks = np.array([
-
-
-    # # Short 
-    # [[10, 24], [22, 23]], # 19
-    # [[10, 24], [1, 17]], # 18
-    # [[10, 24], [13, 9]], # 19
-
-    # Middle 
-    [[10, 24], [23, 14]], # 29
-    [[10, 24], [18, 8]],  # 36
-    [[10, 24], [24, 34]], # 32
-    
-    # extended
-    [[10, 24], [24, 39]], # 37
-    [[10, 24], [15, 40]], # 40
-    [[10, 24], [36,  21]], # 47 
-
-    # # too far 
-    # [[10, 24], [35,  5]], # 62 
-    # [[10, 24], [39,  26]], # 45 
-    # [[10, 24], [39,  5]], # 66 
-
-
-# 35 5 
-# 39 26 
-# 38 4 
-
-    ])
 
 maze_zeroshot_tasks = np.array([
     # None 
@@ -332,34 +222,3 @@ maze_fewshot_tasks = np.array([
 
     ])
 
-
-
-
-# -- HARD -- #
-maze_ablation_tasks = np.array([
-    # [[10, 24], [24, 39]],
-    # [[10, 24], [24, 11]],
-    # [[10, 24], [23, 40]],
-    [[10, 24], [32, 36]],
-    # [[10, 24], [19, 5]],
-    [[10, 24], [36,  21]],
-    # [[10, 24], [38, 37]],
-    # [[10, 24], [39, 27]],
-    # [[10, 24], [31, 10]],
-    # [[10, 24], [40, 29]],
-    # [[10, 24], [40, 24]],
-    # [[10, 24], [25, 37]],
-    # [[10, 24], [ 5,  2]],
-    # [[10, 24], [25,  6]],
-    
-])
-
-
-
-
-maze_known_tasks = ['KBTS','MKBS','MKLH','KTLS',
-               'BTLS','MTLH','MBTS','KBLH',
-               'MKLS','MBSH','MKBH','KBSH',
-               'MBTH','BTSH','MBLS','MLSH',
-               'KLSH','MBTL','MKTL','MKSH',
-               'KBTL','KBLS','MKTH','KBTH']

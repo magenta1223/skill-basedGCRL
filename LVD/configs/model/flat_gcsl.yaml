@@ -1,15 +1,14 @@
-subseq_len : 11
-tanh : true
-gc : true
-skill_trainer : LVD.runner.BaseTrainer
-rl_trainer : LVD.rl.Flat_RL_Trainer
-buffer_cls : LVD.collector.GC_Buffer_Relabel
-with_gcsl: true
+skill_trainer : LVD.runner.BaseTrainer       # pretrain trainer 
+rl_trainer : LVD.rl.Flat_RL_Trainer          # few-shot adaptation trainer 
+buffer_cls : LVD.collector.GC_Buffer_Relabel # buffer class
 
-consistency_update : true
-model_update : false
-binary_reward : true
+with_gcsl: true # deprecated.
+   
+tanh : true # action space : tanh normal
+gc : true   # deprecated
 
+consistency_update : true  # deprecated
+model_update : false       # deprecated
 
 policy : 
   n_blocks : 5
@@ -22,6 +21,7 @@ policy :
   bias : true
   dropout : 0
 
+# not used. 
 q_function : 
   n_blocks : 5
   hidden_dim : 128
@@ -30,17 +30,5 @@ q_function :
   linear_cls : LVD.modules.base.LinearBlock
   norm_cls : torch.nn.LayerNorm
   act_cls : torch.nn.Mish
-  bias : true
-  dropout : 0
-
-
-normal_distribution : 
-  n_blocks : 5
-  hidden_dim : 128
-  module_type : linear
-  linear_cls : LVD.modules.base.LinearBlock
-  norm_cls : torch.nn.LayerNorm
-  act_cls : torch.nn.Mish
-  tanh : true
   bias : true
   dropout : 0

@@ -1,14 +1,12 @@
-skill_trainer : LVD.runner.BaseTrainer
-rl_trainer : LVD.rl.Flat_RL_Trainer
-buffer_cls : LVD.collector.GC_Buffer_Relabel
+skill_trainer : LVD.runner.BaseTrainer          # pretrain
+rl_trainer : LVD.rl.Flat_RL_Trainer             # few-shot adaptation 
+buffer_cls : LVD.collector.GC_Buffer_Relabel    # buffer class 
 
-with_gcsl: true
 
-consistency_update : true
-model_update : false
-binary_reward : true
-tanh : true
-adv_mode : 1
+with_gcsl: true # deprecated
+consistency_update : true  # deprecated
+model_update : false       # deprecated
+tanh : true                # action space : tanh normal
 
 policy : 
   n_blocks : 5

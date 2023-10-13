@@ -10,11 +10,7 @@ from torch.nn import functional as F
 
 class Skimo_Prior(ContextPolicyMixin, BaseModule):
     """
-    TODO 
-    1) 필요한 모듈이 마구마구 바뀌어도 그에 맞는 method 하나만 만들면
-    2) RL이나 prior trainin 에서는 동일한 method로 호출 가능하도록
     """
-
     def __init__(self, **submodules):
         super().__init__(submodules)
         self.target_state_encoder = copy.deepcopy(self.state_encoder)
@@ -60,11 +56,12 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             htH = self.target_state_encoder(states[:, -1])
 
         # -------------- State-Conditioned Prior -------------- #
-        if self.cfg.env_name == "kitchen":
-            prior, prior_detach = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos], detached = True)
-        else:
-            prior, prior_detach = self.skill_prior.dist(states[:, 0], detached = True)
-
+        # if self.cfg.env_name == "kitchen":
+        #     prior, prior_detach = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos], detached = True)
+        # else:
+        #     prior, prior_detach = self.skill_prior.dist(states[:, 0], detached = True)
+        prior, prior_detach = self.forward_prior(states)
+        
         # ------------------ Skill Dynamics ------------------- #
         dynamics_input = torch.cat((ht, skill), dim = -1)
         D = self.dynamics(dynamics_input)
@@ -73,7 +70,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         policy_skill =  self.highlevel_policy.dist(torch.cat((ht.clone().detach(), G), dim = -1))
 
         # -------------- Rollout for metric -------------- #
-        # dense execution with loop (for metric)
         with torch.no_grad():
             subgoal_recon_D = self.state_decoder(D)
 
@@ -102,23 +98,25 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
 
         return result
 
-    
-    # @torch.no_grad()
-    # def act_cem(self, states, G):
-    #     batch = edict(
-    #         states = prep_state(states, self.device),
-    #         G = prep_state(G, self.device),
-    #     )
+    def forward_prior(self, start):
+        # if self.cfg.env_name == "kitchen":
+        #     prior, prior_detach = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos], detached = True)
+        # else:
+        #     prior, prior_detach = self.skill_prior.dist(states[:, 0], detached = True)
         
-    #     skill_normal, skill = self.cem_planning(batch)
-    #     return to_skill_embedding(skill_normal), to_skill_embedding(skill)
+    
+        if len(start.shape) > 2:
+            start = start[:, 0]
+        
+        if self.cfg.manipulation:
+            start = start[:, :self.cfg.n_pos]
+            
+        return self.skill_prior.dist(start, detached = True)
 
 
     @torch.no_grad()
     def act(self, states, G):
         self.rollout_step += 1
-        # 환경별로 state를 처리하는 방법이 다름.
-        # 여기서 수행하지 말고, collector에서 전처리해서 넣자. 
 
         batch = edict(
             states = prep_state(states, self.device),
@@ -126,29 +124,32 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         )
         
         if self.qfs is not None:
-            # skill_normal, skill = self.cem_planning(batch)
-            # return to_skill_embedding(skill_normal), to_skill_embedding(skill)
-
             dist = self.dist(batch, mode = "act").policy_skill
             if isinstance(dist, TanhNormal):
-                z_normal, z = dist.sample_with_pre_tanh_value()
-                return to_skill_embedding(z_normal), to_skill_embedding(z)
+                if self.explore: # collect ep for adaptation 
+                    z_normal, z = dist.sample_with_pre_tanh_value()
+                    return to_skill_embedding(z_normal), to_skill_embedding(z)
+                else: # evaluation 
+                    return to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2)), to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2))
+
             else:
                 return None, to_skill_embedding(dist.sample())
         else:
             dist = self.dist(batch, mode = "act").policy_skill
             if isinstance(dist, TanhNormal):
-                z_normal, z = dist.sample_with_pre_tanh_value()
-                return to_skill_embedding(z_normal), to_skill_embedding(z)
+                if self.explore: # collect ep for adaptation 
+                    z_normal, z = dist.sample_with_pre_tanh_value()
+                    return to_skill_embedding(z_normal), to_skill_embedding(z)
+                else: # evaluation 
+                    return to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2)), to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2))
+
             else:
                 return None, to_skill_embedding(dist.sample())
-
     
     def dist(self, batch, mode = "policy", latent = False):
         """
         latent : for backpropagation through time
         """
-
         if mode == "consistency":
             return self.consistency(batch)
         
@@ -176,14 +177,11 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                 policy_skill = policy_skill
             )
         
-
-
     @torch.no_grad()
     def estimate_value(self, state, skills, G, horizon, qfs):
         """Imagine a trajectory for `horizon` steps, and estimate the value."""
         value, discount = 0, 1
         for t in range(horizon):
-            # step을 추가하자
             next_state = self.dynamics( torch.cat((state, skills[:, t]), dim  = -1))
             reward = self.reward_function( torch.cat((state, G, skills[:, t]), dim  = -1)).squeeze(-1) 
 
@@ -195,13 +193,11 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         policy_skill =  self.highlevel_policy.dist(torch.cat((state, G), dim = -1)).sample()
         q_values = [  qf(torch.cat((state, G, policy_skill), dim = -1)).squeeze(-1)   for qf in qfs]
         
-        value += discount * torch.min(*q_values) # 마지막엔 Q에 넣어서 value를 구함. 
+        value += discount * torch.min(*q_values) 
         return value
 
     @torch.no_grad()
     def rollout(self, batch):
-        # ht, G = inputs['states'], inputs['G']
-        # planning_horizon = inputs['planning_horizon']
 
         ht, G = batch.states, batch.G
         planning_horizon = batch.planning_horizon
@@ -306,14 +302,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         state_consistency = F.mse_loss(htH_hat, htH)
         reward_loss = F.mse_loss(rewards_pred, batch.rewards) # real reward 
 
-        # gcsl 
-        # GCSL_loss_skill = (nll_dist(
-        #     batch.actions,
-        #     invD_sub,
-        #     batch.actions_normal,
-        #     tanh = self.cfg.tanh
-        # ) * weights).mean()
-        
 
         policy_skill =  self.highlevel_policy.dist(torch.cat((ht.clone().detach(), relabeled_G), dim = -1))
 
@@ -324,13 +312,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
             tanh = self.cfg.tanh
         ).mean()
 
-
-        # 이렇게하면 mode covering임.
-        # mode dropping ㄱ 
-
-        # GCSL_loss = GCSL_loss_subgoal + GCSL_loss_skill
-
-        
         return  edict(
             state_consistency = state_consistency * 2,
             reward_loss = reward_loss * 0.5,
@@ -369,18 +350,12 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
         
         # soft update 
         new_loc = self.cfg.cem_momentum * loc + (1 - self.cfg.cem_momentum) * weighted_loc
-        log_scale = torch.clamp(weighted_std, self._std_decay(self.rollout_step), 2).log() # new_std의 최소값. .. 을 해야돼? 
-        # log_scale = weighted_std.log()
+        log_scale = torch.clamp(weighted_std, self._std_decay(self.rollout_step), 2).log() 
         dist = get_dist(new_loc, log_scale, tanh = self.tanh)
 
         return dist, new_loc
     
     def encode(self, states, keep_grad = False, prior = False):
-        """
-        1. latent state가 들어오면 -> 그대로 내보내기 
-        2. 아니면 -> 인코딩
-        """
-
         if prior:
             if self.cfg.env_name == "kitchen":
                 return states[:, :self.cfg.n_pos]
@@ -395,14 +370,6 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                     ht = self.state_encoder(states)
             return ht 
 
-
-
-        # if states.shape[-1] == self.cfg.latent_state_dim:
-        #     return states
-        
-        # else:
-        #     return self.__encode__(states, keep_grad)
-        
     def __encode__(self, states, keep_grad = False):
 
         if keep_grad:
@@ -445,24 +412,9 @@ class Skimo_Prior(ContextPolicyMixin, BaseModule):
                     # "metric" : "GCSL_loss"
                     "metric" : None,
                 }
-
-                # "state_enc" : {
-                #     "params" :  self.state_encoder.parameters(), 
-                #     "lr" : 1e-6, # now best : 1e-6
-                #     # "metric" : "GCSL_loss"
-                #     "metric" : None,
-                # }
-
             }
                 
         )
-
-        # if self.cfg.with_gcsl:
-        #     rl_params["f"] = {
-        #         "params" :  self.subgoal_generator.parameters(), 
-        #         "lr" : self.cfg.f_lr, 
-        #         # "metric" : "GCSL_loss"
-        #         "metric" : None,
-        #     }
-
+        
+        
         return rl_params

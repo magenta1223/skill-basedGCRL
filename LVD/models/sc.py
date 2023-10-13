@@ -28,14 +28,8 @@ class StateConditioned_Model(BaseModel):
             cfg = cfg,
         )
 
-        ## skill encoder
         self.skill_encoder = SequentialBuilder(cfg.skill_encoder)
-
-        ## closed-loop skill decoder
         self.skill_decoder = DecoderNetwork(cfg.skill_decoder)
-
-        # optimizer
-        # self.optimizer = RAdam(self.parameters(), lr = 1e-3)
 
         self.optimizers = {
             "skill_prior" : {
@@ -52,10 +46,8 @@ class StateConditioned_Model(BaseModel):
             }
         }
 
-
         self.outputs = {}
         self.loss_dict = {}
-
         self.step = 0
 
     @torch.no_grad()
@@ -70,8 +62,7 @@ class StateConditioned_Model(BaseModel):
 
         # dummy metric 
         self.loss_dict['metric'] = self.loss_dict['Prior_S']
-        
-
+    
     def forward(self, batch):
         states, actions, G = batch.states, batch.actions, batch.G
 
@@ -176,10 +167,7 @@ class StateConditioned_Model(BaseModel):
                 optimizer['optimizer'].step()
 
     def optimize(self, batch, e):
-        # inputs & targets       
-
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-
         self.__main_network__(batch)
         self.get_metrics()
 
@@ -188,10 +176,7 @@ class StateConditioned_Model(BaseModel):
 
     @torch.no_grad()
     def validate(self, batch, e):
-        # inputs & targets       
-
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
-
         self.__main_network__(batch, validate= True)
         self.get_metrics()
 

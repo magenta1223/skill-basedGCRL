@@ -6,16 +6,17 @@ defaults:
 dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
 structure : skimo
 
-n_skill : 10
+# n_skill : 10
 scheduler_params:
   min_lr: 1e-6
+
 env:
   reg_beta : 1e-4
   auto_alpha : true
-  init_alpha : 0.01
-  policy_lr : 3e-5
-  gcsl_lr: 5e-7
-  consistency_lr : 5e-7
+  init_alpha : 0.01  
+  policy_lr : 3e-5        # for few-shot adaptation by RL loss
+  gcsl_lr : 1e-6          # gcsl lr 
+  consistency_lr : 5e-7   # for submodule adaptation 
 
 model:
   state_encoder :

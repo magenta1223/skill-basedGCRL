@@ -8,17 +8,6 @@ import torch
 
 @torch.no_grad()
 def update_moving_average(ma_model, current_model, beta = 0.01):
-    # normalization layer : hard update
-    # for current_params, ma_params in zip(current_model.parameters(), ma_model.parameters()):
-    #     old_weight, up_weight = ma_params.data, current_params.data
-    #     ma_params.data = ema_updater.update_average(old_weight, up_weight)
-
-
-    # sd = current_model.state_dict()
-    # ma_model.load_state_dict(sd)
-    # print('ma called')
-    # pass
-
     for (n1, current_params), (n2, ma_params) in zip_strict(current_model.state_dict().items(), ma_model.state_dict().items()):
         old_weight, up_weight = ma_params.data, current_params.data
 
@@ -26,13 +15,9 @@ def update_moving_average(ma_model, current_model, beta = 0.01):
             continue
 
         elif "running_" in n1:
-            
-            # ma_params.data = ema_updater.update_average(None, up_weight)
             polyak_update(up_weight, old_weight, 1)
 
         else:
-            # ma_params.data = ema_updater.update_average(old_weight, up_weight)
-
             polyak_update(up_weight, old_weight, beta)
 
 

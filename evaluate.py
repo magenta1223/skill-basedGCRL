@@ -16,12 +16,10 @@ DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 @hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
 def main(cfg):
     seed_everything(666)
-    # print(OmegaConf.to_yaml(cfg))
-
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
 
-    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=finetune', 'eval_mode=rearrange']
+    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=fewshot', 'eval_mode=rearrange']
     all_overrides = [override  for override in deepcopy(list(hydra_config.overrides.task))]
 
     for override in overrides_to_remove:

@@ -26,12 +26,8 @@ class SAC(BaseModel):
 
         self.policy_optim = Adam(
             rl_params['policy'],
-            # lr = self.policy_lr # 낮추면 잘 안됨. 왜? 
         )
         
-        
-
-
         if rl_params['consistency']:
             self.consistency_optims = {  name : {  
                 'optimizer' : Adam( args['params'], lr = args['lr'] ),
@@ -42,7 +38,7 @@ class SAC(BaseModel):
 
             scheduler_params = edict(
                 factor = 0.5,
-                patience = 10, # 4 epsisode
+                patience = 10, 
                 verbose= True,
             )
 
@@ -104,10 +100,6 @@ class SAC(BaseModel):
     
     def update(self, step_inputs):
         self.train()
-
-        # batch = self.buffer.sample(self.rl_batch_size)
-        # self.episode = step_inputs['episode']
-
         batch = self.buffer.sample(self.rl_batch_size)
         self.episode = step_inputs['episode']
         self.n_step += 1
@@ -139,12 +131,8 @@ class SAC(BaseModel):
         policy_skill_dist = dist_out.policy_skill # 
         policy_skill = policy_skill_dist.rsample() 
         
-        entropy_term, prior_dists = self.entropy(  batch.states,  policy_skill_dist, kl_clip= None) # policy의 dist로는 gradient 전파함 .
+        entropy_term, prior_dists = self.entropy(  batch.states,  policy_skill_dist, kl_clip= None) 
         
-        # encoded_states = self.policy.encode(batch.states)
-        # min_qs = torch.min(*[qf(encoded_states, policy_skill) for qf in self.qfs])
-
-        # q_input = torch.cat((batch.states, batch.G, policy_skill), dim = -1)
         if self.gc:
             q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
         else:
@@ -156,16 +144,13 @@ class SAC(BaseModel):
         
         self.policy_optim.zero_grad()
         policy_loss.backward()
-        # self.grad_clip(self.policy_optim)
         self.policy_optim.step()
 
         results['policy_loss'] = policy_loss.item()
-        results['kl'] = entropy_term.mean().item() # if self.prior_policy is not None else - entropy_term.mean()
+        results['kl'] = entropy_term.mean().item() 
         results['mean_policy_scale'], results['mean_prior_scale'] = get_scales(policy_skill_dist), get_scales(prior_dists)
         results['Q-value'] = min_qs.mean(0).item()
 
-        # for k, v in dist_out['additional_losses'].items():
-        #     results[k] = v.item()
 
         self.stat.update(results)
         self.stat.update(dist_out.additional_losses)
@@ -183,11 +168,6 @@ class SAC(BaseModel):
         # calculate entropy term
         entropy_term, prior_dists = self.entropy( batch_next.states, policy_skill_dist , kl_clip= 20) 
         if self.gc:
-            # if self.hindsight_relabel:
-            #     q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.relabeled_G, policy_skill), dim = -1)
-            # else:
-            #     q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
-            # q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
             q_input = torch.cat((self.policy.encode(batch_next.states), batch_next.G, policy_skill), dim = -1)
                         
         else:
@@ -208,19 +188,12 @@ class SAC(BaseModel):
         target_qs = rwd_term + ent_term
 
         qf_losses = []  
-        if self.gc:
-            # if self.hindsight_relabel:                
-            #     q_input = torch.cat((self.policy.encode(batch.states), batch.relabeled_G, batch.actions), dim = -1)
-            # else:       
-            #     q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
-            # q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)                        
+        if self.gc:                      
             q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)            
         else:
             q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
 
         for qf, qf_optim in zip(self.qfs, self.qf_optims):
-            # qs = qf(self.q_inputs(batch)).squeeze(-1)
-            # q_input = torch.cat((batch.states, batch.G, batch.actions), dim = -1)
             qs = qf(q_input).squeeze(-1)
             qf_loss = (qs - target_qs).pow(2).mean()
             qf_optim.zero_grad()
@@ -270,9 +243,6 @@ class SAC(BaseModel):
             batch = self.buffer.sample(self.rl_batch_size)
             self.update_qs(batch)
         
-            # if self.consistency_update:
-            #     self.update_consistency(batch)
-        
         # # orig : 200 
         for _ in range(int(self.q_warmup)):
             self.update(step_inputs)
@@ -282,17 +252,6 @@ class SAC(BaseModel):
 
     
     def update_consistency(self, batch):
-
-        # 여기서 relabeled G에 대한 q-value를 계산해서
-        # BC 에 대한 가중치로
-        with torch.no_grad():
-            if self.gc:
-                q_input = torch.cat((self.policy.encode(batch.states), batch.G, batch.actions), dim = -1)
-            else:
-                q_input = torch.cat((self.policy.encode(batch.states), batch.actions), dim = -1)
-
-            batch['skill_values'] = torch.min(*[qf(q_input).squeeze(-1) for qf in self.qfs])
-
         consistency_losses = self.policy.dist(batch, mode = "consistency")
         consistency_loss = self.aggregate_values(consistency_losses)
 
@@ -307,7 +266,6 @@ class SAC(BaseModel):
 
         self.policy.soft_update() # 
 
-        
         for module_name, meter in self.consistency_meters.items():
             target_metric = self.schedulers_metric[module_name]
             if target_metric is not None:
@@ -323,25 +281,6 @@ class SAC(BaseModel):
                     meter.reset()
 
         self.stat.update(consistency_losses)
-
-        # dist_out = self.policy.dist(batch, mode = "policy")
-        # policy_skill_dist = dist_out.policy_skill # 
-        # policy_skill = policy_skill_dist.rsample() 
-
-        # entropy_term, prior_dists = self.entropy(  batch.states,  policy_skill_dist, kl_clip= None) # policy의 dist로는 gradient 전파함 .
-        
-
-        # if self.gc:
-        #     q_input = torch.cat((self.policy.encode(batch.states), batch.G, policy_skill), dim = -1)
-        # else:
-        #     q_input = torch.cat((self.policy.encode(batch.states), policy_skill), dim = -1)
-        # min_qs = torch.min(*[qf( q_input ).squeeze(-1) for qf in self.qfs])
-        # policy_loss = (- min_qs + self.alpha * entropy_term).mean()
-        # policy_loss += self.aggregate_values(dist_out.additional_losses)
-
-
-
-    
 
     def q_inputs(self, batch, actions = None):
         encoded_states = self.policy.encode(batch.states)
@@ -359,13 +298,13 @@ class SAC(BaseModel):
     
     @torch.no_grad()
     def save_prev_module(self, target = "all"):
-        self.prev_subgoal_generator = copy.deepcopy(self.policy.subgoal_generator).requires_grad_(False)
+        self.prev_skill_step_goal_genertator = copy.deepcopy(self.policy.skill_step_goal_genertator).requires_grad_(False)
         self.prev_inverse_dynamics = copy.deepcopy(self.policy.inverse_dynamics).requires_grad_(False)
         self.prev_dynamics = copy.deepcopy(self.policy.dynamics).requires_grad_(False)
 
     @torch.no_grad()
     def calc_update_ratio(self, module_name):
-        assert module_name in ['subgoal_generator', 'inverse_dynamics', 'dynamics'], "Invalid module name"
+        assert module_name in ['skill_step_goal_genertator', 'inverse_dynamics', 'dynamics'], "Invalid module name"
 
         prev_module = getattr(self, f"prev_{module_name}")
         module = getattr(self.policy, module_name)

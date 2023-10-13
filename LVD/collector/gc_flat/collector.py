@@ -9,23 +9,25 @@ from ..common import *
 
 
 class GC_Flat_Collector:
+    """
+    Episode Collector for action-step methdos.
+    """
     def __init__(self, env, time_limit=None):
         self.env = env
         self.env_name = env.name
         self.time_limit = time_limit if time_limit is not None else np.inf
-
+        
+        # state preprocessor
         self.state_processor = StateProcessor(env_name= self.env_name)
     
     @torch.no_grad()
     def collect_episode(self, actor, verbose = True, vis = False):
         state, done, t = self.env.reset(), False, 0
-
-
+        
+        # state from env : state :: G 
+        # split into state and goal.
         G = self.state_processor.get_goal(state)
         state = self.state_processor.state_process(state)
-
-        # print(f"G : {self.state_processor.goal_checker(G)}")
-
         episode = Episode_RR(state)
         actor.eval()
         imgs = []

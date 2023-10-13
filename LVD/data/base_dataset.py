@@ -20,10 +20,6 @@ class Base_Dataset(Dataset):
 
 
     def _sample_seq(self, index= False, return_index= False):
-        # # random_index = random.randint(self.start, self.end - 1)
-        # idx = index % self.n_seqs
-        # return self.seqs[idx]
-
         try:
             if index:
                 print(f"index {index}")
@@ -53,7 +49,7 @@ class Base_Dataset(Dataset):
             - goal index for hindsight relabeling
         """
 
-        goal_max_index = len(states) - 1 # 마지막 state가 이상함. 
+        goal_max_index = len(states) - 1 # 
         start_idx = np.random.randint(min_idx, states.shape[0] - self.subseq_len - 1)
         
         goal_index = np.random.randint(start_idx + self.subseq_len, goal_max_index)
@@ -65,9 +61,6 @@ class Base_Dataset(Dataset):
         return NotImplementedError
 
     def get_data_loader(self, batch_size, num_workers):
-        # print('len {} dataset {}'.format(self.phase, len(self)))
-        
-
         return RepeatedDataLoader(
             self,
             batch_size=batch_size,

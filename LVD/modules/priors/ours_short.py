@@ -9,7 +9,6 @@ from ...modules import BaseModule, ContextPolicyMixin
 from ...utils import *
 from ...contrib import update_moving_average
 from easydict import EasyDict as edict
-from .ours_sep import GoalConditioned_Diversity_Sep_Prior
 
 class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
     """
@@ -37,19 +36,13 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
         """
         # soft update
         if self.n_soft_update % self.update_freq == 0 and self.cfg.phase != "rl":
-            # update_moving_average(self.target_state_encoder, self.state_encoder, self.cfg.tau)
             update_moving_average(self.target_state_encoder, self.state_encoder)
-            # update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
         
         # hard update 
-        # update_moving_average(self.target_state_decoder, self.state_decoder, 1)
         update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics, 1)
         update_moving_average(self.target_dynamics, self.dynamics, 1)
         if self.cfg.only_flatD:
             update_moving_average(self.target_flat_dynamics, self.flat_dynamics, 1)
-
-        # update_moving_average(self.target_inverse_dynamics, self.inverse_dynamics)
-        # update_moving_average(self.target_dynamics, self.dynamics)
 
         self.n_soft_update += 1
 
@@ -104,7 +97,7 @@ class Ours_Short_Prior(ContextPolicyMixin, BaseModule):
 
 
 
-        # -------------- Subgoal Generator -------------- #
+        # -------------- Skill-step goal Generator -------------- #
         invD_sub, subgoal_D, subgoal_f = self.forward_subgoal_G(hts[:, 0], G)
         
         # -------------- High Policy -------------- #

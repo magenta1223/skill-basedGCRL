@@ -8,17 +8,12 @@ eps_adv : 0.5
 structure : flat_wgcsl
 dataset_cls : LVD.data.Maze_Dataset_Flat_WGCSL
 env:
-  policy_lr : 3e-5
-
+  policy_lr : 3e-5 # for few-shot adaptation. See models.wgcsl.WGCSL.reset_optimizers() 
   
 model:
   policy:
     in_feature : ${add:${env.state_dim}, ${env.n_goal}} 
     out_dim : ${multiply:${env.action_dim}, 2}
-    # out_dim : ${env.action_dim}
-    n_blocks : 3
-
 
   q_function:
     in_feature: ${add:${env.state_dim}, ${env.n_goal}, ${env.action_dim}} 
-      # in_feature: ${add:${env.state_dim}, ${env.skill_dim}} 

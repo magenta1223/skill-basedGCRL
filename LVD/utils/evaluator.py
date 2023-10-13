@@ -11,11 +11,9 @@ import json
 
 def clean_colname(col_name):
     if col_name.count("/") == 1:
-        # return "/".join(col_name.split("/")[:-1])
         return col_name.split("/")[0]
     else:
         return col_name
-
 
 class Evaluator:
     def __init__(self, cfg):
@@ -85,7 +83,7 @@ class Evaluator:
 
         self.eval_methods = edict(
             zeroshot = self.eval_zeroshot,
-            finetune = self.eval_finetuned,
+            fewshot = self.eval_fewshot,
             learningGraph = self.eval_learningGraph,
             rearrange = self.rearrange_taskgroup
         )
@@ -148,7 +146,8 @@ class Evaluator:
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean']).pipe(self.flat_cols).reset_index()
     
         aggregated.columns = [clean_colname(col) for col in aggregated.columns]
-        # seed 제외 
+        
+        # remove seed (already done)
         per_task_groupby.remove("seed")
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
 
@@ -201,12 +200,6 @@ class Evaluator:
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
         
         
-        
-        
-        
-        
-        
-        
     def eval_zeroshot(self):
         
         df = None
@@ -230,12 +223,9 @@ class Evaluator:
             df = pd.concat((df, eval_df), axis = 0)
             df.to_csv( zeroshot_rawdata_path, index = False )
             
-        
-        
-        
         self.aggregate(df)
         
-    def eval_finetuned(self):
+    def eval_fewshot(self):
         shots = self.cfg.shots
         # early_stop 
         
@@ -257,10 +247,6 @@ class Evaluator:
                             self.logger.log(f"Skip :  {task}_shot:{shot}_seed:{seed} is previoulsy evaluated.")
                             continue
 
-                    # {task}_seed:{seeed}_ep{shot}.bin
-                    # 여기서 early stop이 적용된 경우 shot이 없을 수 있음. 
-                    # early stop이 적용되면 -> {task}_seed:{seeed}.bin 을 사용
-                    # early stop 적용 여부는 -> shot path가 없을 때 
                     finetuned_model_path = f"{self.cfg.finetune_weight_prefix}/{str(task)}_seed:{seed}_ep{shot}.bin"
                     if os.path.exists(finetuned_model_path):
                         self.logger.log(f"Evaluating : {finetuned_model_path}")
@@ -282,14 +268,10 @@ class Evaluator:
         self.aggregate(df)
 
     def eval_learningGraph(self):
-        # 학습과정에서 생성된 csv 파일 불러와서 
-        # 슈루룩 
-        
         self.logger.log("Starting Evaluation : Learning Graph")
         self.logger.log(f"Loading : {self.cfg.eval_rawdata_path}")
 
         raw_data = pd.read_csv(self.cfg.eval_rawdata_path)
-        # 여러번 수행할 경우 run_id가 쌓임. 원치 않음. run_id를 선택할 수 있게 input 추가 
         choices = raw_data['run_id'].unique()
         if len(choices) > 1:
             run_id = input(f"Select Run ID. Choices are {choices}")
@@ -353,29 +335,19 @@ class Evaluator:
                     
                     
     def rearrange_taskgroup(self):
-        # 현재 dataset 내부의 모든 logged data에 대해 다음과 같이 진행. 
-        # 1. [EVAL_METHODS]_tasktype.csv 가 존재하는 모든 폴더를 찾는다. 
-        # 2. 해당 폴더 안에는 [EVAL_METHODS]_rawdata.csv가 존재한다. 이를 다시 task_group에 맞춰 재작성 
-        # 3. task group은 asset에서 불러오기 
-        
-        
         self.logger.log("Starting Evaluation : Task Rearrnagement")
         
-
-        # 현재 디렉토리부터 시작하여 모든 하위 디렉토리를 검색
         target_folders = []
 
         for root, dirs, files in os.walk('.'):
             for file in files:
                 folder_path = os.path.abspath(root)
                 if file.endswith('zeroshot_tasktype.csv'):
-                    # print(f"폴더 경로: {folder_path}, 파일명: {file}")
                     target_folders.append(folder_path)
         
         for folder_path in target_folders:
             rawdata_path = f"{folder_path}/zeroshot_rawdata.csv"
             if not os.path.exists(rawdata_path):
-                # print(f"{folder_path} does not have rawdata")
                 self.logger.log(f"{folder_path} does not have rawdata")
                 continue
             
@@ -420,12 +392,9 @@ class Evaluator:
             df = pd.read_csv(rawdata_path)
             
             self.cfg.eval_data_prefix = folder_path 
-            self.cfg.eval_mode = "finetune"
+            self.cfg.eval_mode = "fewshot"
             self.env_name = env_name
 
-            # self.aggregate(df)
-
-            
             try:
                 self.aggregate(df)
             except:

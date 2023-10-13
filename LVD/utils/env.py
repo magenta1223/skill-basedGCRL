@@ -40,7 +40,6 @@ class StateProcessor_Kitchen:
         """
         Remove goal.
         """
-        # return state[:30]
         return state[..., :30]
 
 
@@ -242,7 +241,6 @@ class StateProcessor:
         
 
 class Colors:
-    # ANSI 이스케이프 시퀀스로 색상 지정
     RED = '\033[91m'
     GREEN = '\033[92m'
     YELLOW = '\033[93m'

@@ -1,10 +1,83 @@
-# ENVIRONMENT # 
+# ------------------ Env Specification ------------------ #
 env_name : maze
 max_seq_len : 500
 envtask_cfg : LVD.envs.Maze_EnvTaskConfig
 
 # task type
 manipulation : false
+
+# dimension
+state_dim : 4
+n_pos : 2      # x, y location 
+n_nonPos : 2   # x, y velocity 
+n_env : 0      #   
+n_goal : 2     # x, y location
+action_dim : 2 # x, y acceleration 
+
+# pretrain params
+epoch_cycles_train : 320 # 1epoch = 100 iteration of dataset 
+batch_size : 1024 
+epochs : 140
+warmup_steps : 50
+val_data_size : 5000
+
+# online adaptation params
+time_limit : 3000      # maximum horizon in target environment 
+buffer_size : 20000    # maximum buffer size 
+n_episode : 50         # maximum episode in few-shot adaptation 
+reuse_rate : 512       # sample reuse rate 
+step_per_ep : 400      # not used. deprecated.
+precollect : 0         # precollect to initialize the buffer 
+early_stop_rwd : 80    # early stop reward. (equivalent to success rate 80%)
+max_reward : 100       # 
+
+
+# ------------------ Few-shot adaptation ------------------ #
+# value warmup 
+q_warmup : 2_000       # update step for warminup value function 
+consistency_lr : 3e-5  # update submodules
+gcsl_lr: 3e-5          # update policy by GCSL loss  
+policy_lr : 1e-7       # update policy by RL loss  
+
+# ------------------ WGCSL ------------------ #
+value_lr : 3e-5           # value function lr in few-shot 
+adv_clip : 10             # advantage clip thershold M for GEAW
+distance_reward : true    # Reward relabeling
+reward_threshold : 3      # Reward relabeling
+baw_max : 20              # best advantage threshold for BAW(Best-Advantage-Weight) in WGCSL
+
+# ------------------ SPiRL, SkiMo ------------------ #
+subseq_len : 11           # skill horizon + 1
+reg_beta : 5e-4           # skill space regulrization beta 
+skill_dim : 10            # skill dimension
+prior_state_dim : 4       # not used.
+
+# alpha 
+init_alpha : 1e-4         # policy regularization alpha 
+increasing_alpha : false  # allow alpha only incresing while few-shot adaptation. 
+auto_alpha : false        # alpha learning indicator 
+
+# skimo 
+latent_state_dim : 256
+
+# ------------------ Ours ------------------ # 
+
+std_factor : 1.1
+
+
+target_kl_start : 15
+target_kl_end : 15
+
+q_warmup : 2_000
+q_weight : 1
+# precollect : 0
+early_stop_threshold : ${multiply:100, 0.8}
+use_hidden : true
+consistency_lr : 3e-5
+gcsl_lr: 3e-5
+n_episode : 50
+kl_decay : 0.99
+policy_lr : 1e-7
 
 # reward type
 binary_reward : false
@@ -14,79 +87,21 @@ norm_G : true
 normalize_state : false
 
 # RND filter threshold 
-std_factor : 1.1
-adv_clip : 3
-
-
-# discount for generated traj 
-discount : true
-
-# for instant test 
-testtest : false
-
-# WGCSL
-value_lr : 3e-5
-distance_reward : false
-
-# Skimo
-# Reward relabeling threshold in offline WGCSL / RIS
-# Reward relabeling threshold in offline WGCSL / RIS
-reward_threshold : 3
-# maximum value of best advantage threshold for BAW(Best-Advantage-Weight) in WGCSL
-baw_max : 20
-
-
-
-# dimension
-state_dim : 4
-n_pos : 2
-n_nonPos : 2
-n_env : 0
-n_goal : 2
-action_dim : 2
-skill_dim : 10
-latent_state_dim : 256
-
-# pretrain params
-epoch_cycles_train : 320
 offline_buffer_size : 10000
-batch_size : 1024
-epochs : 140
-warmup_steps : 50
-
-# model-based skill augmentation params
+std_factor : 1.1
+discount : true
 mixin_start : 1
 mixin_ratio : 0.05
-plan_H : 1000
+plan_H : 500
 
-# SPiRL params
-subseq_len : 11
-reg_beta : 5e-4
-prior_state_dim : 4
-val_data_size : 5000
+# discount for generated traj 
 
-# online adaptation params
-time_limit : 3000
-target_kl_start : 15
-target_kl_end : 15
-init_alpha : 1e-4
-increasing_alpha : false
-auto_alpha : false # skimo, spirl은 true
-reuse_rate : 512
-step_per_ep : 400
-q_warmup : 2_000
-q_weight : 1
-precollect : 0
-early_stop_threshold : ${multiply:100, 0.8}
-max_reward : 100
-use_hidden : true
-consistency_lr : 3e-5
-gcsl_lr: 3e-5
-buffer_size : 20000
-n_episode : 50
-kl_decay : 0.99
-policy_lr : 1e-7
-early_stop_rwd : 80
+# for instant test 
+# for instant test 
+instant:
+  one: 1
+  two: 2 
+  three : 3
 
 
 invD_lr : 5e-7

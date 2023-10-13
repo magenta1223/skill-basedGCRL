@@ -60,8 +60,6 @@ class Scheduler_Helper(torch.optim.lr_scheduler.ReduceLROnPlateau):
     
 
     def step(self, metrics, epoch=None):
-        # metric 개선 여부와 상관 없이 step 수 계산. 
-        # 이 값이 25이상이면 강제로 한번 내리고 초기화 
         self.n_steps += 1
 
         # convert `metrics` to float, in case it's a zero-dim Tensor

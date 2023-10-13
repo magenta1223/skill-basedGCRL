@@ -17,20 +17,13 @@ class Flat_GCSL(BaseModel):
         self.Hsteps = self.subseq_len -1
         self.joint_learn = True
 
-        # prior = SequentialBuilder(cfg.prior)
-        # highlevel_policy = SequentialBuilder(cfg.high_policy)
-        
         policy = SequentialBuilder(cfg.policy)
         
         self.prior_policy = PRIOR_WRAPPERS['flat_gcsl'](
-            # skill_prior = prior,
             policy = policy,
             tanh = False,
             cfg = cfg,
         )
-
-        # optimizer
-        # self.optimizer = RAdam(self.parameters(), lr = 1e-3)
 
         self.optimizers = {
             "prior_policy" : {
@@ -38,7 +31,6 @@ class Flat_GCSL(BaseModel):
                 "metric" : "Rec_skill"
             }, 
         }
-
 
         self.outputs = {}
         self.loss_dict = {}
@@ -71,14 +63,6 @@ class Flat_GCSL(BaseModel):
         # ----------- SPiRL -------------- # 
 
         recon = self.loss_fn('recon')(self.outputs.policy_action, batch.actions)
-        
-        # recon = self.loss_fn('prior')(
-        #     batch.actions,
-        #     self.outputs.policy_action_dist,
-        #     tanh = False
-        # ).mean()
-        
-
         loss = recon
         self.loss_dict = {           
             "loss" : loss.item(), #+ prior_loss.item(),

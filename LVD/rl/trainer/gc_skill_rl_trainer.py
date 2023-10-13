@@ -15,7 +15,8 @@ from ...utils import *
 from ...collector import GC_Hierarchical_Collector, GC_Buffer
 
 import pandas as pd
-from simpl_reproduce.maze.maze_vis import draw_maze
+# from simpl_reproduce.maze.maze_vis import draw_maze
+from ...utils.vis import draw_maze
 
 
 class GC_Skill_RL_Trainer:
@@ -32,7 +33,6 @@ class GC_Skill_RL_Trainer:
         )
 
         self.data = []
-        # result 생성시각 구분용도 
         self.run_id = cfg.run_id #get_time()
         
         # eval_data path :  logs/[ENV_NAME]/[STRUCTURE_NAME]/[PRETRAIN_OVERRIDES]/[RL_OVERRIDES]/[TASK]
@@ -107,10 +107,7 @@ class GC_Skill_RL_Trainer:
             task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
 
-            # torch.save({
-            #     "model" : self.agent,
-            # }, f"{self.cfg.weights_path}/{task_name}.bin")   
-            
+
             if os.path.exists(f"{self.cfg.weights_path}/{task_name}.bin"):
                 print(f"{self.cfg.weights_path}/{task_name} is already adaptated. Skip!")
                 continue
@@ -125,7 +122,6 @@ class GC_Skill_RL_Trainer:
                 for n_ep in range(max(self.cfg.shots)):                    
 
 
-                    # # ep 종료 지점에서               
                     # if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
                     #     print("early stop!!!")
                     #     break 
@@ -138,7 +134,6 @@ class GC_Skill_RL_Trainer:
                     # clear plot
                     plt.cla()
                     
-                    # 매 ep끝날 때 마다 저장. 
                     if os.path.exists(f"{self.result_path}/rawdata.csv"):
                         df = pd.read_csv(f"{self.result_path}/rawdata.csv")
                         new_data = pd.DataFrame(self.data)
@@ -154,7 +149,6 @@ class GC_Skill_RL_Trainer:
                         early_stop += 1
 
                     if early_stop == 10 and not self.cfg.no_early_stop_online:
-                        # logger에 logging을 해야 하는데. .
                         break
                     
                     if n_ep in self.cfg.shots:
@@ -244,7 +238,10 @@ class GC_Skill_RL_Trainer:
     def visualize(self):
         print("visulaize!")
         if self.env.name == "maze":
-            return draw_maze(plt.gca(), self.env, list(self.agent.buffer.episodes)[-20:])
+            # return draw_maze(plt.gca(), self.env, list(self.agent.buffer.episodes)[-20:])
+            return draw_maze(self.env, list(self.agent.buffer.episodes)[-20:])
+
+
         elif self.env.name == "kitchen":
             with self.agent.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
                 imgs = self.collector.collect_episode(self.agent.policy, vis = True)

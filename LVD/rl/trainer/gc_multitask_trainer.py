@@ -15,7 +15,7 @@ from ...utils import *
 from ...collector import GC_Hierarchical_Collector, GC_Buffer
 
 import pandas as pd
-from simpl_reproduce.maze.maze_vis import draw_maze
+from ...utils.vis import draw_maze
 
 
 class GCRL_Skill_Trainer:
@@ -32,7 +32,6 @@ class GCRL_Skill_Trainer:
         )
 
         self.data = []
-        # result 생성시각 구분용도 
         self.run_id = cfg.run_id #get_time()
         
         # eval_data path :  logs/[ENV_NAME]/[STRUCTURE_NAME]/[PRETRAIN_OVERRIDES]/[RL_OVERRIDES]/[TASK]
@@ -101,7 +100,6 @@ class GCRL_Skill_Trainer:
             "model" : self.agent,
         }, f"{self.cfg.weights_path}/{task_name}.bin")   
         
-        # TODO : collector.env로 통일. ㅈㄴ헷갈림. 
         # ewm_rwds = 0
         # early_stop = 0
 
@@ -206,7 +204,7 @@ class GCRL_Skill_Trainer:
     def visualize(self, task):
         print("visulaize!")
         if self.env.name == "maze":
-            return draw_maze(plt.gca(), self.env, list(self.agent.buffer.episodes)[-20:])
+            return draw_maze(self.env, list(self.agent.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":
             with self.env.set_task(task), self.agent.policy.expl(), self.collector.low_actor.expl() : #, collector.env.step_render():
                 imgs = self.collector.collect_episode(self.agent.policy, vis = True)

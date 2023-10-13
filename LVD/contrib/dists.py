@@ -43,27 +43,11 @@ class TanhNormal(torch.distributions.Distribution):
         # pylint: disable=arguments-differ
         if pre_tanh_value is None:
             pre_tanh_value = torch.log(
-                (1 + epsilon + value) / (1 + epsilon - value)) * 0.5 # arctanh 
+                (1 + epsilon + value) / (1 + epsilon - value)) * 0.5 
             
-        
         value = value * (1/self.factor)
-
-        # norm_lp = self._normal.log_prob(pre_tanh_value)
-        
-        norm_lp = self._normal.log_prob(pre_tanh_value) # 여기서만 loss가 감. 근데 왜.. ?
-        # ret = (norm_lp - torch.sum(
-        #     torch.log(self._clip_but_pass_gradient((1. - value**2)) + epsilon),
-        #     axis=-1))
-        # clip 안해도 똑같음. 
-        
-        # print(norm_lp.shape, value.shape)
-
+        norm_lp = self._normal.log_prob(pre_tanh_value) 
         ret = norm_lp  - torch.log(1 - value ** 2 + epsilon).sum(dim = -1)
-        # 이게.. 하나마나임. log_prob이 호출되는 지점이 self 학습 때 뿐임
-        # 그래서 correction 해줘도 correction에서 loss가 흘러가지 않음. 
-        # 그럼 그냥 normal 끼리 lob_prob하는건데? 왜 안떨어짐? 
-
-
         return ret
     
     @torch.no_grad()
@@ -228,8 +212,6 @@ class TanhNormal(torch.distributions.Distribution):
             upper (float): upper bound of clipping
         Returns:
             torch.Tensor: x clipped between lower and upper.
-        upper bound / lower bound 만큼 조절 하되, 덧셈으로 보정해서 gradient는 유지함. 
-        근데 tanh 쓰면 원래 이런데 
         """
         clip_up = (x > upper).float()
         clip_low = (x < lower).float()
@@ -244,9 +226,6 @@ class TanhNormal(torch.distributions.Distribution):
                 distribution.
         """
         return self.__class__.__name__
-
-
-
 
 @torch_dist.register_kl(TanhNormal, TanhNormal)
 def _kl_tanhnorml_tanhnormal(p, q):

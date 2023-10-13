@@ -17,7 +17,7 @@ from ...contrib.simpl.torch_utils import itemize
 from ...utils import *
 from ...collector import GC_Flat_Collector, GC_Buffer
 
-from simpl_reproduce.maze.maze_vis import draw_maze
+from ...utils.vis import draw_maze
 import pandas as pd
 
 
@@ -37,8 +37,7 @@ class Flat_RL_Trainer:
         )
 
         self.data = []
-        # result 생성시각 구분용도 
-        self.run_id = cfg.run_id #get_time()
+        self.run_id = cfg.run_id 
         
         # eval_data path :  logs/[ENV_NAME]/[STRUCTURE_NAME]/[PRETRAIN_OVERRIDES]/[RL_OVERRIDES]/[TASK]
         self.result_path = self.cfg.result_path
@@ -51,14 +50,10 @@ class Flat_RL_Trainer:
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.fewshot_tasks]
 
     def prep(self):
-        # load skill learners and prior policy
     
         # learnable
         model = self.cfg.skill_trainer.load(self.cfg.skill_weights_path, self.cfg).model
         policy = deepcopy(model.prior_policy)
-        # non-learnable
-        # action_prior = Normal_Distribution(self.cfg.normal_distribution)
-        # action_prior.requires_grad_(False) 
 
         qfs = [SequentialBuilder(self.cfg.q_function)  for _ in range(2)]
         buffer = self.cfg.buffer_cls(self.cfg).to(policy.device)
@@ -66,7 +61,6 @@ class Flat_RL_Trainer:
             self.env,
             time_limit= self.cfg.time_limit,
         )
-
 
         agent_submodules = {
             'policy' : policy,
@@ -104,30 +98,17 @@ class Flat_RL_Trainer:
             task_name = f"{str(task_obj)}_seed:{seed}"
             self.prep()
 
-            # torch.save({
-            #     "model" : self.agent,
-            #     # "collector" : collector if env_name != "carla" else None,
-            #     # "task" : task_obj if env_name != "carla" else np.array(task_obj),
-            #     # "env" : env if env_name != "carla" else None,
-            # }, f"{self.cfg.weights_path}/{task_name}.bin")   
             
             if os.path.exists(f"{self.cfg.weights_path}/{task_name}.bin"):
                 print(f"{self.cfg.weights_path}/{task_name} is already adaptated. Skip!")
                 continue
             
-            # TODO : collector.env로 통일. ㅈㄴ헷갈림. 
-
             with self.collector.env.set_task(task_obj):
                 state = self.collector.env.reset()
-                # 이건 env에 넣을까? 
-                # task = state_processor.get_goals(state)
-                # print("TASK : ",  state_processor.state_goal_checker(state, env, mode = "goal") )
-                # print("TASK : ",  GOAL_CHECKERS[args.env_name](   GOAL_TRANSFORM[args.env_name](state)  ))
-
+                
                 ewm_rwds = 0
                 early_stop = 0
                 precollect_rwds = 0
-
                             
                 for n_ep in range(self.cfg.n_episode+1):                    
                     # if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
@@ -142,7 +123,6 @@ class Flat_RL_Trainer:
                     plt.cla()
 
 
-                    # 매 ep끝날 때 마다 저장. 
                     if os.path.exists(f"{self.result_path}/rawdata.csv"):
                         df = pd.read_csv(f"{self.result_path}/rawdata.csv")
                         new_data = pd.DataFrame(self.data)
@@ -151,7 +131,6 @@ class Flat_RL_Trainer:
                     else:
                         df = pd.DataFrame(self.data)
 
-
                     df.drop_duplicates(inplace = True)
                     df.to_csv(f"{self.result_path}/rawdata.csv", index = False)
 
@@ -159,7 +138,6 @@ class Flat_RL_Trainer:
                         early_stop += 1
 
                     if early_stop == 10 and not self.cfg.no_early_stop_online:
-                        # logger에 logging을 해야 하는데. .
                         break
                     
                     if n_ep in self.cfg.shots:
@@ -208,7 +186,6 @@ class Flat_RL_Trainer:
 
         # ------------- Precollect phase ------------- #
         if n_ep < self.cfg.precollect:
-        # if self.agent.buffer.size < self.cfg.rl_batch_size or n_ep < self.cfg.precollect:
             return log
         
         # ------------- Warming up phase ------------- #
@@ -222,9 +199,6 @@ class Flat_RL_Trainer:
         else:
             pass 
 
-
-
-        
         # ------------- Policy learning phase ------------- #
         n_step = self.n_step(episode)
         print(f"Reuse!! : {n_step}")
@@ -242,7 +216,7 @@ class Flat_RL_Trainer:
     def visualize(self):
         
         if self.env.name == "maze":
-            return draw_maze(plt.gca(), self.env, list(self.agent.buffer.episodes)[-20:])
+            return draw_maze(self.env, list(self.agent.buffer.episodes)[-20:])
         elif self.env.name == "kitchen":
             with self.agent.policy.expl() : #, collector.env.step_render():
                 imgs = self.collector.collect_episode(self.agent.policy, vis = True)
@@ -252,11 +226,7 @@ class Flat_RL_Trainer:
             NotImplementedError
 
     def n_step(self, episode):
-        # n_update = episode reuse rate * n_transition * action_length / (10 * batch_size)
-        # return int(self.cfg.reuse_rate * len(episode) / ( 10 * self.cfg.batch_size))
         return int(self.cfg.reuse_rate * len(episode) / self.cfg.batch_size)
-    
-
     
     def postprocess_log(self, log, task_name, n_ep, ewm_rwds):
         log['n_ep'] = n_ep
@@ -267,9 +237,6 @@ class Flat_RL_Trainer:
             log[f'{task_name}_rewards'] = log['tr_rewards']
             del log['tr_rewards']
     
-        # if 'GCSL_loss' in log.keys():
-        #     log[f'GCSL over return'] = log[f'{task_name}_return'] / log['GCSL_loss'] 
-
         if (n_ep + 1) % self.cfg.render_period == 0:
             log['policy_vis'] = self.visualize()
         

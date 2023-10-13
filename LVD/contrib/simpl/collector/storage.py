@@ -153,13 +153,9 @@ class Buffer:
         ], axis=-1))
 
     def enqueue(self, episode):
-        # 에피소드 길이가 0 이 될 때 까지
         while len(self.episodes) > 0:
-            # 가장 앞의 에피소드와
             old_episode = self.episodes[0]
-            # 그 ptr을 가져옴
             ptr = self.episode_ptrs[0]
-            # ptr - self.ptr을 최대크기 (20000) 으로 나눈 몫임. 
             dist = (ptr - self.ptr) % self.max_size
 
             # 
@@ -169,36 +165,21 @@ class Buffer:
             else:
                 break
 
-        # self.ptr을 더한 후 
         self.episodes.append(episode)
         self.episode_ptrs.append(self.ptr)
 
- 
-        
-        # transition으로 만듬
-        # transitions = torch.as_tensor(np.concatenate([
-        #     episode.states[:-1], episode.actions,
-        #     np.array(episode.rewards)[:, None], np.array(episode.dones)[:, None],
-        #     episode.states[1:]
-        # ], axis=-1))
+
 
         transitions = self.ep_to_transtions(episode)
 
-        
-        # self.ptr + 에피소드 길이가 최대 크기 이하
-        # 즉, 처음부터 채우고 있는 과정임.
         if self.ptr + len(episode) <= self.max_size:
-            # 빈 곳에 할당
             self.transitions[self.ptr:self.ptr+len(episode)] = transitions
-        # 만약 1배 이상 2배 이하라면? 
         elif self.ptr + len(episode) < 2*self.max_size:
-            # 잘라서 앞에넣고 뒤에넣고
             self.transitions[self.ptr:] = transitions[:self.max_size-self.ptr]
             self.transitions[:len(episode)-self.max_size+self.ptr] = transitions[self.max_size-self.ptr:]
         else:
             raise NotImplementedError
 
-        # 즉, ptr은 현재 episode를 더하고 난 후의 위치임. 
         self.ptr = (self.ptr + len(episode)) % self.max_size
         self.size = min(self.size + len(episode), self.max_size)
 
