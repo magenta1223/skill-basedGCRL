@@ -4,7 +4,7 @@ defaults:
   - env : maze
 
 dataset_cls : LVD.data.maze.maze_dataloader.Maze_Dataset
-structure : skimo
+structure : gc_skimo
 
 # n_skill : 10
 scheduler_params:

@@ -8,7 +8,7 @@ from ...contrib import update_moving_average
 from ...contrib import TanhNormal
 from torch.nn import functional as F
 
-class Skimo_Prior(ContextPolicyMixin, BaseModule):
+class SkiMo_Prior(ContextPolicyMixin, BaseModule):
     """
     """
     def __init__(self, **submodules):

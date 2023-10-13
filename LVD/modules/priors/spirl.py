@@ -7,7 +7,7 @@ from easydict import EasyDict as edict
 import d4rl
 
 
-class StateConditioned_Prior(ContextPolicyMixin, BaseModule):
+class SPiRL_Prior(ContextPolicyMixin, BaseModule):
     """
     """
 

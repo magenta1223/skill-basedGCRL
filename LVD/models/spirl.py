@@ -6,7 +6,7 @@ from ..utils import *
 from .base import BaseModel
 from easydict import EasyDict as edict
 
-class StateConditioned_Model(BaseModel):
+class SPiRL_Model(BaseModel):
     """
     """
     def __init__(self, cfg):
@@ -21,7 +21,7 @@ class StateConditioned_Model(BaseModel):
         highlevel_policy = SequentialBuilder(cfg.high_policy)
         
         
-        self.prior_policy = PRIOR_WRAPPERS['sc'](
+        self.prior_policy = PRIOR_WRAPPERS['spirl'](
             skill_prior = prior,
             highlevel_policy = highlevel_policy,
             tanh = self.tanh,

@@ -91,7 +91,7 @@ diff_decoder :
 # ------------------ High level Policy ------------------ #
 
 inverse_dynamics :
-  n_blocks : 5
+  n_blocks : 3
   hidden_dim : 128
   module_type : linear
   linear_cls : LVD.modules.LinearBlock
@@ -101,7 +101,7 @@ inverse_dynamics :
   dropout : 0
 
 skill_step_goal_generator :
-  n_blocks  :  5
+  n_blocks  :  3
   hidden_dim  : 128
   module_type : linear
   linear_cls  : LVD.modules.LinearBlock

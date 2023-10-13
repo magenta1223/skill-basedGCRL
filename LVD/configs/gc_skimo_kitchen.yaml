@@ -4,7 +4,7 @@ defaults:
   - env : kitchen
 
 dataset_cls : LVD.data.Kitchen_Dataset
-structure : skimo
+structure : gc_skimo
 
 # n_skill : 3
 scheduler_params:

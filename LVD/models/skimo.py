@@ -9,7 +9,7 @@ from easydict import EasyDict as edict
 # 앞이 estimate = q_hat_dist
 # target은 q_dist에서 샘플링한 값. 
 
-class Skimo_Model(BaseModel):
+class SkiMo_Model(BaseModel):
     def __init__(self, cfg):
         super().__init__(cfg)
 
