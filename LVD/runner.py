@@ -157,6 +157,7 @@ class BaseTrainer:
         self.save(f'{self.model_id}/start.bin')
 
         for e in range(start, self.cfg.epochs):
+            print(e)
             self.e = e 
             start = time.time()
 

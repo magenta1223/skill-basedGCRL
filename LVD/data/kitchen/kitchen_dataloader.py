@@ -114,26 +114,6 @@ class Kitchen_Dataset(Base_Dataset):
         if self.dataset_size != -1:
             return self.dataset_size
         return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0] / self.subseq_len)
-
-
-class Kitchen_Dataset_Flat(Kitchen_Dataset):
-    def __len__(self):
-        return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0])
-
-    def __getitem__(self, index):
-        seq = self._sample_seq()
-        start_idx = np.random.randint(0, seq.states.shape[0] - 1)
-        goal_idx = -1
-
-        G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
-        G[ : self.n_pos] = 0 # only env state
-        
-        output = edict(
-            states = seq.states[start_idx, :self.n_pos + self.n_env],
-            actions = seq.actions[start_idx],
-            G = G
-        )
-        return output
     
 class Kitchen_Dataset_Div(Kitchen_Dataset):
     """
@@ -262,6 +242,32 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             return output
         else:
             return self.__skill_learning__()
+        
+        
+        
+class Kitchen_Dataset_Flat(Kitchen_Dataset):
+    def __len__(self):
+        return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0])
+
+    def __getitem__(self, index):
+        seq = self._sample_seq()
+        start_idx = np.random.randint(0, seq.states.shape[0] - 1)
+        goal_idx = -1
+
+        G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
+        G[ : self.n_pos] = 0 # only env state
+        
+        
+        
+        
+        output = edict(
+            states = seq.states[start_idx, :self.n_pos + self.n_env],
+            actions = seq.actions[start_idx],
+            G = G
+        )
+        
+        
+        return output
         
 class Kitchen_Dataset_Flat_WGCSL(Kitchen_Dataset):
     def __init__(self, cfg, phase):
