@@ -6,10 +6,20 @@ defaults:
 dataset_cls : LVD.data.Maze_Dataset_Div
 structure : ours
 
+
+
 scheduler_params:
   min_lr: 1e-6
 
+env:
+  plan_H : 500
+
 model:
+  diff:
+    skill : true
+  grad_pass:
+    flat_D : true
+  
   state_encoder :
     in_feature : ${env.state_dim} 
     latent_state_dim : ${env.latent_state_dim}

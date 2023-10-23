@@ -13,9 +13,9 @@ MODELS = {
     'flat_wgcsl' : WGCSL,
     "gc_spirl" : SPiRL_Model,
     "gc_skimo" : SkiMo_Model,
-    "ours_sep" : Ours_Model,
-    "ours_sep_short" : Ours_Shortskill,
-    "ours_sep_long" : Ours_LongSkill,
+    "ours" : Ours_Model,
+    "ours_short" : Ours_Shortskill,
+    "ours_long" : Ours_LongSkill,
 }
 
 __all__ = [

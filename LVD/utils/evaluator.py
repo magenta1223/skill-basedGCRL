@@ -134,7 +134,7 @@ class Evaluator:
         pertask_target_cols = [ 'task', 'reward', 'success']
         tasktype_target_cols = ['task_type', 'reward', 'success']
 
-        if self.cfg.eval_mode =="finetune":
+        if self.cfg.eval_mode =="fewshot":
             per_task_target_cols.append('shot')
             per_task_groupby.append('shot')
             tasktype_groupby.append('shot')
@@ -375,11 +375,11 @@ class Evaluator:
         for root, dirs, files in os.walk('.'):
             for file in files:
                 folder_path = os.path.abspath(root)
-                if file.endswith('finetune_tasktype.csv'):
+                if file.endswith('fewshot_tasktype.csv'):
                     target_folders.append(folder_path)
         
         for folder_path in target_folders:
-            rawdata_path = f"{folder_path}/finetune_rawdata.csv"
+            rawdata_path = f"{folder_path}/fewshot_rawdata.csv"
             if not os.path.exists(rawdata_path):                
                 self.logger.log(f"{folder_path} does not have rawdata")
                 continue

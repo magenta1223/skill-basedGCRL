@@ -30,12 +30,11 @@ class HierarchicalEpisode_Relabel(Episode_RR):
     """
     Hierarchical episode for relabeling 
     """
-    def __init__(self, init_state, env_name = None, binary_reward = False, max_reward = None):
+    def __init__(self, init_state, env_name = None, max_reward = None):
         
         assert max_reward is not None, "NEED MAXREWARD"
         super().__init__(init_state, env_name)
         self.high_actions = []
-        self.binary_reward = binary_reward
         self.max_reward = max_reward
     
     def add_step(self, low_action, high_action, next_state, goal, reward, relabeled_reward, done, info):

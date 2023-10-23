@@ -18,9 +18,10 @@ action_dim : 9  # joint action
 # pretrain params
 epoch_cycles_train : 100 # 1epoch = 100 iteration of dataset 
 batch_size : 1024     
-epochs : 100       
+epochs : 80       
 warmup_steps : 10        # for scheduler
 val_data_size : 5000
+use_sp : false
 
 # online adaptation params
 time_limit : 280       # maximum horizon in target environment 
@@ -62,11 +63,15 @@ auto_alpha : false         # alpha learning indicator
 latent_state_dim : 256 # latent state dimension for state encoder 
 
 # ------------------ Ours ------------------ # 
-offline_buffer_size : 10000 # maximum number of generated traj
-std_factor : 1.1            # generated traj filter threshold for faster pretraining (optional)
+offline_buffer_size : 20000 # maximum number of generated traj
+std_factor : 0.5            # generated traj filter threshold for faster pretraining (optional), # 1.1
 discount : false            # generated traj discounting 
 mixin_start : 1             # generated traj mixin start epoch 
-mixin_ratio : 0.1           # generated traj mixin ratio 
+mixin_ratio :               # generated traj mixin ratio 
+  start : 0.0
+  end : 0.2 #0.1
+  epoch : 50 #40
+
 plan_H : 160                # offline rollout horizon N 
 
 # for dynamics change. 

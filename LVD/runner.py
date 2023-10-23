@@ -135,10 +135,10 @@ class BaseTrainer:
             self.early_stop = 0
             self.best_e = e
 
-            if e > self.cfg.save_ckpt:
-                self.save(f'{self.model_id}/{e}.bin')
-                for path in sorted(glob(f'{self.model_id}/*epoch.bin'))[:-1]:
-                    os.remove(path)
+            # if e > self.cfg.save_ckpt:
+            #     self.save(f'{self.model_id}/{e}.bin')
+            #     for path in sorted(glob(f'{self.model_id}/*epoch.bin'))[:-1]:
+            #         os.remove(path)
         else:
             self.early_stop += 1
 
@@ -157,7 +157,6 @@ class BaseTrainer:
         self.save(f'{self.model_id}/start.bin')
 
         for e in range(start, self.cfg.epochs):
-            print(e)
             self.e = e 
             start = time.time()
 
@@ -197,8 +196,11 @@ class BaseTrainer:
                     print("early stop", 'loss',  valid_loss_dict['metric'])
                     break
 
-            if e > self.cfg.save_ckpt:
+            # if e > self.cfg.save_ckpt:
+            #     self.save(f'{self.model_id}/{e}.bin')
+            if (e + 1) % 10 == 0:
                 self.save(f'{self.model_id}/{e}.bin')
+            
             
 
         self.save(f'{self.model_id}/end.bin')
@@ -313,11 +315,8 @@ class Diversity_Trainer(BaseTrainer):
     def pre_epoch_hook(self, e, validate = False):
 
         if not validate:
-            # if e == self.cfg.mixin_start:
-            #     self.model.do_rollout = True
-            #     self.save(f'{self.model_id}/orig_skill.bin')
-
-
+            print(f"EPOCH : {e} mixin ratio : {self.train_loader.dataset.mixin_ratio}")
+            
             self.imgs = None
             self.model.render = False #
             self.model.prev_skill_encoder = deepcopy(self.model.skill_encoder)
@@ -343,19 +342,19 @@ class Diversity_Trainer(BaseTrainer):
                     path = f"{self.run_path}/imgs/{e}.png"
                     print(f"Rendered : {path}")
                     self.imgs.savefig(path, bbox_inches="tight", pad_inches = 0)
-
             if e == self.cfg.mixin_start:
                 self.train_loader.set_mode("with_buffer")
             self.train_loader.update_buffer()
-
+            self.train_loader.update_ratio()
+    
             if e + 1 >= self.cfg.mixin_start:
                 self.model.do_rollout = True
 
             if e + 1 == self.cfg.mixin_start:
                 self.save(f'{self.model_id}/orig_skill.bin')
 
-            if e > self.cfg.save_ckpt:
-                self.save(f'{self.model_id}/{e}.bin')
+            # if e > self.cfg.save_ckpt:
+            #     self.save(f'{self.model_id}/{e}.bin')
 
         else:
             pass

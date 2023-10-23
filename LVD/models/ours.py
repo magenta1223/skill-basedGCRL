@@ -40,7 +40,7 @@ class Ours_Model(BaseModel):
         else:
             high_policy = None
             
-        self.prior_policy = PRIOR_WRAPPERS['ours_sep'](
+        self.prior_policy = PRIOR_WRAPPERS['ours'](
             # components  
             skill_prior = prior,
             state_encoder = state_encoder,
@@ -174,9 +174,12 @@ class Ours_Model(BaseModel):
         # dummy metric 
         self.loss_dict['metric'] = self.loss_dict['Prior_GC']
         
+
+        self.validation_metric(batch)
+
         # subgoal by flat dynamics rollout
-        if not self.training:
-            self.validation_metric(batch)
+        # if not self.training:
+            # self.validation_metric(batch)
         
 
     @torch.no_grad()
@@ -188,6 +191,8 @@ class Ours_Model(BaseModel):
         states_hat = self.outputs['states_hat']
         subgoal_recon_f = self.outputs['subgoal_recon_f']
         subgoal_recon_D = self.outputs['subgoal_recon_D']
+        
+        indices = (~ batch.rollout) if self.training else batch.rollout
 
 
         if self.env_name == "maze":
@@ -202,10 +207,13 @@ class Ours_Model(BaseModel):
             
 
         else:
-            self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal, states[:, -1, :], weights).item()
-            self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(subgoal_recon_D, states[:, -1, :], weights).item()
+            if indices.sum() > 0:
+                self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal[indices], states[indices, -1, :], weights[indices]).item()
+                self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(subgoal_recon_D[indices], states[indices, -1, :], weights[indices]).item()
 
-        self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f, states[:,-1], weights) # ? 
+    
+        if indices.sum() > 0:
+            self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f[indices], states[indices,-1], weights[indices]) # ? 
 
         # mutual information with prev epoch's module
         enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
@@ -261,6 +269,8 @@ class Ours_Model(BaseModel):
         G = self.normalize_G(batch.G)
         
         if self.manipulation:
+            # goal_embedding = self.goal_encoder(G[batch.rollout])
+            # target_goal_embedding = self.random_goal_encoder(G[batch.rollout])
             goal_embedding = self.goal_encoder(G)
             target_goal_embedding = self.random_goal_encoder(G)
 
@@ -289,10 +299,8 @@ class Ours_Model(BaseModel):
             tanh = self.tanh
         ) * weights).mean()
 
-        if self.mode_drop:
-            invD_loss = (self.loss_fn('reg')(self.outputs['invD'], self.outputs['post_detach']) * weights).mean()
-        else:
-            invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
+
+        invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
 
 
         # ----------- Dynamics -------------- # 
@@ -343,7 +351,7 @@ class Ours_Model(BaseModel):
         else:
             diff_loss = torch.tensor([0]).cuda()
 
-        goal_recon = self.loss_fn("recon_orig")(self.outputs['target_goal_embedding'], self.outputs['goal_embedding'])
+        goal_recon = self.loss_fn("recon_orig")(self.outputs['target_goal_embedding'] , self.outputs['goal_embedding'])
 
 
         if self.only_flatD:

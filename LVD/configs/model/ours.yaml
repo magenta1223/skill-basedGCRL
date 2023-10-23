@@ -12,7 +12,7 @@ diff:
 
 grad_pass:
   flat_D : false
-  skill_D : true # diff=false면 무의미 
+  skill_D : true 
   state_consistency : false
 
 # for ablation 
@@ -26,6 +26,7 @@ gc : true
 
 # update inverse dynamcis and skill-step dynamcis 
 consistency_update : false
+cyclic_consistency : true
 
 # policy learning 
 learning_mode : sanity_check

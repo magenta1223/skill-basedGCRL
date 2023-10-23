@@ -24,7 +24,7 @@ class GC_Hierarchical_Collector:
         state, done, t = self.env.reset(), False, 0
         G = self.state_processor.get_goal(state)
         state = self.state_processor.state_process(state)
-        episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.binary_reward, self.cfg.max_reward)
+        episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.max_reward)
         # episode.goal = G
         self.low_actor.eval()
         high_actor.eval()
@@ -41,7 +41,6 @@ class GC_Hierarchical_Collector:
                 low_action = self.low_actor.act(state)
             
             state, reward, done, info = self.env.step(low_action)
-            relabeled_reward = info['relabeled_reward']
             state = self.state_processor.state_process(state)
 
             if vis:
@@ -57,7 +56,7 @@ class GC_Hierarchical_Collector:
             else:
                 data_high_action_w_normal = None
             
-            episode.add_step(low_action, data_high_action_w_normal, state, G, reward, relabeled_reward, data_done, info)
+            episode.add_step(low_action, data_high_action_w_normal, state, G, reward, 0, data_done, info)
             t += 1
 
         if verbose:

@@ -130,11 +130,13 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
         )
         
         # -------------- Rollout for metric -------------- #
-        if not self.training:
-            check_subgoals_input = (hts, skill, D, subgoal_f)
-            subgoals = self.check_subgoals(check_subgoals_input)
-            result.update(subgoals)
-
+        # if not self.training:
+        #     check_subgoals_input = (hts, skill, D, subgoal_f)
+        #     subgoals = self.check_subgoals(check_subgoals_input)
+        #     result.update(subgoals)
+        check_subgoals_input = (hts, skill, D, subgoal_f)
+        subgoals = self.check_subgoals(check_subgoals_input)
+        result.update(subgoals)
         return result
     
     def forward_prior(self, start):
@@ -394,8 +396,11 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
         else:
             start_detached = ht.clone().detach()             
             invD, D, subgoal_f = self.forward_skill_step_G(ht, G)
-            state_consistency_f = F.mse_loss(subgoal_f, D)
-            
+            if self.cfg.cyclic_consistency:
+                state_consistency_f = F.mse_loss(subgoal_f, D)
+            else:
+                state_consistency_f = F.mse_loss(subgoal_f, D).detach()
+                        
             result =  edict(
                 policy_skill = invD,
                 additional_losses = dict(

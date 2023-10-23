@@ -17,9 +17,11 @@ action_dim : 2 # x, y acceleration
 # pretrain params
 epoch_cycles_train : 320 # 1epoch = 100 iteration of dataset 
 batch_size : 1024 
-epochs : 140
+epochs : 80
 warmup_steps : 50
 val_data_size : 5000
+only_last : false        # for hindsight relabeling 
+
 
 # online adaptation params
 time_limit : 3000      # maximum horizon in target environment 
@@ -61,48 +63,17 @@ auto_alpha : false        # alpha learning indicator
 latent_state_dim : 256
 
 # ------------------ Ours ------------------ # 
-
-std_factor : 1.1
-
-
-target_kl_start : 15
-target_kl_end : 15
-
-q_warmup : 2_000
-q_weight : 1
-# precollect : 0
-early_stop_threshold : ${multiply:100, 0.8}
-use_hidden : true
-consistency_lr : 3e-5
-gcsl_lr: 3e-5
-n_episode : 50
-kl_decay : 0.99
-policy_lr : 1e-7
-
-# reward type
-binary_reward : false
-
-# input control 
-norm_G : true
-normalize_state : false
-
-# RND filter threshold 
 offline_buffer_size : 10000
 std_factor : 1.1
 discount : true
 mixin_start : 1
-mixin_ratio : 0.05
-plan_H : 500
 
-# discount for generated traj 
+mixin_ratio :               # generated traj mixin ratio 
+  start : 0.05
+  end : 0.05 #0.1
+  epoch : 50 #40
 
-# for instant test 
-# for instant test 
-instant:
-  one: 1
-  two: 2 
-  three : 3
-
+plan_H : 1000
 
 invD_lr : 5e-7
 D_lr : 5e-7
@@ -111,3 +82,13 @@ f_lr : 5e-7
 
 # ablation params
 skill_len : 10
+
+
+# for instant test 
+instant:
+  one: 1
+  two: 2 
+  three : 3
+
+target_kl_start : 15
+target_kl_end : 15

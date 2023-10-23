@@ -80,6 +80,35 @@ class Kitchen_Dataset(Base_Dataset):
 
         self.count = 0
 
+    def sample_indices(self, states, min_idx=0):
+        """
+        \Phi(s_t) != \Phi(s_i)
+        """
+        goal_max_index = len(states) - 1 # 
+        start_idx = np.random.randint(min_idx, states.shape[0] - self.subseq_len - 1)
+        
+        g_min_index = start_idx
+        while True:
+            goal_index = np.random.randint(g_min_index + self.subseq_len, goal_max_index)
+            
+            # 비교 
+            
+            phi_st = deepcopy(states[start_idx])[:self.state_dim]
+            phi_st[ : self.n_pos] = 0 # only env state
+            
+            phi_si = deepcopy(states[goal_index])[:self.state_dim]
+            phi_si[ : self.n_pos] = 0 # only env state
+            
+            if np.linalg.norm(phi_st - phi_si) < 0.2:
+                if g_min_index + 10 > goal_max_index - self.subseq_len - 1:
+                    goal_index = goal_max_index
+                    break 
+                g_min_index = min(goal_max_index - self.subseq_len - 1, g_min_index + 10)
+            else:
+                break
+
+        return start_idx, goal_index
+
 
     def __getitem__(self, index):
 
@@ -90,14 +119,15 @@ class Kitchen_Dataset(Base_Dataset):
 
         states = deepcopy(seq.states[start_idx : start_idx+self.subseq_len, :self.state_dim])
         actions = deepcopy(seq.actions[start_idx:start_idx+self.subseq_len-1])
-
-        # seg_points = deepcopy(seq.points)
-        # seg_points = sorted( seg_points + [start_idx])
-        # start_pos = seg_points.index(start_idx)
-        # if start_pos == (len(seg_points) - 1):
-        #     goal_idx = len(seq.states) - 1
-        # else:
-        #     goal_idx = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+        
+        if self.use_sp:
+            seg_points = deepcopy(seq.points)
+            seg_points = sorted( seg_points + [start_idx])
+            start_pos = seg_points.index(start_idx)
+            if start_pos == (len(seg_points) - 1):
+                goal_idx = len(seq.states) - 1
+            else:
+                goal_idx = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
 
         G = deepcopy(seq.states[goal_idx])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
@@ -133,6 +163,11 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         self.now_buffer = []
 
         self.discount_lambda = np.log(0.99)
+        mixin_ratio = self.mixin_ratio 
+        
+        self.mixin_ratio = mixin_ratio.start         
+        self.max_mixin_ratio = mixin_ratio.end
+        self.ratio_interval = (mixin_ratio.end - mixin_ratio.start) / mixin_ratio.epoch
 
     def set_mode(self, mode):
         assert mode in ['skill_learning', 'with_buffer']
@@ -171,6 +206,7 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
     def __getitem__(self, index):
         return self.__getitem_methods__[self.mode]()
+    
         
     def __skill_learning__(self):
         
@@ -185,13 +221,15 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
 
         # hindsight relabeling 
 
-        # seg_points = deepcopy(seq.points)
-        # seg_points = sorted( seg_points + [start_idx])
-        # start_pos = seg_points.index(start_idx)
-        # if start_pos == (len(seg_points) - 1):
-        #     goal_idx = len(seq.states) - 1
-        # else:
-        #     goal_idx = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+        if self.use_sp:
+            seg_points = deepcopy(seq.points)
+            seg_points = sorted( seg_points + [start_idx])
+            start_pos = seg_points.index(start_idx)
+            if start_pos == (len(seg_points) - 1):
+                goal_idx = len(seq.states) - 1
+            else:
+                goal_idx = np.random.randint(low = seg_points[start_pos+1] , high = len(seq.states))
+
 
         G = deepcopy(seq.states[goal_idx])[:self.state_dim]
         G[ : self.n_pos] = 0 # only env state
@@ -217,7 +255,8 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
             start_idx, goal_idx = self.sample_indices(states)
             
-            goal_idx = -1
+            # remove? 
+            # goal_idx = -1
             G = deepcopy(states[goal_idx])[:self.state_dim]
             G[ : self.n_pos] = 0 # only env state
             
@@ -243,6 +282,11 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         else:
             return self.__skill_learning__()
         
+        
+    def update_ratio(self):        
+        self.mixin_ratio += self.ratio_interval
+        self.mixin_ratio = min(self.mixin_ratio, self.max_mixin_ratio)    
+
         
         
 class Kitchen_Dataset_Flat(Kitchen_Dataset):

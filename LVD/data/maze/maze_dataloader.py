@@ -75,6 +75,11 @@ class Maze_Dataset_Div(Maze_Dataset):
         self.now_buffer = []
 
         self.discount_lambda = np.log(0.99)
+        
+        mixin_ratio = self.mixin_ratio 
+        self.mixin_ratio = mixin_ratio.start         
+        self.max_mixin_ratio = mixin_ratio.end
+        self.ratio_interval = (mixin_ratio.end - mixin_ratio.start) / mixin_ratio.epoch
 
     def set_mode(self, mode):
         assert mode in ['skill_learning', 'with_buffer']
@@ -110,8 +115,10 @@ class Maze_Dataset_Div(Maze_Dataset):
     def update_buffer(self):
         self.now_buffer = deepcopy(self.prev_buffer)
         self.prev_buffer = []
-        pass
-    
+        
+    def update_ratio(self):        
+        self.mixin_ratio += self.ratio_interval
+        self.mixin_ratio = min(self.mixin_ratio, self.max_mixin_ratio)    
 
     def __getitem__(self, index):
         return self.__getitem_methods__[self.mode](index)

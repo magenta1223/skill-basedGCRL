@@ -42,7 +42,7 @@ class GC_Skill_RL_Trainer:
 
     def set_env(self):
         envtask_cfg = self.cfg.envtask_cfg
-        envtask_cfg.env_cfg['binary_reward'] = self.cfg.binary_reward 
+        # envtask_cfg.env_cfg['binary_reward'] = self.cfg.binary_reward 
         self.env = envtask_cfg.env_cls(**envtask_cfg.env_cfg)
         self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.fewshot_tasks]
         # self.tasks = [envtask_cfg.task_cls(task) for task in envtask_cfg.target_tasks]
@@ -170,14 +170,19 @@ class GC_Skill_RL_Trainer:
         with self.agent.policy.expl(), self.collector.low_actor.expl(): #, collector.env.step_render():
             episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
         
-        if self.cfg.binary_reward:
-            if np.array(episode.rewards).sum() == 1: # success 
-                print(len(episode.states))
-                print("success")
-        else:
-            if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
-                print(len(episode.states))
-                print("success")
+        # if self.cfg.binary_reward:
+        #     if np.array(episode.rewards).sum() == 1: # success 
+        #         print(len(episode.states))
+        #         print("success")
+        # else:
+        #     if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
+        #         print(len(episode.states))
+        #         print("success")
+        
+        if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
+            print(len(episode.states))
+            print("success")
+        
         
         # buffer에서 sample 시 relabel을 수행함. 
         high_ep, _ = episode.as_high_episode()
@@ -260,9 +265,9 @@ class GC_Skill_RL_Trainer:
         log[f'{task_name}_return'] = log['tr_return']
         del log['tr_return']
         
-        if self.cfg.binary_reward:
-            log[f'{task_name}_rewards'] = log['tr_rewards']
-            del log['tr_rewards']
+        # if self.cfg.binary_reward:
+        #     log[f'{task_name}_rewards'] = log['tr_rewards']
+        #     del log['tr_rewards']
     
         if 'GCSL_loss' in log.keys():
             log[f'GCSL over return'] = log[f'{task_name}_return'] / log['GCSL_loss'] 
@@ -271,16 +276,17 @@ class GC_Skill_RL_Trainer:
             log['policy_vis'] = self.visualize()
         
         if n_ep > self.cfg.precollect:
-            if self.cfg.binary_reward:
-                ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_rewards']
-            else:
-                ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+            # if self.cfg.binary_reward:
+            #     ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_rewards']
+            # else:
+            #     ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
+            ewm_rwds = 0.8 * ewm_rwds + 0.2 * log[f'{task_name}_return']
         else:
-            if self.cfg.binary_reward:
-                ewm_rwds += log[f'{task_name}_rewards'] / (self.cfg.precollect + 1)
-            else:
-                ewm_rwds += log[f'{task_name}_return'] / (self.cfg.precollect + 1)
-
+            # if self.cfg.binary_reward:
+            #     ewm_rwds += log[f'{task_name}_rewards'] / (self.cfg.precollect + 1)
+            # else:
+            #     ewm_rwds += log[f'{task_name}_return'] / (self.cfg.precollect + 1)
+            ewm_rwds += log[f'{task_name}_return'] / (self.cfg.precollect + 1)
 
         log = {f"{task_name}/{k}": log[k] for k in log.keys()}
 

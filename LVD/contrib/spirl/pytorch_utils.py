@@ -36,8 +36,9 @@ class RepeatedDataLoader(DataLoader):
 
     def update_buffer(self):
         self.dataset.update_buffer()
-
-            
+    
+    def update_ratio(self):
+        self.dataset.update_ratio()
 
 class RepeatedSampler(Sampler):
     """ A sampler that repeats the data n times """
