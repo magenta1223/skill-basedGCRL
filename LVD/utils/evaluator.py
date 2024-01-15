@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from .general_utils import *
 import json 
+from scipy.stats import norm
 
 
 def clean_colname(col_name):
@@ -14,6 +15,28 @@ def clean_colname(col_name):
         return col_name.split("/")[0]
     else:
         return col_name
+    
+def wilson_score_interval(mean, n, confidence = 0.95, round_digit=1):
+    if n == 0:
+        return (0, 0)
+
+    p =deepcopy( mean / 100)
+    # Z-score for the desired confidence level
+    z = norm.ppf(1 - (1 - confidence) / 2)
+    
+    # Components for the interval calculation
+    denominator = 1 + z**2 / n
+    centre_adjusted_probability = p + z**2 / (2 * n)
+    adjusted_standard_deviation = (p * (1 - p) / n + z**2 / (4 * n**2))**0.5
+    
+    # Lower and upper bounds
+    lower_bound = (centre_adjusted_probability - z * adjusted_standard_deviation) / denominator
+    upper_bound = (centre_adjusted_probability + z * adjusted_standard_deviation) / denominator
+    
+    
+    print(lower_bound, upper_bound, mean)
+    
+    return f"{round(lower_bound, round_digit)}, {round(upper_bound, round_digit)}"
 
 class Evaluator:
     def __init__(self, cfg):
@@ -119,6 +142,9 @@ class Evaluator:
         return df 
         
     def aggregate(self, df = None):
+        """
+        TODO : confidence interval to wilson score
+        """
         
         if df is None:
             # raw data
@@ -151,9 +177,14 @@ class Evaluator:
         per_task_groupby.remove("seed")
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
 
+        # 
     
         aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
         aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
+
+        # aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {wilson_score_interval(row['reward/mean'], n = len(self.cfg.seeds))}", axis = 1)
+        # aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {wilson_score_interval(row['reward/mean'], n = len(self.cfg.seeds))}", axis = 1)
+
 
         aggregated = aggregated[pertask_target_cols]
 
@@ -189,12 +220,16 @@ class Evaluator:
         df_tasktype['order'] = df_tasktype['task_type'].map(self.task_type_order)
         df_tasktype = df_tasktype.sort_values(by = sort_cols)
         df_tasktype = pd.concat(( df_tasktype, pd.DataFrame(unseen_avg) ), axis = 0).reset_index(drop=True).drop(['order'], axis = 1)
-
+        
         
         df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
         df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
+        # df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {wilson_score_interval(row['reward/mean'], n = len(self.cfg.seeds)) }", axis = 1)
+        # df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {wilson_score_interval(row['success/mean'], n = len(self.cfg.seeds))}", axis = 1)
+
         df_tasktype = df_tasktype[tasktype_target_cols]
         
+                
         
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")

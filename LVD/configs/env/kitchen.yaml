@@ -70,7 +70,26 @@ mixin_start : 1             # generated traj mixin start epoch
 mixin_ratio :               # generated traj mixin ratio 
   start : 0.0
   end : 0.2 #0.1
-  epoch : 50 #40
+  epochs : 50 #40
+  static : false
+
+log_score : true
+truncated : true
+norm_G: true 
+
+
+disc_pretrain :
+  apply: false
+  start : 1 # 0.99
+  end : 1
+  epochs : 2 #40
+  static : false # true 
+
+rollout:
+  static : true
+  start : 160
+  end : 160
+  epochs : 100
 
 plan_H : 160                # offline rollout horizon N 
 

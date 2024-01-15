@@ -277,6 +277,7 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
         states = batch.states
         N, T, _ = states.shape
         skill_length = T - 1
+        plan_H = batch['plan_H']
 
         states_rollout = []
         latent_states_rollout = []
@@ -292,8 +293,9 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
         # sample skill 
         skill = self.forward_prior(_ht)[0].sample()
         
+        
         # rollout start 
-        for i in range( self.cfg.plan_H):
+        for i in range(plan_H):
             # execute skill on latent space and append to the original sub-trajectory 
             if (i - c) % 5 == 0: # skill sample frequenct m = 5
                 skill = self.forward_prior(_ht)[0].sample()
@@ -319,11 +321,12 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
             
             # next state
             _ht = next_ht
-
+            
         states_rollout = torch.stack(states_rollout, dim = 1)
         latent_states_rollout = torch.stack(latent_states_rollout, dim = 1)
         skills = torch.stack(skills, dim = 1)
-
+        
+        
         result =  edict(
             c = c,
             states_rollout = states_rollout,
@@ -363,7 +366,8 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
             else:
                 invD, subgoal_D, subgoal_f = self.forward_skill_step_G(ht, G)
                 result =  edict(
-                    policy_skill = invD
+                    policy_skill = invD,
+                    subgoal_f = subgoal_f
                 )    
 
             return result 

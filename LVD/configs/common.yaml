@@ -55,6 +55,7 @@ hydra:
           # eval
           - eval_mode
           - n_eval 
+          - eval_epoch
 
 
 seeds :
@@ -77,6 +78,7 @@ phase : skill
 trainer_cls : ${get_trainer:${phase}, ${model.skill_trainer}, ${model.rl_trainer}}
 eval_mode : false
 n_eval : 19
+eval_epoch : 'end'
 no_early_stop_online : false 
 # if true, earlystop will be not allowed in online adaptation
 

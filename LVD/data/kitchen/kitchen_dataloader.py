@@ -145,6 +145,12 @@ class Kitchen_Dataset(Base_Dataset):
             return self.dataset_size
         return int(self.SPLIT[self.phase] * self.dataset['observations'].shape[0] / self.subseq_len)
     
+
+class Kitchen_Dataset_Div_Sep(Kitchen_Dataset):
+    pass 
+
+
+
 class Kitchen_Dataset_Div(Kitchen_Dataset):
     """
     """
@@ -162,12 +168,24 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         self.prev_buffer = []
         self.now_buffer = []
 
-        self.discount_lambda = np.log(0.99)
-        mixin_ratio = self.mixin_ratio 
+        # self.discount_lambda = np.log(0.99)
         
+        discount = cfg.disc_pretrain
+        self.do_discount = discount.apply
+        self.static_discount = discount.static
+        self.discount_raw = discount.start
+        # self.discount_lambda = np.log(discount.start)
+        self.max_discount = discount.end
+        self.discount_interval = (discount.end - discount.start) / (discount.epochs - self.mixin_start)
+        # self.discount_lambda = np.log(cfg.discount_value)
+        
+        
+        
+        mixin_ratio = self.mixin_ratio 
+        self.static_ratio = mixin_ratio.static
         self.mixin_ratio = mixin_ratio.start         
         self.max_mixin_ratio = mixin_ratio.end
-        self.ratio_interval = (mixin_ratio.end - mixin_ratio.start) / mixin_ratio.epoch
+        self.ratio_interval = (mixin_ratio.end - mixin_ratio.start) / (mixin_ratio.epochs - self.mixin_start)
 
     def set_mode(self, mode):
         assert mode in ['skill_learning', 'with_buffer']
@@ -202,8 +220,24 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
     def update_buffer(self):
         self.now_buffer = deepcopy(self.prev_buffer)
         self.prev_buffer = []
-        pass
-
+        
+    def update_ratio(self):        
+        if not self.static_ratio:
+            self.mixin_ratio += self.ratio_interval
+            if self.ratio_interval > 0:
+                cutoff_func = min
+            else:
+                cutoff_func = max 
+            self.mixin_ratio = cutoff_func(self.mixin_ratio, self.max_mixin_ratio)    
+        
+        if not self.static_discount:
+            self.discount_raw += self.discount_interval
+            if self.discount_interval > 0:
+                cutoff_func = min
+            else:
+                cutoff_func = max
+            self.discount_raw = cutoff_func(self.discount_raw, self.max_discount)
+            
     def __getitem__(self, index):
         return self.__getitem_methods__[self.mode]()
     
@@ -286,7 +320,9 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
     def update_ratio(self):        
         self.mixin_ratio += self.ratio_interval
         self.mixin_ratio = min(self.mixin_ratio, self.max_mixin_ratio)    
-
+    @property
+    def discount_lambda(self):
+        return np.log(self.discount_raw)
         
         
 class Kitchen_Dataset_Flat(Kitchen_Dataset):

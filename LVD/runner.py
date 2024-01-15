@@ -222,6 +222,8 @@ class BaseTrainer:
                     self.meters[key] = AverageMeter()
   
             for k, v in self.loss.items():
+                if k not in self.meters:
+                    self.meters[k] = AverageMeter()
                 self.meters[k].update(v, batch['states'].shape[0])
     
         self.post_epoch_hook(e)
@@ -277,6 +279,12 @@ class BaseTrainer:
         else:
             self = checkpoint['cls'](checkpoint['configuration'])            
 
+        # ckpt_model = {}
+        # for key in checkpoint['model'].keys():
+        #     new_key = key.replace('subgoal_generator', 'skill_step_goal_generator') 
+        #     ckpt_model[new_key] = checkpoint['model'][key]
+
+
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
         
@@ -315,13 +323,14 @@ class Diversity_Trainer(BaseTrainer):
     def pre_epoch_hook(self, e, validate = False):
 
         if not validate:
-            print(f"EPOCH : {e} mixin ratio : {self.train_loader.dataset.mixin_ratio}")
-            
             self.imgs = None
             self.model.render = False #
             self.model.prev_skill_encoder = deepcopy(self.model.skill_encoder)
             self.model.prev_goal_encoder = deepcopy(self.model.goal_encoder)
-
+            
+            if e > self.cfg.mixin_start:
+                self.model.update_rollout_H()
+            print(f"EPOCH : {e} mixin ratio : {self.train_loader.dataset.mixin_ratio} rollout length : {self.model.plan_H} discount : {self.train_loader.dataset.discount_raw}")
         else:
             pass 
 
@@ -340,12 +349,17 @@ class Diversity_Trainer(BaseTrainer):
                     out.release() 
                 elif self.cfg.env_name == "maze":
                     path = f"{self.run_path}/imgs/{e}.png"
+                    # path = f"{self.run_path}/imgs/{e}_seqIndex:{self.imgs['seq_index']}.png"
                     print(f"Rendered : {path}")
-                    self.imgs.savefig(path, bbox_inches="tight", pad_inches = 0)
+                    # self.imgs.savefig(path, bbox_inches="tight", pad_inches = 0)
+                    self.imgs['fig'].savefig(path, bbox_inches="tight", pad_inches = 0)
             if e == self.cfg.mixin_start:
                 self.train_loader.set_mode("with_buffer")
             self.train_loader.update_buffer()
-            self.train_loader.update_ratio()
+            
+            # mixin start이후라면 
+            if e + 1 >= self.cfg.mixin_start:
+                self.train_loader.update_ratio()
     
             if e + 1 >= self.cfg.mixin_start:
                 self.model.do_rollout = True

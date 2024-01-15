@@ -73,13 +73,22 @@ class Maze_Dataset_Div(Maze_Dataset):
         
         self.prev_buffer = []
         self.now_buffer = []
-
-        self.discount_lambda = np.log(0.99)
         
+        # discount scheduling 
+        discount = cfg.disc_pretrain
+        self.do_discount = discount.apply
+        self.static_discount = discount.static
+        self.discount_raw = discount.start
+        # self.discount_lambda = np.log(discount.start)
+        self.max_discount = discount.end
+        self.discount_interval = (discount.end - discount.start) / (discount.epochs - self.mixin_start)
+        # self.discount_lambda = np.log(cfg.discount_value)
+                
         mixin_ratio = self.mixin_ratio 
+        self.static_ratio = mixin_ratio.static
         self.mixin_ratio = mixin_ratio.start         
         self.max_mixin_ratio = mixin_ratio.end
-        self.ratio_interval = (mixin_ratio.end - mixin_ratio.start) / mixin_ratio.epoch
+        self.ratio_interval = (mixin_ratio.end - mixin_ratio.start) / (mixin_ratio.epochs - self.mixin_start)
 
     def set_mode(self, mode):
         assert mode in ['skill_learning', 'with_buffer']
@@ -89,7 +98,6 @@ class Maze_Dataset_Div(Maze_Dataset):
     @property
     def mode(self):
         return self.__mode__
-
 
     def enqueue(self, states, actions, c = None, sequence_indices = None):
         for i, seq_idx in enumerate(sequence_indices):
@@ -117,8 +125,27 @@ class Maze_Dataset_Div(Maze_Dataset):
         self.prev_buffer = []
         
     def update_ratio(self):        
-        self.mixin_ratio += self.ratio_interval
-        self.mixin_ratio = min(self.mixin_ratio, self.max_mixin_ratio)    
+        if not self.static_ratio:
+            self.mixin_ratio += self.ratio_interval
+            if self.ratio_interval > 0:
+                cutoff_func = min
+            else:
+                cutoff_func = max 
+            self.mixin_ratio = cutoff_func(self.mixin_ratio, self.max_mixin_ratio)    
+        
+        if not self.static_discount:
+            self.discount_raw += self.discount_interval
+            if self.discount_interval > 0:
+                cutoff_func = min
+            else:
+                cutoff_func = max
+            self.discount_raw = cutoff_func(self.discount_raw, self.max_discount)
+            
+            
+    
+    @property
+    def discount_lambda(self):
+        return np.log(self.discount_raw)
 
     def __getitem__(self, index):
         return self.__getitem_methods__[self.mode](index)
@@ -167,14 +194,17 @@ class Maze_Dataset_Div(Maze_Dataset):
 
             states = states[start_idx : start_idx+self.subseq_len, :self.state_dim]
             actions = actions[start_idx:start_idx+self.subseq_len-1]
+            
+            if discount_start * discount_G > 1:
+                print(discount_start, discount_G)
 
             return edict(
                 states = states,
-                actions = actions[:self.subseq_len-1],
+                actions = actions,
                 G = G,
                 finalG = G,
                 rollout = False,
-                weights = discount_start * discount_G if self.discount else 1,
+                weights = discount_start * discount_G if self.do_discount else 1,
                 seq_index = seq_index,
                 start_idx = start_idx,
                 seq_len = 1,

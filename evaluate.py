@@ -43,7 +43,8 @@ def main(cfg):
         cfg.eval_rawdata_path = f"{cfg.eval_data_prefix}rawdata.csv"
 
         # zeroshot
-        cfg.zeroshot_weight = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/end.bin"
+        # eval_epoch 
+        cfg.zeroshot_weight = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/{cfg.eval_epoch}.bin"
         cfg.zeroshot_weight_before_rollout = f"weights/{cfg.env.env_name}/{cfg.structure}/{cfg.run_name}/skill/orig_skill.bin"
 
         # finetune 

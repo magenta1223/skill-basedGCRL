@@ -12,7 +12,7 @@ scheduler_params:
   min_lr: 1e-6
 
 env:
-  plan_H : 500
+  max_seq_len : ${add:${env.plan_H}, 500}
 
 model:
   diff:
@@ -66,20 +66,16 @@ model:
 
   prior:
     in_feature : ${env.latent_state_dim}
-    # in_feature : ${divide:${env.latent_state_dim},2}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_encoder:
     in_feature: ${add:${env.state_dim}, ${env.action_dim}}
-    # in_feature: ${add:${env.n_nonPos}, ${env.action_dim}}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
     in_feature : ${add:${env.state_dim}, ${env.skill_dim}}
-    # in_feature : ${add:${env.n_nonPos}, ${env.skill_dim}}
     out_dim : ${env.action_dim} 
     state_dim : ${env.state_dim}
-    # state_dim : ${get_statedim:${env.manipulation}, ${env.state_dim}, ${env.n_pos}}
     z_dim  : ${env.skill_dim}
 
   high_policy:
@@ -87,8 +83,10 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   goal_encoder:
-    in_feature: ${add:${env.n_goal}, ${env.state_dim}} 
-    out_dim : 1024 
+    in_feature: ${multiply:${add:${env.n_goal}, ${env.state_dim}}, ${env.goal_factor}} 
+    # in_feature: ${add:${env.n_goal}, ${env.n_pos}} 
+    hidden_dim : 128 # 16 # 4
+    out_dim : 1024 # 256
 
   goal_decoder:
     in_feature: 8

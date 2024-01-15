@@ -17,7 +17,7 @@ action_dim : 2 # x, y acceleration
 # pretrain params
 epoch_cycles_train : 320 # 1epoch = 100 iteration of dataset 
 batch_size : 1024 
-epochs : 80
+epochs : 140
 warmup_steps : 50
 val_data_size : 5000
 only_last : false        # for hindsight relabeling 
@@ -32,7 +32,6 @@ step_per_ep : 400      # not used. deprecated.
 precollect : 0         # precollect to initialize the buffer 
 early_stop_rwd : 80    # early stop reward. (equivalent to success rate 80%)
 max_reward : 100       # 
-
 
 # ------------------ Few-shot adaptation ------------------ #
 # value warmup 
@@ -63,17 +62,39 @@ auto_alpha : false        # alpha learning indicator
 latent_state_dim : 256
 
 # ------------------ Ours ------------------ # 
-offline_buffer_size : 10000
-std_factor : 1.1
-discount : true
+offline_buffer_size : 10000 # 10000
+std_factor : 1.0
+# discount : true
+# discount_value : 0.99
 mixin_start : 1
+goal_factor : 1 # 1
+quantile : 0.6 #0.9 # 0~1
+
+log_score : true
+truncated : true
+norm_G: true 
+
+disc_pretrain :
+  apply: true
+  start : 0.2 # 0.99
+  end : 0.99
+  epochs : 80 #40
+  static : false # true 
+  
 
 mixin_ratio :               # generated traj mixin ratio 
-  start : 0.05
-  end : 0.05 #0.1
-  epoch : 50 #40
+  start : 0.1 # 0.05
+  end : 0.1 #0.1
+  epochs : 50 #40
+  static : true # false 
 
 plan_H : 1000
+
+rollout:
+  static : true
+  start : 1000
+  end : 1000
+  epochs : 50
 
 invD_lr : 5e-7
 D_lr : 5e-7
