@@ -79,10 +79,8 @@ class Maze_Dataset_Div(Maze_Dataset):
         self.do_discount = discount.apply
         self.static_discount = discount.static
         self.discount_raw = discount.start
-        # self.discount_lambda = np.log(discount.start)
         self.max_discount = discount.end
         self.discount_interval = (discount.end - discount.start) / (discount.epochs - self.mixin_start)
-        # self.discount_lambda = np.log(cfg.discount_value)
                 
         mixin_ratio = self.mixin_ratio 
         self.static_ratio = mixin_ratio.static

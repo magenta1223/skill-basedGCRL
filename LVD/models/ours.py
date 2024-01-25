@@ -14,22 +14,21 @@ class Ours_Model(BaseModel):
         super().__init__(cfg)
         learning_mode_choices = ['only_skill', 'sanity_check', 'skill_reg', 'only_bc']
         assert cfg.learning_mode in learning_mode_choices, f"Invalid learning mode. Valid choices are {learning_mode_choices}"
-        
-        # state enc/dec  
+
+        # Model in table 1 
+        self.skill_encoder = SequentialBuilder(cfg.skill_encoder)
         state_encoder = Multisource_Encoder(cfg.state_encoder)
         state_decoder = Multisource_Decoder(cfg.state_decoder)
-
-        # prior policy submodules
-        inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
-
-
-        skill_step_goal_generator = SequentialBuilder(cfg.skill_step_goal_generator)
-
-
         prior = SequentialBuilder(cfg.prior)
         flat_dynamics = SequentialBuilder(cfg.flat_dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 
+        # Policy in table 1
+        inverse_dynamics = InverseDynamicsMLP(cfg.inverse_dynamics)
+        skill_step_goal_generator = SequentialBuilder(cfg.skill_step_goal_generator)
+        self.skill_decoder = DecoderNetwork(cfg.skill_decoder)
+
+        # for decode
         if cfg.manipulation:
             diff_decoder = SequentialBuilder(cfg.diff_decoder)
         else:
@@ -51,28 +50,18 @@ class Ours_Model(BaseModel):
             flat_dynamics = flat_dynamics,
             diff_decoder = diff_decoder,
             high_policy= high_policy,
-            
             # configures
             cfg = cfg,
             ema_update = True,
         )
         
-
-
-        ### ----------------- Skill Enc / Dec Modules ----------------- ###
-        self.skill_encoder = SequentialBuilder(cfg.skill_encoder)
-        self.skill_decoder = DecoderNetwork(cfg.skill_decoder)
-
+        # For metrics
         self.goal_encoder = SequentialBuilder(cfg.goal_encoder)
-
         self.prev_goal_encoder = deepcopy(self.goal_encoder)
         self.random_goal_encoder = SequentialBuilder(cfg.goal_encoder)
-
-
-        # prev epoch skill encoder
-        # hard updated on epoch basis 
         self.prev_skill_encoder = deepcopy(self.skill_encoder)
-
+        
+        # Optimizers
         self.optimizers = {
             "skill_prior" : {
                 "optimizer" : RAdam( self.prior_policy.skill_prior.parameters(), lr = self.lr ),
@@ -84,7 +73,6 @@ class Ours_Model(BaseModel):
                     {"params" : self.skill_decoder.parameters()},
                 ], lr = self.lr ),
                 "metric" : "Rec_skill",
-                # "metric" : "skill_metric"
                 "wo_warmup" : True
             }, 
             "invD" : {
@@ -127,7 +115,6 @@ class Ours_Model(BaseModel):
             "goal" : {
                 "optimizer" : RAdam([
                     {'params' : self.goal_encoder.parameters()},
-                    # {'params' : self.goal_decoder.parameters()},
                 ], lr = self.lr
                 ),
                 "metric" : None,
@@ -152,7 +139,6 @@ class Ours_Model(BaseModel):
 
         self.rnd_mu = None
         self.rnd_std = None
-        
         self.g_mu = None
         self.g_std = None
 
@@ -161,11 +147,7 @@ class Ours_Model(BaseModel):
         self.plan_H = rollout.start
         self.plan_H_interval = (rollout.end - rollout.start) / (rollout.epochs - self.mixin_start)
         self.max_plan_H = rollout.end
-        # self.discount_lambda = np.log(discount.start)
-        # self.max_discount = discount.end
-        # self.discount_interval = (discount.end - discount.start) / (discount.epochs - self.mixin_start)
-        # self.discount_lambda = np.log(cfg.discount_value)
-                
+
     def update_rollout_H(self):
         if not self.static_plan_H:
             self.plan_H += self.plan_H_interval
@@ -180,24 +162,11 @@ class Ours_Model(BaseModel):
         """
         Metrics
         """
-        # ----------- Common Metrics ----------- #
         weights = batch.weights
-        # KL (post || state-conditioned prior)
         self.loss_dict['Prior_S']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['prior'])*weights).mean().item()
-        
-        # KL (post || goal-conditioned policy)
         self.loss_dict['Prior_GC']  = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean().item()
-                
-        # dummy metric 
         self.loss_dict['metric'] = self.loss_dict['Prior_GC']
-        
-
         self.validation_metric(batch)
-
-        # subgoal by flat dynamics rollout
-        # if not self.training:
-            # self.validation_metric(batch)
-        
 
     @torch.no_grad()
     def validation_metric(self, batch):
@@ -211,7 +180,6 @@ class Ours_Model(BaseModel):
         
         indices = (~ batch.rollout) if self.training else batch.rollout
 
-
         if self.env_name == "maze":
             self.loss_dict['Rec_flatD_pos'] = self.loss_fn('recon')(reconstructed_subgoal[:, :self.n_pos], states[:, -1, :self.n_pos], weights).item()
             self.loss_dict['Rec_flatD_nonpos'] = self.loss_fn('recon')(reconstructed_subgoal[:, self.n_pos:], states[:, -1, self.n_pos:], weights).item()
@@ -220,16 +188,11 @@ class Ours_Model(BaseModel):
             self.loss_dict['Rec_state_pos'] = self.loss_fn('recon')(states_hat[..., :self.n_pos], states[..., :self.n_pos], weights) # ? 
             self.loss_dict['Rec_state_nonpos'] = self.loss_fn('recon')(states_hat[..., self.n_pos:], states[..., self.n_pos:], weights) # ? 
             
-            # self.loss_dict['ht_std'] = self.outputs['states_repr'].std(dim = -1).mean()
-            pass 
-            
-
         else:
             if indices.sum() > 0:
                 self.loss_dict['Rec_flatD_subgoal'] = self.loss_fn('recon')(reconstructed_subgoal[indices], states[indices, -1, :], weights[indices]).item()
                 self.loss_dict['Rec_D_subgoal'] = self.loss_fn('recon')(subgoal_recon_D[indices], states[indices, -1, :], weights[indices]).item()
 
-    
         if indices.sum() > 0:
             self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f[indices], states[indices,-1], weights[indices]) # ? 
 
@@ -245,7 +208,6 @@ class Ours_Model(BaseModel):
         else:
             return G
 
-        
     def forward(self, batch):
         enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
         post, post_detach = self.skill_encoder.dist(enc_inputs, detached = True)
@@ -261,10 +223,7 @@ class Ours_Model(BaseModel):
             z_normal = None
             z = skill.clone().detach()
 
-
         fixed_dist = get_fixed_dist(skill.repeat(1,2), tanh = self.tanh)
-
-
         if self.manipulation:
             decode_inputs = self.dec_input(batch.states[:, :, :self.n_pos], skill, self.Hsteps)
         else:
@@ -281,27 +240,19 @@ class Ours_Model(BaseModel):
         # skill prior & inverse dynamics's target
         self.outputs['z'] = z
         self.outputs['z_normal'] = z_normal
-
         self.outputs['post'] = post
         self.outputs['post_detach'] = post_detach
         self.outputs['fixed'] = fixed_dist
         self.outputs['actions_hat'] = skill_hat
         self.outputs['actions'] = batch.actions
 
-        
-        
         if self.manipulation:
             G = self.normalize_G(batch.G)
-            # goal_embedding = self.goal_encoder(G[batch.rollout])
-            # target_goal_embedding = self.random_goal_encoder(G[batch.rollout])
             goal_embedding = self.goal_encoder(G)
             target_goal_embedding = self.random_goal_encoder(G)
-
         else:
             ge_input = torch.cat((batch.states[:, 0],batch.G), dim = -1).repeat(1, self.goal_factor)
             G = self.normalize_G(ge_input)
-            
-            
             # ge_input = torch.cat((batch.states[:, 0, :2],batch.G), dim = -1)
             goal_embedding = self.goal_encoder(G)
             target_goal_embedding = self.random_goal_encoder(G)
@@ -311,7 +262,6 @@ class Ours_Model(BaseModel):
 
 
     def compute_loss(self, batch):
-        # 생성된 data에 대한 discount 
         weights = batch.weights
         
         # ----------- Skill Recon & Regularization -------------- # 
@@ -326,47 +276,45 @@ class Ours_Model(BaseModel):
             tanh = self.tanh
         ) * weights).mean()
 
-
         invD_loss = (self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['invD']) * weights).mean()
-
 
         # ----------- Dynamics -------------- # 
         flat_D_loss = self.loss_fn('recon')(
             self.outputs['flat_D'],
             self.outputs['flat_D_target'],
             weights
-        ) # 1/skill horizon  
+        ) 
         
         D_loss = self.loss_fn('recon')(
             self.outputs['D'],
             self.outputs['D_target'],
             weights
         )         
-
+        
         # ----------- subgoal generator -------------- #  
-        
-        
         if self.learning_mode ==  "only_skill":
-            # no subgoal generator
+            # no skill-step goal generator
             reg_term = self.loss_fn('reg')(self.outputs['post_detach'], self.outputs['policy_skill']).mean() 
             F_loss = reg_term
                    
         elif self.learning_mode ==  "sanity_check":
+            # GLvSA
             sanity_check = self.loss_fn('recon')(self.outputs['subgoal_D'], self.outputs['subgoal_D_target'], weights)
             subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
-            F_loss = sanity_check + subgoal_bc #+ reg_term
+            F_loss = sanity_check + subgoal_bc
             
         elif self.learning_mode ==  "skill_reg":
+            # BC+SR
             subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
             reg_term = (self.loss_fn('reg')(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean() 
-            F_loss = reg_term + subgoal_bc #+ reg_term
+            F_loss = reg_term + subgoal_bc
             
         else:
+            # BC
             subgoal_bc =  self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
             F_loss = subgoal_bc
         
         r_int = self.loss_fn('recon')(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights)
-
         recon_state = self.loss_fn('recon')(self.outputs['states_hat'], self.outputs['states'], weights) # ? 
 
         if self.manipulation:
@@ -378,15 +326,11 @@ class Ours_Model(BaseModel):
         else:
             diff_loss = torch.tensor([0]).cuda()
 
-        # goal_recon = self.loss_fn("recon_orig")(self.outputs['target_goal_embedding'] , self.outputs['goal_embedding'])
         goal_recon = self.loss_fn("recon")(self.outputs['target_goal_embedding'] , self.outputs['goal_embedding'], weights)
-
-
         if self.only_flatD:
             D_loss = torch.tensor([0]).cuda()
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon # + skill_logp + goal_logp 
-
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon 
 
         self.loss_dict = {           
             # total
@@ -431,8 +375,6 @@ class Ours_Model(BaseModel):
         seq_indices = rollout_batch.seq_index
         start_indices = rollout_batch.start_idx
         
-        
-
         # filter 
         indices = self.filter_rollout(result, rollout_batch)
 
@@ -538,14 +480,12 @@ class Ours_Model(BaseModel):
         batch = edict({  k : v.cuda()  for k, v in batch.items()})
                         
         if e < 1:
-            # momentum of G
             if self.manipulation:
                 g_mu, g_std = batch.G.mean(dim = 0), batch.G.std(dim = 0)
             else:
                 ge_input = torch.cat((batch.states[:, 0],batch.G), dim = -1).repeat(1, self.goal_factor)
                 g_mu, g_std = ge_input.mean(dim = 0), ge_input.std(dim = 0)
-                
-                
+            
             if self.g_mu is None:
                 self.g_mu = g_mu 
                 self.g_std = g_std
@@ -553,7 +493,6 @@ class Ours_Model(BaseModel):
                 ratio = 1e-3
                 self.g_mu = self.g_mu * (1 - ratio) + g_mu * ratio
                 self.g_std = self.g_std * (1 - ratio) + g_std * ratio             
-        # plan_H = 
 
         self.__main_network__(batch)
         self.get_metrics(batch)
@@ -583,13 +522,6 @@ class Ours_Model(BaseModel):
             overmu = score[score > self.threshold]             
             self.loss_dict['over_thrsld'] = overmu.shape[0] / score.shape[0]  
                     
-        # qauntile = torch.tensor([self.quantile], dtype= score.dtype, device= score.device)
-        # threshold = torch.quantile(score, qauntile)
-        # mu = threshold.item()
-        # std = 0
-        
-        # mu, std = score.mean().item(), score.std().item()
-
         if self.rnd_mu is None:
             self.rnd_mu = mu 
             self.rnd_std = std
@@ -597,8 +529,6 @@ class Ours_Model(BaseModel):
             ratio = 1e-3 # 1e-2
             self.rnd_mu = self.rnd_mu * (1 - ratio) + mu * ratio
             self.rnd_std = self.rnd_std * (1 - ratio) + std * ratio 
-            
-
 
         return self.loss_dict
     
@@ -614,41 +544,25 @@ class Ours_Model(BaseModel):
     def filter_rollout(self, result, rollout_batch):
         goals = rollout_batch.G
         N = goals.shape[0]
-      
-        # 2. get branching point 
         branching_point=  result.c
-        
-        # 3. get final state of rollout 
         start_indices = rollout_batch.start_idx
-        
-        # domain 바깥의 state -> 컽
         max_seq_len = torch.maximum(rollout_batch.seq_len, torch.full_like(rollout_batch.seq_len, self.max_seq_len))
         max_indices_rollout = torch.minimum(- start_indices + max_seq_len - branching_point, torch.full_like(start_indices, self.plan_H - 1))
         max_indices_rollout = max_indices_rollout.to(dtype = torch.int)
         rollout_goals = self.state_processor.goal_transform(result.states_rollout[list(range(N)), max_indices_rollout])
-
-        # goals = self.normalize_G(goals)
-        # rollout_goals = self.normalize_G(rollout_goals)
-        
+   
         if self.manipulation:
             G=self.normalize_G(rollout_goals)
         else:
             ge_input = torch.cat((rollout_batch.states[:, 0], rollout_goals), dim = -1).repeat(1, self.goal_factor)
             G = self.normalize_G(ge_input)
-            # rollout_goals = torch.cat((rollout_batch.states[:, 0, :2], rollout_goals), dim = -1)
 
-        # Random Network distillation 
         goal_emb = self.goal_encoder(G)
         goal_emb_random = self.random_goal_encoder(G)
         rollout_goals_score = torch.pow(goal_emb - goal_emb_random, 2).mean(dim = -1)
-        
-        # if self.log_score:
-        #     rollout_goals_score = rollout_goals_score.log()
-
         indices = rollout_goals_score > self.threshold
         indices = indices.detach().cpu()
                 
-        
         return indices
     
     @property
@@ -657,7 +571,3 @@ class Ours_Model(BaseModel):
             return math.exp(self.rnd_mu + self.rnd_std * self.std_factor)
         else:
             return self.rnd_mu + self.rnd_std * self.std_factor
-            
-        # return self.rnd_mu + self.rnd_std * self.std_factor
-
-        # return self.rnd_mu + self.rnd_std * self.std_factor

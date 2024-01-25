@@ -30,13 +30,10 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
     def __init__(self, config):
         super().__init__(config)
         self.z = None
-        self.log_sigma = nn.Parameter(-50*torch.ones(self.out_dim)) # for stochastic sampling
+        self.log_sigma = nn.Parameter(-50*torch.ones(self.out_dim)) 
 
-    # from simpl. for compatibility with simpl
     def dist(self, batch_state_z):
-        # 굳이 필요할까 ?
         if self.state_dim is not None:
-            # self.state_dim = 30
             batch_state_z = torch.cat([
                 batch_state_z[..., :self.state_dim],
                 batch_state_z[..., -self.z_dim:]

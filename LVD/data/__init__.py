@@ -1,6 +1,5 @@
 # from .calvin.calvin_data_loader import *
 from .maze.maze_dataloader import *
-from .carla.carla_dataloader import *
 from .kitchen.kitchen_dataloader import *
 
 
@@ -17,6 +16,4 @@ __all__ = [
     'Maze_Dataset_Flat',
     'Maze_Dataset_Flat_WGCSL',
     'Maze_Dataset_Flat_RIS',
-    'Carla_Dataset',
-    'Carla_Dataset_Div',
 ]

@@ -45,8 +45,8 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
 
         # -------------- State Enc / Dec -------------- #
         # jointly learn
-        states_repr = self.state_encoder(states.view(N * T, -1))
-        states_hat = self.state_decoder(states_repr).view(N, T, -1)
+        states_repr = self.state_encoder(states.view(N * T, -1))[0]
+        states_hat = self.state_decoder(states_repr).view(N, T, -1)[0]
 
             # G = self.state_encoder(G)
         hts = states_repr.view(N, T, -1).clone().detach()
@@ -56,10 +56,6 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
             htH = self.target_state_encoder(states[:, -1])
 
         # -------------- State-Conditioned Prior -------------- #
-        # if self.cfg.env_name == "kitchen":
-        #     prior, prior_detach = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos], detached = True)
-        # else:
-        #     prior, prior_detach = self.skill_prior.dist(states[:, 0], detached = True)
         prior, prior_detach = self.forward_prior(states)
         
         # ------------------ Skill Dynamics ------------------- #
@@ -99,12 +95,6 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
         return result
 
     def forward_prior(self, start):
-        # if self.cfg.env_name == "kitchen":
-        #     prior, prior_detach = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos], detached = True)
-        # else:
-        #     prior, prior_detach = self.skill_prior.dist(states[:, 0], detached = True)
-        
-    
         if len(start.shape) > 2:
             start = start[:, 0]
         
@@ -126,10 +116,10 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
         if self.qfs is not None:
             dist = self.dist(batch, mode = "act").policy_skill
             if isinstance(dist, TanhNormal):
-                if self.explore: # collect ep for adaptation 
+                if self.explore: 
                     z_normal, z = dist.sample_with_pre_tanh_value()
                     return to_skill_embedding(z_normal), to_skill_embedding(z)
-                else: # evaluation 
+                else:  
                     return to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2)), to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2))
 
             else:
@@ -137,26 +127,21 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
         else:
             dist = self.dist(batch, mode = "act").policy_skill
             if isinstance(dist, TanhNormal):
-                if self.explore: # collect ep for adaptation 
+                if self.explore: 
                     z_normal, z = dist.sample_with_pre_tanh_value()
                     return to_skill_embedding(z_normal), to_skill_embedding(z)
-                else: # evaluation 
+                else:  
                     return to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2)), to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2))
 
             else:
                 return None, to_skill_embedding(dist.sample())
     
     def dist(self, batch, mode = "policy", latent = False):
-        """
-        latent : for backpropagation through time
-        """
         if mode == "consistency":
             return self.consistency(batch)
-        
         elif mode == "policy":
             self.step += 1
             state, G = batch.states, batch.G
-
             if state.shape[-1] == self.cfg.latent_state_dim:
                 ht = state 
             else:
@@ -179,7 +164,6 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
         
     @torch.no_grad()
     def estimate_value(self, state, skills, G, horizon, qfs):
-        """Imagine a trajectory for `horizon` steps, and estimate the value."""
         value, discount = 0, 1
         for t in range(horizon):
             next_state = self.dynamics( torch.cat((state, skills[:, t]), dim  = -1))
@@ -198,44 +182,26 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
 
     @torch.no_grad()
     def rollout(self, batch):
-
         ht, G = batch.states, batch.G
         planning_horizon = batch.planning_horizon
-
         skills = []
         skills_normal = []
-
         for i in range(planning_horizon):
             policy_skill_normal, policy_skill =  self.highlevel_policy.dist(torch.cat((ht, G), dim = -1)).sample_with_pre_tanh_value()
             skills.append(policy_skill)
             skills_normal.append(policy_skill_normal)
-
             dynamics_input = torch.cat((ht, skills[i]), dim = -1)
             ht = self.dynamics(dynamics_input)
-
-        
         return edict(
             policy_skills = torch.stack(skills, dim=1),
             policy_skills_normal = torch.stack(skills_normal, dim=1)
-
         )
-    
-
-
     @torch.no_grad()
     def cem_planning(self, batch):
-        """
-        Cross Entropy Method
-        """
-
-        planning_horizon  = int(self._horizon_decay(self.rollout_step))
-        # planning_horizon = self.cfg.planning_horizon
-        
+        planning_horizon  = int(self._horizon_decay(self.rollout_step))        
         qfs = self.qfs 
         states = batch.states
-        # state encode
         states = self.state_encoder(states)
-
         # Sample policy trajectories.        
         rollout_batch = edict(
             states = states.repeat(self.cfg.num_policy_traj, 1),
@@ -281,7 +247,6 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
         skill_normal = elite_skills_normal[sample_indices, 0] 
 
         return skill_normal, skill
-
 
     def consistency(self, batch):
         """
@@ -331,8 +296,6 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
             rewards_pred = rewards_pred
         )
 
-
-    
     def _std_decay(self, step):
         # from rolf
         mix = np.clip(step / self.cfg.step_interval, 0.0, 1.0)
@@ -343,11 +306,9 @@ class SkiMo_Prior(ContextPolicyMixin, BaseModule):
         mix = np.clip(step / self.cfg.step_interval, 0.0, 1.0)
         return 1 * (1-mix) + self.cfg.planning_horizon * mix
 
-
     def score_weighted_skills(self, loc, score, skills):
         weighted_loc = (score.unsqueeze(-1) * skills).sum(dim=0)
         weighted_std = torch.sqrt(torch.sum(score.unsqueeze(-1) * (skills - weighted_loc.unsqueeze(0)) ** 2, dim=0))
-        
         # soft update 
         new_loc = self.cfg.cem_momentum * loc + (1 - self.cfg.cem_momentum) * weighted_loc
         log_scale = torch.clamp(weighted_std, self._std_decay(self.rollout_step), 2).log() 

@@ -17,11 +17,11 @@ action_dim : 2 # x, y acceleration
 # pretrain params
 epoch_cycles_train : 320 # 1epoch = 100 iteration of dataset 
 batch_size : 1024 
-epochs : 140
+epochs : 100
 warmup_steps : 50
 val_data_size : 5000
 only_last : false        # for hindsight relabeling 
-
+sample_interval : 5
 
 # online adaptation params
 time_limit : 3000      # maximum horizon in target environment 
@@ -76,15 +76,15 @@ norm_G: true
 
 disc_pretrain :
   apply: true
-  start : 0.2 # 0.99
+  start : 0.99 # 0.99
   end : 0.99
   epochs : 80 #40
-  static : false # true 
+  static : true # true 
   
 
 mixin_ratio :               # generated traj mixin ratio 
-  start : 0.1 # 0.05
-  end : 0.1 #0.1
+  start : 0.075 # 0.05
+  end : 0.075 #0.1
   epochs : 50 #40
   static : true # false 
 

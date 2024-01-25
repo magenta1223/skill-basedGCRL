@@ -13,9 +13,9 @@ def seed_everything(seed: int = 42):
     np.random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)  # type: ignore
-    torch.backends.cudnn.deterministic = True  # type: ignore
-    torch.backends.cudnn.benchmark = True  # type: ignore
+    torch.cuda.manual_seed(seed)  
+    torch.backends.cudnn.deterministic = True  
+    torch.backends.cudnn.benchmark = True  
 
 class ConfigParser:
     def __init__(self) -> None:
@@ -28,7 +28,6 @@ class ConfigParser:
         # string, module, not path, not default relative path, and not overrided param 
         elif v == "None" or v == "":
             result = "None"
-        # 시부레 처음알았네.. 
         elif self.isClass(v):
             result = "class"
         else:
@@ -43,7 +42,7 @@ class ConfigParser:
             return False
         
         conds = [
-            "." in value, # Is value contains path to Class?
+            "." in value, 
             "/" not in value, # Is value not a path ?
             "=" not in value, # Is value not a overrided hydra hyper parameters?
             value.split(".")[-1][0].isupper() # Does value starts with Capital?

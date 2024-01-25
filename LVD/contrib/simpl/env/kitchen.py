@@ -141,7 +141,6 @@ class KitchenEnv(KitchenBase):
 def extract_path(episode):
     obj_qps = np.array([info['obs_dict']['obj_qp'] for info in episode.infos])
 
-    # 모든 task에 대해 완료여부 체크
     completes = {}
     for task in all_tasks:
         ds = np.linalg.norm(
@@ -152,18 +151,12 @@ def extract_path(episode):
 
     path = []
     undones = set(all_tasks.copy())
-    # 모든 time step에 대해 
     for t in range(len(episode)):
         new_task = None
-        # 안된 task에 대해
         for task in undones:
-            # 되어있으면
             if completes[task][t]:
-                # 
                 new_task = task
                 break
-        # 됐으니까 제거하고, 된 task를 path에 추가. 
-        # 
         if new_task is not None:
             undones.remove(new_task)
             path.append(new_task)

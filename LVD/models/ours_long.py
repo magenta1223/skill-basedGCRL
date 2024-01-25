@@ -31,8 +31,6 @@ class Ours_LongSkill(Ours_Model):
         skill_step_goal_generator = SequentialBuilder(cfg.skill_step_goal_generator)
 
         prior = SequentialBuilder(cfg.prior)
-        # if not cfg.manipulation and cfg.testtest:
-        #     cfg.flat_dynamics.in_feature = cfg.latent_state_dim //2  + cfg.skill_dim
         flat_dynamics = SequentialBuilder(cfg.flat_dynamics)
         dynamics = SequentialBuilder(cfg.dynamics)
 

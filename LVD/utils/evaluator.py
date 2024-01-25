@@ -21,10 +21,8 @@ def wilson_score_interval(mean, n, confidence = 0.95, round_digit=1):
         return (0, 0)
 
     p =deepcopy( mean / 100)
-    # Z-score for the desired confidence level
     z = norm.ppf(1 - (1 - confidence) / 2)
     
-    # Components for the interval calculation
     denominator = 1 + z**2 / n
     centre_adjusted_probability = p + z**2 / (2 * n)
     adjusted_standard_deviation = (p * (1 - p) / n + z**2 / (4 * n**2))**0.5
@@ -33,9 +31,7 @@ def wilson_score_interval(mean, n, confidence = 0.95, round_digit=1):
     lower_bound = (centre_adjusted_probability - z * adjusted_standard_deviation) / denominator
     upper_bound = (centre_adjusted_probability + z * adjusted_standard_deviation) / denominator
     
-    
-    print(lower_bound, upper_bound, mean)
-    
+        
     return f"{round(lower_bound, round_digit)}, {round(upper_bound, round_digit)}"
 
 class Evaluator:
@@ -143,7 +139,6 @@ class Evaluator:
         
     def aggregate(self, df = None):
         """
-        TODO : confidence interval to wilson score
         """
         
         if df is None:
@@ -168,24 +163,14 @@ class Evaluator:
             pertask_target_cols = ['task', 'shot', 'reward', 'success']
             tasktype_target_cols = ['task_type', 'shot', 'reward', 'success']
 
-        # aggregate along  task, seed 
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean']).pipe(self.flat_cols).reset_index()
-    
         aggregated.columns = [clean_colname(col) for col in aggregated.columns]
-        
-        # remove seed (already done)
         per_task_groupby.remove("seed")
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
 
-        # 
-    
+
         aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
         aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
-
-        # aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {wilson_score_interval(row['reward/mean'], n = len(self.cfg.seeds))}", axis = 1)
-        # aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {wilson_score_interval(row['reward/mean'], n = len(self.cfg.seeds))}", axis = 1)
-
-
         aggregated = aggregated[pertask_target_cols]
 
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv", index = False)
@@ -224,12 +209,7 @@ class Evaluator:
         
         df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
         df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
-        # df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {wilson_score_interval(row['reward/mean'], n = len(self.cfg.seeds)) }", axis = 1)
-        # df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {wilson_score_interval(row['success/mean'], n = len(self.cfg.seeds))}", axis = 1)
-
         df_tasktype = df_tasktype[tasktype_target_cols]
-        
-                
         
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
         self.logger.log(f"Done : {self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv")
@@ -290,7 +270,6 @@ class Evaluator:
                         self.logger.log(f"Early Stopped, Evaluating : {earlystop_model_path}")
                         self.high_policy = torch.load(earlystop_model_path)['model'].policy
                         
-                    # self.high_policy = torch.load(finetuned_model_path)['model'].policy
                     self.eval_singleTask(seed, task, shot)
                 
         if df is not None:
@@ -328,13 +307,6 @@ class Evaluator:
 
 
     def eval_singleTask(self, seed, task, shot = None):
-        """
-        seed : used for few-shot adaptation
-        task : target goal
-        shot : n-shot for logging. optional.
-        """
-        
-        
         if "flat" in self.cfg.structure:
             with self.collector.env.set_task(task):
                 for _ in range(self.cfg.n_eval):
@@ -350,7 +322,6 @@ class Evaluator:
                     if shot is not None:
                         data['shot'] = shot
                     self.eval_data.append(data)
-
 
         else:
             with self.collector.env.set_task(task):

@@ -1,10 +1,7 @@
-# from ...contrib.simpl.collector.hierarchical import HierarchicalEpisode, Episode
-
 from ..common import *
 from ...utils import StateProcessor, coloring
 
 import numpy as np
-from copy import deepcopy
 import torch
 
 
@@ -25,7 +22,6 @@ class GC_Hierarchical_Collector:
         G = self.state_processor.get_goal(state)
         state = self.state_processor.state_process(state)
         episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.max_reward)
-        # episode.goal = G
         self.low_actor.eval()
         high_actor.eval()
         imgs = []

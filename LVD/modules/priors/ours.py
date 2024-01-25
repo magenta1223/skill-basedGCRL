@@ -53,9 +53,8 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
 
         # -------------- State Enc / Dec -------------- #
         # for state reconstruction and dynamics
-        states_repr, ht_pos, ht_nonPos = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
-            
-        states_hat, pos_hat, nonPos_hat = self.state_decoder(states_repr)
+        states_repr, _, _ = self.state_encoder(states.view(N * T, -1)) # N * T, -1 
+        states_hat, _, _ = self.state_decoder(states_repr)
         states_hat = states_hat.view(N, T, -1) 
         hts = states_repr.view(N, T, -1).clone()
 
@@ -130,10 +129,6 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
         )
         
         # -------------- Rollout for metric -------------- #
-        # if not self.training:
-        #     check_subgoals_input = (hts, skill, D, subgoal_f)
-        #     subgoals = self.check_subgoals(check_subgoals_input)
-        #     result.update(subgoals)
         check_subgoals_input = (hts, skill, D, subgoal_f)
         subgoals = self.check_subgoals(check_subgoals_input)
         result.update(subgoals)
@@ -297,7 +292,7 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
         # rollout start 
         for i in range(plan_H):
             # execute skill on latent space and append to the original sub-trajectory 
-            if (i - c) % 5 == 0: # skill sample frequenct m = 5
+            if (i - c) % self.cfg.sample_interval == 0: # skill sample frequenct m = 5
                 skill = self.forward_prior(_ht)[0].sample()
             
             # skill execute 

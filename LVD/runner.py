@@ -64,7 +64,6 @@ class BaseTrainer:
     def resume(self):
         resumed = False
         if self.cfg.resume:
-            # resume ckpt weights exists?
             if self.cfg.resume_ckpt == "latest":
                 ckpts = sorted(glob(f"{self.model_id}/"))
                 if len(ckpts) == 0:
@@ -135,10 +134,6 @@ class BaseTrainer:
             self.early_stop = 0
             self.best_e = e
 
-            # if e > self.cfg.save_ckpt:
-            #     self.save(f'{self.model_id}/{e}.bin')
-            #     for path in sorted(glob(f'{self.model_id}/*epoch.bin'))[:-1]:
-            #         os.remove(path)
         else:
             self.early_stop += 1
 
@@ -196,8 +191,7 @@ class BaseTrainer:
                     print("early stop", 'loss',  valid_loss_dict['metric'])
                     break
 
-            # if e > self.cfg.save_ckpt:
-            #     self.save(f'{self.model_id}/{e}.bin')
+
             if (e + 1) % 10 == 0:
                 self.save(f'{self.model_id}/{e}.bin')
             
@@ -279,12 +273,6 @@ class BaseTrainer:
         else:
             self = checkpoint['cls'](checkpoint['configuration'])            
 
-        # ckpt_model = {}
-        # for key in checkpoint['model'].keys():
-        #     new_key = key.replace('subgoal_generator', 'skill_step_goal_generator') 
-        #     ckpt_model[new_key] = checkpoint['model'][key]
-
-
         self.model.load_state_dict(checkpoint['model'])
         [ optim['optimizer'].load_state_dict(checkpoint['optimizers'][module_name] )  for module_name, optim in self.model.optimizers.items()]
         
@@ -357,7 +345,6 @@ class Diversity_Trainer(BaseTrainer):
                 self.train_loader.set_mode("with_buffer")
             self.train_loader.update_buffer()
             
-            # mixin start이후라면 
             if e + 1 >= self.cfg.mixin_start:
                 self.train_loader.update_ratio()
     

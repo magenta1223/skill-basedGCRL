@@ -6,16 +6,14 @@ from ..utils import *
 from .base import BaseModel
 from easydict import EasyDict as edict
 
-# 앞이 estimate = q_hat_dist
-# target은 q_dist에서 샘플링한 값. 
 
 class SkiMo_Model(BaseModel):
     def __init__(self, cfg):
         super().__init__(cfg)
 
         ## skill prior module
-        state_encoder = SequentialBuilder(cfg.state_encoder)
-        state_decoder = SequentialBuilder(cfg.state_decoder)
+        state_encoder = Multisource_Encoder(cfg.state_encoder)
+        state_decoder = Multisource_Decoder(cfg.state_decoder)
         prior = SequentialBuilder(cfg.prior)
         dynamics = SequentialBuilder(cfg.dynamics)
         highlevel_policy = SequentialBuilder(cfg.high_policy)

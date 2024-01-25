@@ -25,7 +25,6 @@ class Flat_GCSL(BaseModel):
 
         self.policy_optim = Adam(
             rl_params['policy'],
-            # lr = self.policy_lr # 낮추면 잘 안됨. 왜? 
         )
         if rl_params['consistency']:
             self.consistency_optims = {  name : {  
@@ -37,7 +36,7 @@ class Flat_GCSL(BaseModel):
 
             scheduler_params = edict(
                 factor = 0.5,
-                patience = 10, # 4 epsisode
+                patience = 10, 
                 verbose= True,
             )
 
@@ -90,8 +89,6 @@ class Flat_GCSL(BaseModel):
     def update(self, step_inputs):
         self.train()
 
-        # batch = self.buffer.sample(self.rl_batch_size)
-        # self.episode = step_inputs['episode']
 
         batch = self.buffer.sample(self.rl_batch_size)
         self.episode = step_inputs['episode']

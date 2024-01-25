@@ -21,14 +21,7 @@ class SPiRL_Prior(ContextPolicyMixin, BaseModule):
         N, T, _ = states.shape
 
         # -------------- State Enc / Dec -------------- #
-        # if self.cfg.manipulation:
-        #     prior = self.skill_prior.dist(states[:, 0, :self.cfg.n_pos])
-        # else:
-        #     prior = self.skill_prior.dist(states[:, 0])
-        
         prior = self.forward_prior(states) 
-
-
         if self.tanh:
             prior_dist = prior._normal.base_dist
         else:
@@ -77,12 +70,7 @@ class SPiRL_Prior(ContextPolicyMixin, BaseModule):
             return self.consistency(batch)
         else:
             states, G = batch.states, batch.G
-
             with torch.no_grad():
-                # if self.cfg.manipulation:
-                #     prior = self.skill_prior.dist(states[:, :self.cfg.n_pos])
-                # else:
-                #     prior = self.skill_prior.dist(states)
                 prior = self.forward_prior(states)
 
                 if self.tanh:
@@ -111,20 +99,13 @@ class SPiRL_Prior(ContextPolicyMixin, BaseModule):
             states = prep_state(states, self.device),
             G = prep_state(G, self.device),
         )
-
         dist = self.dist(dist_inputs).policy_skill
-        # if self.tanh:
-        #     z_normal, z = dist.rsample_with_pre_tanh_value()
-        #     return to_skill_embedding(z_normal), to_skill_embedding(z)
 
-        # else:
-        #     return to_skill_embedding(z)
-        
         if isinstance(dist, TanhNormal):
-            if self.explore: # collect ep for adaptation 
+            if self.explore:
                 z_normal, z = dist.sample_with_pre_tanh_value()
                 return to_skill_embedding(z_normal), to_skill_embedding(z)
-            else: # evaluation 
+            else: 
                 return to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2)), to_skill_embedding((torch.tanh(dist._normal.base_dist.loc) * 2))
 
         else:
@@ -132,17 +113,9 @@ class SPiRL_Prior(ContextPolicyMixin, BaseModule):
         
 
     def consistency(self, batch):
-
         states, G = batch.states, batch.G
-
         with torch.no_grad():
-            # if self.cfg.manipulation:
-            #     prior = self.skill_prior.dist(states[:, :self.cfg.n_pos])
-            # else:
-            #     prior = self.skill_prior.dist(states)
             prior = self.forward_prior(states)
-
-
             if self.tanh:
                 prior_dist = prior._normal.base_dist
             else:
@@ -166,7 +139,6 @@ class SPiRL_Prior(ContextPolicyMixin, BaseModule):
         return edict(
             skill_consistency = skill_consistency
         )
-
 
     def get_rl_params(self):
         

@@ -106,25 +106,13 @@ class GC_Batch(Batch):
         return self.data['relabeled_rewards']
 
     def parse(self):
-        
-        if self.hindsight_relabel:
-            indices = torch.rand(len(self.states), 1).cuda()
-        else:     
-            indices = torch.zeros(len(self.states), 1).cuda()   
-        
-            
-        # relabeled_rewards = torch.where( indices < 1- 0.2, self.rewards, self.relabeled_rewards)
-        # relabeled_G = torch.where( indices < 1- 0.2, self.goals, self.relabeled_goals)
-        
-        
-        
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,
             rewards = self.rewards,
             G = self.goals,
             relabeled_G = self.relabeled_goals,
-            relabeled_rewards = self.relabeled_rewards, # ? 쓰네? 
+            relabeled_rewards = self.relabeled_rewards, 
             dones = self.dones,
         )
         if self.tanh:
@@ -162,8 +150,7 @@ class GC_Buffer(Buffer):
         
         self.episodes = deque()
         self.episode_ptrs = deque()
-
-
+        
         self.transitions = torch.empty(cfg.buffer_size, 2*cfg.state_dim + action_dim + cfg.n_goal * 2 + 3) # rwd, relabeled rwd, dones
 
         dims = OrderedDict([
@@ -204,7 +191,6 @@ class GC_Buffer(Buffer):
 
         relabeled_rewards = deepcopy(episode.relabeled_rewards)
         relabeled_rewards = np.array(relabeled_rewards)[:, None]
-
 
         return torch.as_tensor(np.concatenate([
             episode.states[:-1],
@@ -433,15 +419,7 @@ class GC_Batch2(Batch):
     def drws(self):
         return self.data['drws']
     
-    
-    
     def parse(self):    
-        if self.hindsight_relabel:
-            indices = torch.zeros(len(self.states), 1).cuda() # relabeled 0% 
-
-        else:
-            indices = torch.zeros(len(self.states), 1).cuda()
-
         batch_dict = edict(
             states = self.states,
             next_states = self.next_states,

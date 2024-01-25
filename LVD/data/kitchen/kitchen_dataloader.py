@@ -11,11 +11,9 @@ class Kitchen_Dataset(Base_Dataset):
     def __init__(self, cfg, phase):
         super().__init__(cfg, phase)
         
-        # env
         env = gym.make("kitchen-mixed-v0")
         self.dataset = env.get_dataset()
         self.sp = StateProcessor(env_name="kitchen")
-        # split dataset into sequences
         seq_end_idxs = np.where(self.dataset['terminals'])[0]
         # correct terminal points for kitchen 
         for error_idx in [508, 418]:
@@ -26,8 +24,8 @@ class Kitchen_Dataset(Base_Dataset):
         for end_idx in seq_end_idxs:
             if end_idx+1 - start < self.subseq_len:
                 start = end_idx -1
-                continue    # skip too short demos
-
+                continue    
+            
             states=self.dataset['observations'][start:end_idx+1]
             actions=self.dataset['actions'][start:end_idx+1]
             _states = deepcopy(states)
@@ -167,19 +165,13 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         self.buffer_size = cfg.offline_buffer_size 
         self.prev_buffer = []
         self.now_buffer = []
-
-        # self.discount_lambda = np.log(0.99)
         
         discount = cfg.disc_pretrain
         self.do_discount = discount.apply
         self.static_discount = discount.static
         self.discount_raw = discount.start
-        # self.discount_lambda = np.log(discount.start)
         self.max_discount = discount.end
         self.discount_interval = (discount.end - discount.start) / (discount.epochs - self.mixin_start)
-        # self.discount_lambda = np.log(cfg.discount_value)
-        
-        
         
         mixin_ratio = self.mixin_ratio 
         self.static_ratio = mixin_ratio.static
@@ -254,7 +246,6 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
         actions = seq.actions[start_idx:start_idx+self.subseq_len-1]
 
         # hindsight relabeling 
-
         if self.use_sp:
             seg_points = deepcopy(seq.points)
             seg_points = sorted( seg_points + [start_idx])
@@ -289,10 +280,9 @@ class Kitchen_Dataset_Div(Kitchen_Dataset):
             states, actions, c, seq_index = seq.states, seq.actions, seq.c, seq.seq_index
             start_idx, goal_idx = self.sample_indices(states)
             
-            # remove? 
             # goal_idx = -1
             G = deepcopy(states[goal_idx])[:self.state_dim]
-            G[ : self.n_pos] = 0 # only env state
+            G[ : self.n_pos] = 0 
             
             discount_start = np.exp(self.discount_lambda *  max((start_idx - c), 0))
             discount_G = np.exp(self.discount_lambda *  max((goal_idx - c), 0))
@@ -335,7 +325,7 @@ class Kitchen_Dataset_Flat(Kitchen_Dataset):
         goal_idx = -1
 
         G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
-        G[ : self.n_pos] = 0 # only env state
+        G[ : self.n_pos] = 0 
         
         
         
@@ -379,7 +369,7 @@ class Kitchen_Dataset_Flat_WGCSL(Kitchen_Dataset):
         start_idx, goal_idx = self.sample_indices(seq.states)
 
         G = deepcopy(seq.states[goal_idx])[:self.n_pos + self.n_env]
-        G[ : self.n_pos] = 0 # only env state
+        G[ : self.n_pos] = 0 
 
         if goal_idx - start_idx < self.reward_threshold:
             reward, done = 1, 1

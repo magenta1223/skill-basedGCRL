@@ -28,7 +28,6 @@ class Base_Dataset(Dataset):
                 else:
                     return deepcopy(self.seqs[index])
             else:
-                # return np.random.choice(self.seqs[self.start:self.end])
                 random_index = random.randint(self.start, self.end - 1)
                 if return_index:
                     return deepcopy(self.seqs[random_index]), random_index

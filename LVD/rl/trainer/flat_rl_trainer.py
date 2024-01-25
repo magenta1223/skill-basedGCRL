@@ -31,15 +31,12 @@ class Flat_RL_Trainer:
         wandb.init(
             project = self.cfg.project_name,
             name = self.cfg.wandb_run_name,
-
-            # name = f"LEVEL {str(args.level)}", 
             config = self.rl_cfgs,
         )
 
         self.data = []
         self.run_id = cfg.run_id 
         
-        # eval_data path :  logs/[ENV_NAME]/[STRUCTURE_NAME]/[PRETRAIN_OVERRIDES]/[RL_OVERRIDES]/[TASK]
         self.result_path = self.cfg.result_path
         os.makedirs(self.result_path, exist_ok= True)
 
@@ -64,7 +61,6 @@ class Flat_RL_Trainer:
 
         agent_submodules = {
             'policy' : policy,
-            # 'skill_prior' : get_fixed_dist(), 
             'buffer' : buffer, 
             'qfs' : qfs,            
         }        
@@ -111,17 +107,12 @@ class Flat_RL_Trainer:
                 precollect_rwds = 0
                             
                 for n_ep in range(self.cfg.n_episode+1):                    
-                    # if not self.cfg.no_early_stop_online and n_ep == self.cfg.precollect and (precollect_rwds / self.cfg.precollect) > self.cfg.early_stop_rwd: # success 
-                    #     print("early stop!!!")
-                    #     break 
-
                     log = self.train_policy(n_ep, seed)
                     precollect_rwds += log['tr_rewards']
 
                     log, ewm_rwds = self.postprocess_log(log, task_name, n_ep, ewm_rwds)
                     wandb.log(log)
                     plt.cla()
-
 
                     if os.path.exists(f"{self.result_path}/rawdata.csv"):
                         df = pd.read_csv(f"{self.result_path}/rawdata.csv")
@@ -160,11 +151,11 @@ class Flat_RL_Trainer:
             episode, G = self.collector.collect_episode(self.agent.policy, verbose = True)
 
         if self.cfg.binary_reward:
-            if np.array(episode.rewards).sum() == 1: # success 
+            if np.array(episode.rewards).sum() == 1: 
                 print(len(episode.states))
                 print("success")
         else:
-            if np.array(episode.rewards).sum() == self.cfg.max_reward: # success 
+            if np.array(episode.rewards).sum() == self.cfg.max_reward: 
                 print(len(episode.states))
                 print("success")
 

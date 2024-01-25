@@ -22,6 +22,7 @@ epochs : 80
 warmup_steps : 10        # for scheduler
 val_data_size : 5000
 use_sp : false
+sample_interval : 5
 
 # online adaptation params
 time_limit : 280       # maximum horizon in target environment 
@@ -64,14 +65,14 @@ latent_state_dim : 256 # latent state dimension for state encoder
 
 # ------------------ Ours ------------------ # 
 offline_buffer_size : 20000 # maximum number of generated traj
-std_factor : 0.5            # generated traj filter threshold for faster pretraining (optional), # 1.1
+std_factor : 1.0            # generated traj filter threshold for faster pretraining (optional), # 1.1
 discount : false            # generated traj discounting 
 mixin_start : 1             # generated traj mixin start epoch 
 mixin_ratio :               # generated traj mixin ratio 
-  start : 0.0
+  start : 0.2
   end : 0.2 #0.1
   epochs : 50 #40
-  static : false
+  static : true 
 
 log_score : true
 truncated : true

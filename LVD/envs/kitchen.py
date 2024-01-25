@@ -80,8 +80,6 @@ class KitchenEnv_GC(KitchenEnv):
             
         return obs, reward, done, env_info
 
-
-
 zeroshot_tasks = np.array([
     # seen 
     [5,6,0,3], # MKBS
@@ -89,7 +87,6 @@ zeroshot_tasks = np.array([
     [6,1,2,3], # KTLS
     [6,0,1,4], # KBTH
     
-
     # small
     [5,6,0,1], # MKBT
     [5,6,0,2], # MKBL
@@ -108,12 +105,6 @@ zeroshot_tasks = np.array([
 ])
 
 few_shot_tasks = np.array([
-    # # middle
-    # [0,2,3,4],  # BLSH
-    # [6,1,3,4],  # KTSH
-    # [5,6,1,3],  # MKTS
-    # [5,1,2,3],  # MTLS
-    
     # large
     [6,1,2,4],  # KTLH
     [5,1,3,4],  # MTSH
