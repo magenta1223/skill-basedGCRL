@@ -19,6 +19,7 @@ class GC_Hierarchical_Collector:
     @torch.no_grad()
     def collect_episode(self, high_actor, verbose = True, vis = False):
         state, done, t = self.env.reset(), False, 0
+
         G = self.state_processor.get_goal(state)
         state = self.state_processor.state_process(state)
         episode = HierarchicalEpisode_Relabel(state, self.env_name, self.cfg.max_reward)
@@ -26,6 +27,10 @@ class GC_Hierarchical_Collector:
         high_actor.eval()
         imgs = []
         
+
+        print(self.env.task)
+        print(state)
+
         while not done and t < self.time_limit:
             if t % self.horizon == 0:
                 high_action_normal, high_action = high_actor.act(state, G)
@@ -34,6 +39,8 @@ class GC_Hierarchical_Collector:
                 data_high_action = None
                         
             with self.low_actor.condition(high_action):
+
+
                 low_action = self.low_actor.act(state)
             
             state, reward, done, info = self.env.step(low_action)

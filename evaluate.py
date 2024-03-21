@@ -19,7 +19,7 @@ def main(cfg):
     hydra_config = HydraConfig.get()
     OmegaConf.set_struct(cfg, True)
 
-    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=fewshot', 'eval_mode=rearrange']
+    overrides_to_remove = hydra_config.job.override_dirname.split(",") + ['phase=rl', 'eval_mode=learningGraph', 'eval_mode=zeroshot', 'eval_mode=fewshot', 'eval_mode=rearrange', 'vis=true']
     all_overrides = [override  for override in deepcopy(list(hydra_config.overrides.task))]
 
     for override in overrides_to_remove:
@@ -28,6 +28,8 @@ def main(cfg):
     
     all_overrides = [override for override in all_overrides if "seeds" not in override]    
     rl_overrides = ",".join(all_overrides) # .으로 되어있어서 class로 parser가 class로 인식함.
+
+    print(rl_overrides)
 
     with open_dict(cfg):
         cfg.run_name = config_path(hydra_config.job.override_dirname)

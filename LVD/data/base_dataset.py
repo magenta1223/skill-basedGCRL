@@ -49,8 +49,8 @@ class Base_Dataset(Dataset):
         """
 
         goal_max_index = len(states) - 1 # 
+        # print(min_idx, states.shape[0] - self.subseq_len - 1)
         start_idx = np.random.randint(min_idx, states.shape[0] - self.subseq_len - 1)
-
         goal_index = np.random.randint(start_idx + self.subseq_len, goal_max_index)
 
         return start_idx, goal_index

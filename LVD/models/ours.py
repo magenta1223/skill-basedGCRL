@@ -251,7 +251,8 @@ class Ours_Model(BaseModel):
             goal_embedding = self.goal_encoder(G)
             target_goal_embedding = self.random_goal_encoder(G)
         else:
-            ge_input = torch.cat((batch.states[:, 0],batch.G), dim = -1).repeat(1, self.goal_factor)
+            # start to goal 
+            ge_input = torch.cat((batch.states[:, 0], batch.G), dim = -1).repeat(1, self.goal_factor)
             G = self.normalize_G(ge_input)
             # ge_input = torch.cat((batch.states[:, 0, :2],batch.G), dim = -1)
             goal_embedding = self.goal_encoder(G)

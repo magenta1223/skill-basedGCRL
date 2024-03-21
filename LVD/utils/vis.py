@@ -7,8 +7,9 @@ from copy import deepcopy
 
 
 
-def save_video(path, imgs, verbose = False):
-    out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, (400,400))
+def save_video(path, imgs, frame = (400,400), verbose = False):
+    out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, frame)
+    
     for i in range(len(imgs)):
         # writing to a image array
         out.write(cv2.cvtColor(imgs[i], cv2.COLOR_BGR2RGB))

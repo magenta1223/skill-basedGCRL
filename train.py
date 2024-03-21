@@ -10,7 +10,7 @@ from omegaconf import OmegaConf, open_dict
 DEFAULT_CONFIGURATION_PATH = "LVD/configs"
 
 
-@hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="", version_base= "1.2")
+@hydra.main(config_path=DEFAULT_CONFIGURATION_PATH, config_name="ours_kitchen", version_base= "1.2")
 def main(cfg):
     seed_everything(cfg.seeds[0])
     hydra_config = HydraConfig.get()
@@ -64,6 +64,7 @@ def main(cfg):
     config_parser = ConfigParser()
     cfg = config_parser.parse_cfg(cfg)
     
+
     trainer = cfg.trainer_cls(cfg)
     trainer.fit()
 

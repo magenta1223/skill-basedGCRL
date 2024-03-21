@@ -94,6 +94,36 @@ class StateProcessor_Maze:
         state[..., 9:] = 0
         return state
 
+
+class StateProcessor_AntMaze:
+    @staticmethod
+    def state_process(state):
+        """
+        remove goal 
+        """
+        return state[..., :-2]
+
+    @staticmethod
+    def goal_checker(state):
+        return (state[..., :2] * 1).astype(int)
+
+    @staticmethod
+    def get_goal(state):
+        return state[..., -2:]
+
+    @staticmethod
+    def goal_transform(state):
+        return state[..., :2]
+    
+    @staticmethod
+    def to_ppc(state):
+        """
+        to proprioceptive state
+        """
+        state[..., 9:] = 0
+        return state
+
+
 class StateProcessor_Toy:
     @staticmethod
     def state_process(state):
@@ -125,8 +155,8 @@ class StateProcessor:
         processor_cls = dict(
             kitchen = StateProcessor_Kitchen,
             maze = StateProcessor_Maze,
+            antmaze = StateProcessor_AntMaze,
             Nav2D = StateProcessor_Toy,
-
         )
         
         processor = processor_cls[env_name]()
@@ -159,7 +189,6 @@ class Colors:
 def coloring(env_name, targetG, achievedG, done, ep = None):
     if ep is not None:
         reward = sum(ep.rewards)
-
     else:
         reward = ""
 
@@ -177,6 +206,6 @@ def coloring(env_name, targetG, achievedG, done, ep = None):
         print(f"T : {targetG} A : {task_colors} R : {reward}")
     else:
         if done :
-            print(f"T : {targetG} A : {Colors.BLUE}{achievedG}{Colors.RESET}")
+            print(f"T : {targetG} A : {Colors.BLUE}{achievedG}{Colors.RESET} R: {reward}")
         else:
-            print(f"T : {targetG} A : {achievedG}{Colors.RESET}")
+            print(f"T : {targetG} A : {achievedG}{Colors.RESET} R : {reward}")

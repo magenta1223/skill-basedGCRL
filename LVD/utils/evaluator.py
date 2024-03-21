@@ -8,7 +8,7 @@ import torch
 from .general_utils import *
 import json 
 from scipy.stats import norm
-
+from .vis import save_video
 
 def clean_colname(col_name):
     if col_name.count("/") == 1:
@@ -48,7 +48,8 @@ class Evaluator:
         self.env_scoreFactor = {
             'kitchen' : 25,
             'maze' : 1,
-            'toy' : 1
+            'toy' : 1,
+            'antmaze' : 1
         }
 
         # env
@@ -216,7 +217,6 @@ class Evaluator:
         
         
     def eval_zeroshot(self):
-        
         df = None
         zeroshot_rawdata_path = f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv"
         
@@ -278,7 +278,6 @@ class Evaluator:
             df = pd.concat((df, eval_df), axis = 0)
             df.to_csv( f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_rawdata.csv", index = False )
             
-        
         self.aggregate(df)
 
     def eval_learningGraph(self):
@@ -327,17 +326,25 @@ class Evaluator:
             with self.collector.env.set_task(task):
                 for _ in range(self.cfg.n_eval):
                     with self.high_policy.no_expl(), self.collector.low_actor.no_expl() : #, collector.env.step_render():
-                        episode, G = self.collector.collect_episode(self.high_policy, verbose = True)
-                    data = edict(
-                        env = self.env.name, 
-                        task = str(task),
-                        seed = seed, 
-                        reward  = sum(episode.rewards),
-                        success = np.array(episode.dones).sum() != 0
-                    )
-                    if shot is not None:
-                        data['shot'] = shot
-                    self.eval_data.append(data)
+                        res = self.collector.collect_episode(self.high_policy, verbose = True, vis = self.cfg.vis)
+                    
+                    if self.cfg.vis:
+                        imgs = res 
+                        print(len(imgs))
+                        print(imgs[0].shape)
+                        save_video(f"{self.cfg.eval_data_prefix}imgs/test.mp4", imgs, (500,500), verbose = True)
+                    else:
+                        episode, _ = res 
+                        data = edict(
+                            env = self.env.name, 
+                            task = str(task),
+                            seed = seed, 
+                            reward  = sum(episode.rewards),
+                            success = np.array(episode.dones).sum() != 0
+                        )
+                        if shot is not None:
+                            data['shot'] = shot
+                        self.eval_data.append(data)
                     
                     
     def rearrange_taskgroup(self):

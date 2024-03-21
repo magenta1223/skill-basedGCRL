@@ -15,6 +15,7 @@ hydra:
           - resume
           - resume_ckpt 
           - no_early_stop_online
+          - vis
           # rl 
           - rl.q_warmup
           - rl.discount
@@ -109,6 +110,10 @@ scheduler_params :
   # threshold_mode: rel
   # min_lr: 1e-6
   min_lr: 1e-6
+
+
+# vis at eval 
+vis : false 
 
 rl :
   render_period : 10

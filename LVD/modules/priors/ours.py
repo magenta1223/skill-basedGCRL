@@ -225,7 +225,6 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
     def forward_skill_step_G(self, start, G):
         start_detached = start.clone().detach() 
         sg_input = self.sg_input(start_detached, G)
-
         _subgoal_f = self.skill_step_goal_generator(sg_input)
         subgoal_f = _subgoal_f + start_detached
 

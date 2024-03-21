@@ -1,0 +1,115 @@
+# ------------------ Env Specification ------------------ #
+env_name : antmaze # mujoco_humanoid 
+env_name_offline : antmaze-large-play-v0
+envtask_cfg : LVD.envs.Antmaze_EnvTaskConfig
+max_seq_len : 1000 
+
+# task type 
+manipulation : false 
+
+# dimension
+state_dim : 29 
+n_pos : 29       # proprioceptive. joint status of panda robot arms. 7DoF + 2 gripper position
+n_nonPos : 0  
+n_env : 0      # env object status.  
+n_goal : 2     # desired objects status 
+action_dim : 8  # joint action 
+
+# pretrain params
+epoch_cycles_train : 1000 # 1epoch = 100 iteration of dataset 
+batch_size : 1024     
+epochs : 80       
+warmup_steps : 10        # for scheduler
+val_data_size : 5000
+use_sp : false
+sample_interval : 5
+
+# online adaptation params
+time_limit : 1000       # maximum horizon in target environment 
+buffer_size : 20000    # maximum buffer size 
+n_episode : 50         # maximum episode in few-shot adaptation 
+reuse_rate : 4000      # sample reuse rate 
+step_per_ep : 100      # not used. deprecated.
+precollect : 0         # precollect to initialize the buffer 
+early_stop_rwd : 0.8   # early stop reward. (equivalent to success rate 90%)
+max_reward : 1         # n-target object 
+
+# ------------------ Few-shot adaptation ------------------ #
+# value warmup 
+q_warmup : 2_000       # update step for warminup value function 
+# q_weight : 1 # ? 
+consistency_lr : 3e-5  # update submodules
+gcsl_lr: 3e-5          # update policy by GCSL loss  
+policy_lr : 1e-6       # update policy by RL loss  
+
+# ------------------ WGCSL ------------------ #
+value_lr : 3e-5            # value function lr in few-shot 
+adv_clip : 10              # advantage clip thershold M
+distance_reward : false    # Reward relabeling
+reward_threshold : 3       # Reward relabeling
+baw_max : 80               # best advantage threshold for BAW(Best-Advantage-Weight) in WGCSL
+
+# ------------------ SPiRL, SkiMo ------------------ #
+subseq_len : 11       # skill horizon + 1
+reg_beta : 0.001     # skill space regulrization beta 
+skill_dim : 10        # skill dimension
+prior_state_dim : 30  # not used.
+
+# alpha 
+init_alpha : 0.01          # policy regularization alpha 
+increasing_alpha : false   # allow alpha only incresing while few-shot adaptation. 
+auto_alpha : false         # alpha learning indicator 
+
+# skimo param
+latent_state_dim : 256 # latent state dimension for state encoder 
+
+# ------------------ Ours ------------------ # 
+offline_buffer_size : 20000 # maximum number of generated traj
+std_factor : 1.0            # generated traj filter threshold for faster pretraining (optional), # 1.1
+discount : false            # generated traj discounting 
+mixin_start : 1             # generated traj mixin start epoch 
+mixin_ratio :               # generated traj mixin ratio 
+  start : 0.1
+  end : 0.1 #0.1
+  epochs : 50 #40
+  static : true 
+goal_factor : 1 # 1
+
+log_score : true
+truncated : true
+norm_G: true 
+
+
+disc_pretrain :
+  apply: false
+  start : 1 # 0.99
+  end : 1
+  epochs : 2 #40
+  static : false # true 
+
+rollout:
+  static : true
+  start : 160
+  end : 160
+  epochs : 100
+
+plan_H : 160                # offline rollout horizon N 
+
+# for dynamics change. 
+invD_lr : 1e-6 # 
+D_lr : 1e-6
+f_lr : 5e-7
+kl_decay : 0.99
+
+# ablation params
+skill_len : 10
+
+# for instant test 
+instant:
+  one: 1
+  two: 2 
+  three : 3
+
+# not used for kitchen. (fixed alpha)
+target_kl_start : 50
+target_kl_end : 15

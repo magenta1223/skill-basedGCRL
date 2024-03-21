@@ -18,6 +18,10 @@ def batchwise_assign(tensor, index, value):
 class RepeatedDataLoader(DataLoader):
     """ A data loader that returns an iterator cycling through data n times """
     def __init__(self, *args, n_repeat=1, **kwargs):
+        # print(args, kwargs)
+        # (<LVD.data.kitchen.kitchen_dataloader.Kitchen_Dataset_Div object at 0x7fe025c79af0>,) {'batch_size': 1024, 'shuffle': True, 'num_workers': 16, 'drop_last': False, 'pin_memory': True, 'worker_init_fn': <function Base_Dataset.get_data_loader.<locals>.<lambda> at 0x7fdf1e8d6f70>} 
+        # (<LVD.data.ant.antmaze_dataloader.Antmaze_Dataset_Div object at 0x7fc332b7d7c0>,) {'batch_size': 1024, 'shuffle': True, 'num_workers': 16, 'drop_last': False, 'pin_memory': True, 'worker_init_fn': <function Base_Dataset.get_data_loader.<locals>.<lambda> at 0x7fc332b045e0>}
+        
         super().__init__(*args, **kwargs)
         if n_repeat != 1:
             self._DataLoader__initialized = False   # this is an ugly hack for pytorch1.3 to be able to change the attr
