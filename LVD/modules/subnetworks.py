@@ -38,7 +38,6 @@ class DecoderNetwork(ContextPolicyMixin, SequentialBuilder):
                 batch_state_z[..., :self.state_dim],
                 batch_state_z[..., -self.z_dim:]
             ], dim=-1)                
-
         loc = self(batch_state_z)
         log_scale = self.log_sigma[None, :].expand(len(loc), -1)
         dist = get_dist(loc, log_scale)

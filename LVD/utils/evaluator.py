@@ -37,6 +37,7 @@ def wilson_score_interval(mean, n, confidence = 0.95, round_digit=1):
 class Evaluator:
     def __init__(self, cfg):
         self.cfg = cfg 
+        self.d = 1 # round digit 
 
         self.task_type_order = {
             'seen' : 0,
@@ -49,7 +50,7 @@ class Evaluator:
             'kitchen' : 25,
             'maze' : 1,
             'toy' : 1,
-            'antmaze' : 1
+            'antmaze' : 100
         }
 
         # env
@@ -135,6 +136,7 @@ class Evaluator:
     def task_mapping(self, df, env_name = None):
         with open(f"./assets/{self.env_name}_tasks.json") as f:
             task_dict = json.load(f)
+
         df['task_type'] = df['task'].map(task_dict)
         return df 
         
@@ -170,8 +172,8 @@ class Evaluator:
         aggregated = df[per_task_target_cols].groupby(per_task_groupby, as_index= False).agg(['mean', 'sem']).pipe(self.flat_cols).reset_index()
 
 
-        aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
-        aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
+        aggregated['reward'] = aggregated.apply(lambda row: f"{round(row['reward/mean'], self.d)} \\pm {round(row['reward/sem'] * 1.96, self.d)}", axis = 1)
+        aggregated['success'] = aggregated.apply(lambda row: f"{round(row['success/mean'], self.d)} \\pm {round(row['success/sem'] * 1.96, self.d)}", axis = 1)
         aggregated = aggregated[pertask_target_cols]
 
         aggregated.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}.csv", index = False)
@@ -182,6 +184,7 @@ class Evaluator:
         # --------------------------- # 
 
         df = self.task_mapping(df)
+
 
         unseen_rwd_mu, unseen_rwd_ste = df.loc[df['task_type'] != "seen"][['reward']].agg(['mean', 'sem']).values
         unseen_scs_mu, unseen_scs_ste = df.loc[df['task_type'] != "seen"][['success']].agg(['mean', 'sem']).values
@@ -208,8 +211,8 @@ class Evaluator:
         df_tasktype = pd.concat(( df_tasktype, pd.DataFrame(unseen_avg) ), axis = 0).reset_index(drop=True).drop(['order'], axis = 1)
         
         
-        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], 1)} \\pm {round(row['reward/sem'] * 1.96, 1)}", axis = 1)
-        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], 1)} \\pm {round(row['success/sem'] * 1.96, 1)}", axis = 1)
+        df_tasktype['reward'] = df_tasktype.apply(lambda row: f"{round(row['reward/mean'], self.d)} \\pm {round(row['reward/sem'] * 1.96, self.d)}", axis = 1)
+        df_tasktype['success'] = df_tasktype.apply(lambda row: f"{round(row['success/mean'], self.d)} \\pm {round(row['success/sem'] * 1.96, self.d)}", axis = 1)
         df_tasktype = df_tasktype[tasktype_target_cols]
         
         df_tasktype.to_csv(f"{self.cfg.eval_data_prefix}/{self.cfg.eval_mode}_tasktype.csv", index = False)
@@ -330,8 +333,6 @@ class Evaluator:
                     
                     if self.cfg.vis:
                         imgs = res 
-                        print(len(imgs))
-                        print(imgs[0].shape)
                         save_video(f"{self.cfg.eval_data_prefix}imgs/test.mp4", imgs, (500,500), verbose = True)
                     else:
                         episode, _ = res 
@@ -363,8 +364,9 @@ class Evaluator:
             if not os.path.exists(rawdata_path):
                 self.logger.log(f"{folder_path} does not have rawdata")
                 continue
-            
-            if "maze" in rawdata_path:
+            if "antmaze" in rawdata_path:
+                env_name = "antmaze"
+            elif "maze" in rawdata_path:
                 env_name = "maze"
             else:
                 env_name = "kitchen"

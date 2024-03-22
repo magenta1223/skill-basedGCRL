@@ -197,9 +197,9 @@ class Ours_Model(BaseModel):
             self.loss_dict['recon_state_subgoal_f'] = self.loss_fn('recon')(subgoal_recon_f[indices], states[indices,-1], weights[indices]) # ? 
 
         # mutual information with prev epoch's module
-        enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
-        prev_post, _ = self.prev_skill_encoder.dist(enc_inputs, detached = True)
-        self.loss_dict['MI_skill'] = self.loss_fn('reg')(prev_post, self.outputs['post_detach']).mean()
+        # enc_inputs = torch.cat((batch.states[:, :-1], batch.actions), dim = -1)
+        # prev_post, _ = self.prev_skill_encoder.dist(enc_inputs, detached = True)
+        # self.loss_dict['MI_skill'] = self.loss_fn('reg')(prev_post, self.outputs['post_detach']).mean()
 
     @torch.no_grad()
     def normalize_G(self, G):
@@ -327,11 +327,11 @@ class Ours_Model(BaseModel):
         else:
             diff_loss = torch.tensor([0]).cuda()
 
-        goal_recon = self.loss_fn("recon")(self.outputs['target_goal_embedding'] , self.outputs['goal_embedding'], weights)
+        # goal_recon = self.loss_fn("recon")(self.outputs['target_goal_embedding'] , self.outputs['goal_embedding'], weights)
         if self.only_flatD:
             D_loss = torch.tensor([0]).cuda()
 
-        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss + goal_recon 
+        loss = recon + reg * self.reg_beta + prior + invD_loss + flat_D_loss + D_loss + F_loss + recon_state + diff_loss #+ goal_recon 
 
         self.loss_dict = {           
             # total
@@ -345,10 +345,11 @@ class Ours_Model(BaseModel):
             "r_int_f" : self.loss_fn("recon")(self.outputs['subgoal_f'], self.outputs['subgoal_f_target'], weights).item(),
             # "F_skill_kld" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
             # "KL_F_invD" : (self.loss_fn("reg")(self.outputs['invD_sub'], self.outputs['invD_detach']) * weights).mean().item(),
-            # "KL_F_z" : (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item(),
+            # "Policy_loss" : (self.loss_fn("prior")(self.outputs['z'], self.outputs['invD_sub'], self.outputs['z_normal'], tanh = self.tanh) * weights).mean().item(),
+            "Policy_loss" : (self.loss_fn("reg")(self.outputs['post_detach'], self.outputs['invD_sub']) * weights).mean().item(),
             "diff_loss" : diff_loss.item(),
             "Rec_state" : recon_state.item(),
-            "Rec_goal" : goal_recon.item(),
+            # "Rec_goal" : goal_recon.item(),
         }       
 
         return loss
@@ -470,8 +471,8 @@ class Ours_Model(BaseModel):
             # ------------------ Rollout  ------------------ #
             training = deepcopy(self.training)
             self.eval()
-            if self.do_rollout and self.plan_H > 0:
-                self.traj_gen(batch)
+            # if self.do_rollout and self.plan_H > 0:
+            #     self.traj_gen(batch)
     
             if training:
                 self.train()

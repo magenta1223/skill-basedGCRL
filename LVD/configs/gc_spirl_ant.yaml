@@ -18,7 +18,7 @@ env:
 
 model:
   prior:
-    in_feature : ${env.n_pos}
+    in_feature : ${env.state_dim}
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_encoder:
@@ -26,7 +26,7 @@ model:
     out_dim : ${multiply:${env.skill_dim}, 2}
 
   skill_decoder:
-    in_feature : ${add:${env.n_pos}, ${env.skill_dim}} 
+    in_feature : ${add:${env.state_dim}, ${env.skill_dim}} 
     out_dim : ${env.action_dim} 
     state_dim : ${env.n_pos}
     z_dim  : ${env.skill_dim}

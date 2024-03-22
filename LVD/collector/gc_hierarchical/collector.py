@@ -29,7 +29,7 @@ class GC_Hierarchical_Collector:
         
 
         print(self.env.task)
-        print(state)
+        print(G)
 
         while not done and t < self.time_limit:
             if t % self.horizon == 0:
@@ -39,8 +39,6 @@ class GC_Hierarchical_Collector:
                 data_high_action = None
                         
             with self.low_actor.condition(high_action):
-
-
                 low_action = self.low_actor.act(state)
             
             state, reward, done, info = self.env.step(low_action)

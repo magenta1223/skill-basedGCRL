@@ -1,6 +1,6 @@
 # ------------------ Env Specification ------------------ #
 env_name : antmaze # mujoco_humanoid 
-env_name_offline : antmaze-large-play-v0
+env_name_offline : antmaze-large-diverse-v2
 envtask_cfg : LVD.envs.Antmaze_EnvTaskConfig
 max_seq_len : 1000 
 
@@ -9,16 +9,16 @@ manipulation : false
 
 # dimension
 state_dim : 29 
-n_pos : 29       # proprioceptive. joint status of panda robot arms. 7DoF + 2 gripper position
-n_nonPos : 0  
-n_env : 0      # env object status.  
+n_pos : 2       # proprioceptive. joint status of panda robot arms. 7DoF + 2 gripper position
+n_nonPos : 27  
+n_env : 2      # env object status.  
 n_goal : 2     # desired objects status 
 action_dim : 8  # joint action 
 
 # pretrain params
 epoch_cycles_train : 1000 # 1epoch = 100 iteration of dataset 
 batch_size : 1024     
-epochs : 80       
+epochs : 60       
 warmup_steps : 10        # for scheduler
 val_data_size : 5000
 use_sp : false
@@ -67,7 +67,7 @@ latent_state_dim : 256 # latent state dimension for state encoder
 offline_buffer_size : 20000 # maximum number of generated traj
 std_factor : 1.0            # generated traj filter threshold for faster pretraining (optional), # 1.1
 discount : false            # generated traj discounting 
-mixin_start : 1             # generated traj mixin start epoch 
+mixin_start : 999             # generated traj mixin start epoch 
 mixin_ratio :               # generated traj mixin ratio 
   start : 0.1
   end : 0.1 #0.1

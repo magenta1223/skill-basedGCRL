@@ -66,12 +66,15 @@ class Ours_Prior(ContextPolicyMixin, BaseModule):
 
         # -------------- State-Conditioned Prior -------------- #
         prior, prior_detach = self.forward_prior(hts)
+        # prior, prior_detach = self.forward_prior(states)
+
 
         # -------------- Inverse Dynamics : Skill Learning -------------- #
         inverse_dynamics, inverse_dynamics_detach = self.forward_invD(hts[:,0], hts[:, -1])
         
         invD_skill_normal, invD_skill = inverse_dynamics.rsample_with_pre_tanh_value()
-        skill = invD_skill - invD_skill.clone().detach() + batch.skill
+        # skill = invD_skill - invD_skill.clone().detach() + batch.skill
+        skill = batch.skill.clone().detach()
 
         # -------------- Dynamics Learning -------------- #                
         flat_D, cache = self.forward_flatD(hts, batch.skill)
